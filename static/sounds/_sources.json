@@ -1,0 +1,602 @@
+{
+  "shot_m4a1_001.wav": {
+    "source": "placeholder",
+    "sha256": "8026e6a62a35d647ce3f21bc386fffdd5978a92c3d23be968abbcc15606e10c5"
+  },
+  "shot_hk416_001.wav": {
+    "source": "placeholder",
+    "sha256": "bb656fba37ed682937a9209b9255b3965feb3914d7cec552da3daa05335de570"
+  },
+  "shot_m110_001.wav": {
+    "source": "placeholder",
+    "sha256": "bb49eebe4af20d4eacd90d2822ff4a164965acdf629496f0e0e0b9ec5c4b3b96"
+  },
+  "shot_m249_001.wav": {
+    "source": "placeholder",
+    "sha256": "e0a7f0fae16e86745885adc8d0b64d195b0f9485bd38811c00a098de876dc066"
+  },
+  "shot_m9_001.wav": {
+    "source": "placeholder",
+    "sha256": "37990af3564b5acbe4123b059cb2940a62885124e8976bd53c2e7f047f48ec8f"
+  },
+  "shot_m24_sniper_001.wav": {
+    "source": "placeholder",
+    "sha256": "e19735a718d7d7d30315964a09cae078e1effce7c6d5801b560b29196bbfc534"
+  },
+  "shot_shotgun_001.wav": {
+    "source": "placeholder",
+    "sha256": "4336700920f3f5f99f90113103d58e2e717bc09d29d897ace1bfc00e8c5d2db9"
+  },
+  "shot_alien_carbine_001.wav": {
+    "source": "placeholder",
+    "sha256": "9e4abe31b7e382fa43114f331b98edc1207c8e0aa741551cafb904e5e83fd3e3"
+  },
+  "hurt_001.wav": {
+    "source": "placeholder",
+    "sha256": "6fa3fe2cea6e0ac089358e333bf01f52929823d4e8c6cfab8b4bca0f96a72dea"
+  },
+  "ambient_urban_001.wav": {
+    "source": "placeholder",
+    "sha256": "78562090c6f7a0a6b4eaec8e69afe6f4e663cecf6be1c88125a67e7edce4b418"
+  },
+  "ambient_factory_001.wav": {
+    "source": "placeholder",
+    "sha256": "32c6690f84be1cbf0ae292b908143ece017f03fd252621bf967e7f24acf97f91"
+  },
+  "ambient_train_station_001.wav": {
+    "source": "placeholder",
+    "sha256": "dbc3dbca7eaf6685565d019af201881c1e53881c30eaceb1621984dac73161ba"
+  },
+  "ambient_airport_001.wav": {
+    "source": "placeholder",
+    "sha256": "e4c6a9986272791951232c2a49d360e6f9dc50ab6f39c774d013bbd67a8553a7"
+  },
+  "ambient_streets_001.wav": {
+    "source": "placeholder",
+    "sha256": "4b45a4842ec1ce914f9260bdfefae2e6ef82ee2a4a22bc33354aec928ce8b75e"
+  },
+  "ambient_woods_001.wav": {
+    "source": "placeholder",
+    "sha256": "e93606e6cc8c909a91c378a8dbf6600843554d295d84ab9ead0174a216278ca9"
+  },
+  "ambient_farm_001.wav": {
+    "source": "placeholder",
+    "sha256": "b4977c29546b937dc21146b07bc6a54e0a91831d35afdbcf115fbc291875611f"
+  },
+  "move_001.wav": {
+    "source": "placeholder",
+    "sha256": "12eb927ae0f47dc17caae074d90dc9297d6c1fb0eb3cc0415615b02396471bb8"
+  },
+  "crawl_001.wav": {
+    "source": "placeholder",
+    "sha256": "25105b7c6a2fe67cab5e94e34608a455afa4768db01ca5ddf2778bb94f3d0601"
+  },
+  "climb_001.wav": {
+    "source": "placeholder",
+    "sha256": "015321bbbdc10fddeb1d612cab9bda89abe1292a3dc26d048c5ee95c6193e22a"
+  },
+  "reload_001.wav": {
+    "source": "placeholder",
+    "sha256": "20c97f245482f268100b06998a4d79a36f1ed85645b46aeff30b489ce660d3a3"
+  },
+  "throw_001.wav": {
+    "source": "placeholder",
+    "sha256": "f473245113a9537195ee95a77742350b0ca008214b8e7d49e3e30cf341612f22"
+  },
+  "rocket_launch_001.wav": {
+    "source": "placeholder",
+    "sha256": "4b4b28b59fba42a7926b3c3bc7f210577498211e5cd3e6e06716709142f40a0c"
+  },
+  "blast_grenade_001.wav": {
+    "source": "placeholder",
+    "sha256": "257613d36ae6fd7b903988b8752f71b6d1187ebe6da93db0b51c06dee62e2979"
+  },
+  "blast_rocket_001.wav": {
+    "source": "placeholder",
+    "sha256": "b7b60407a255693785395a5db4cc64922c4a6a9ef8fe3552df35e04a5aa5cf28"
+  },
+  "blast_charge_001.wav": {
+    "source": "placeholder",
+    "sha256": "ea3ff8a4d9416fb450407bba786407823fb2dc398c48008dcaa84698ca1d1d66"
+  },
+  "smoke_001.wav": {
+    "source": "placeholder",
+    "sha256": "511a3eef33b254e00e3eaf5c0039451b30e5d2cb55de56f798ffe63376ce7a16"
+  },
+  "charge_place_001.wav": {
+    "source": "placeholder",
+    "sha256": "02c9266d7c3926c1bd9ab7f787ac4ec2b6cc81ba419ec25e73dffa93b38873e5"
+  },
+  "impact_001.wav": {
+    "source": "placeholder",
+    "sha256": "9882854a3c2bf7bcf5e4763efe87dc2210a4fef6b77f2b40e84e5a1cdc62cfee"
+  },
+  "heal_001.wav": {
+    "source": "placeholder",
+    "sha256": "809b78cbb3d6739f5ad0d45cbce1c5fad6f7fe342a9aae12d08a3c82d62dc42e"
+  },
+  "door_open_001.wav": {
+    "source": "placeholder",
+    "sha256": "3bbbe32bc7885e36f0f786fcbe3db7c4df9c33202773c7db3a5b50099a476ee2"
+  },
+  "door_close_001.wav": {
+    "source": "placeholder",
+    "sha256": "0c25b7f08b7d9532182d70c5c6fca7e65317f6fd16cb0e3d5a4bc542cfd2e331"
+  },
+  "window_open_001.wav": {
+    "source": "placeholder",
+    "sha256": "13234bfa56731cc867f601c0673c878a2b3412779479648c192db511ef46fd8e"
+  },
+  "window_close_001.wav": {
+    "source": "placeholder",
+    "sha256": "98a0aaccae883b2a44789390bbb60a93e44169630b7c2e49ba217a75a2bee7ad"
+  },
+  "equip_001.wav": {
+    "source": "placeholder",
+    "sha256": "c1842fd89fa21ad0ef17d664b89a6cbb28e4719feb8733e8957e150c3834654c"
+  },
+  "stance_001.wav": {
+    "source": "placeholder",
+    "sha256": "599a101f6ebceaa8caa873fe679a8622a6c2eca1da733155aadb33a95452e9ae"
+  },
+  "face_001.wav": {
+    "source": "placeholder",
+    "sha256": "c49af1d70722543f408c1536b22a2c0a616d4aa3cfc32c70dacb20c9d6ee2691"
+  },
+  "peek_001.wav": {
+    "source": "placeholder",
+    "sha256": "a39b0440830940b1d33a0f0dc19e99e13cd0f04cef193b7e503f5e4cda8b3d38"
+  },
+  "overwatch_001.wav": {
+    "source": "placeholder",
+    "sha256": "4d1d99df2da7b0c3360e4b2079388ca969def1f9f3bdbbd8b70baee2c4818146"
+  },
+  "fire_mode_001.wav": {
+    "source": "placeholder",
+    "sha256": "0b3dc24a994f2f0b267882e355a5535293cd7634c9929b1579f10eb7b2ef7308"
+  },
+  "evacuate_001.wav": {
+    "source": "placeholder",
+    "sha256": "32d4a0546b78acaf9024a395fc29571c0876496a4e280b8ed6d245145212900f"
+  },
+  "shot_m4a1_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "e8e1ad005eff14963a3fb1b18c68ac591de34092dce3e803250bbe90242172d8",
+    "request": {
+      "text": "Exactly one isolated shot from a M4A1 5.56mm assault rifle. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "shot_hk416_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "3c89dbbf9c143bab2d00b1a4b4bcdaf203d205f697a9a785fd6cfe14e13da57d",
+    "request": {
+      "text": "Exactly one isolated shot from a HK416 5.56mm assault rifle. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "shot_m110_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "6101f60ad3d3c4886b053114120bb96bfd5291949acf6fab0827342a05cda839",
+    "request": {
+      "text": "Exactly one isolated shot from a M110 7.62mm marksman rifle. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "shot_m249_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "466d1946fa0786539b4245ed2a5e6497cbf71e03b387480e784ee4a7520dc9a9",
+    "request": {
+      "text": "Exactly one isolated shot from a M249 light machine gun. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "shot_m9_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "31e453712910407e797e8bedabc742306b94504945701cb452393897719e8331",
+    "request": {
+      "text": "Exactly one isolated shot from a M9 9mm pistol. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "shot_m24_sniper_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "a4e2effd26246ac9317f22e4992bfeef96e485024166db08358fd3c06f4f12ff",
+    "request": {
+      "text": "Exactly one isolated shot from a M24 bolt action sniper rifle. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "shot_shotgun_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "bd79370277d12cea6d8bc84a0b692dac25fb9c7f43feffda994f837ba11695d3",
+    "request": {
+      "text": "Exactly one isolated shot from a 12 gauge pump action shotgun. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "shot_alien_carbine_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "34c888e3fb88470c0f5759a028d92a37fc044a47ca4a1b5dd5c881192b7972ae",
+    "request": {
+      "text": "Exactly one isolated shot from a alien energy carbine with a sharp electrical discharge. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.",
+      "duration_seconds": 1.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "hurt_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "d42e28d61913fea4d40c645e612ba055d0417cd617b2dba10d6cb00b3e2afdc0",
+    "request": {
+      "text": "One adult soldier gives a short natural pained cry and gasp after being hit. Believable human vocal performance, no words, no electronic tones, no music, no other sounds.",
+      "duration_seconds": 1,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "ambient_urban_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "b6a2678da02149371a9b0c7737ad22aab679d70d1684d9847283e7aa6d4a83f9",
+    "request": {
+      "text": "Quiet deserted urban courtyard, breeze between buildings, distant ventilation and occasional loose debris rustling. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.",
+      "duration_seconds": 12,
+      "loop": true,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "ambient_factory_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "713afb88ccd42ac20c82d4149bd857030351efb8857cdab49ed92e97f8607a77",
+    "request": {
+      "text": "Industrial factory, low steady ventilation, distant machinery rumble and subtle metal creaks. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.",
+      "duration_seconds": 12,
+      "loop": true,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "ambient_train_station_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "514296d70a63c67d463191255fca55d3a9019c04ab02dbb772c58bb7685f8796",
+    "request": {
+      "text": "Quiet empty railway station, breeze along the tracks, faint electrical hum and occasional rail metal creaks. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.",
+      "duration_seconds": 12,
+      "loop": true,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "ambient_airport_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "6ae47769bd1131942169329b8f801e782eb49669a8e810f8455d43bc3b47fb13",
+    "request": {
+      "text": "Quiet regional airfield, open runway wind, faint terminal ventilation and distant hangar rattles. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.",
+      "duration_seconds": 12,
+      "loop": true,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "ambient_streets_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "c75afd083058585579d9f644152c6609e2cb4630f120085ed9cf47f576e8f0c3",
+    "request": {
+      "text": "Deserted street intersection, wind between buildings, soft distant city hum and paper rustling. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.",
+      "duration_seconds": 12,
+      "loop": true,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "ambient_woods_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "f7271282abbdbb29fa1b6d2042e1b0d11a0dfe9cee9a2def09a43159b5c8b76d",
+    "request": {
+      "text": "Woodland, light wind in leaves, scattered birds and quiet insects. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.",
+      "duration_seconds": 12,
+      "loop": true,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "ambient_farm_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "ac76003c3166dead1facf1f45e1e442a24dd82850c17f7c915f577f17f90466b",
+    "request": {
+      "text": "Rural farmstead, wind in grass, quiet insects, distant birds and wooden barn creaks. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.",
+      "duration_seconds": 12,
+      "loop": true,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "move_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "6ee40320d1647d6d554a60bd4fa2e9e34da77b866d0fc46b6a6a86c52a09ff43",
+    "request": {
+      "text": "One boot footstep on rough concrete with a little tactical gear rustle. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "crawl_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "f9f9d1b2add1816e1f67c091d147248f00813fbfb853e7201d027b0b324411f4",
+    "request": {
+      "text": "A short movement crawling over dirt, cloth scraping and equipment rustle. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "climb_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "4db2b36696aeaa3279841a240836097f6b1b4fe9af84ddf1d1d29b79a09a10cc",
+    "request": {
+      "text": "One boot stepping on a metal ladder rung with a subdued clank. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "reload_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "210411582b7b365a988ed7b0eaa2150360f591c9bc5c74d549b7ef47ad6c66f0",
+    "request": {
+      "text": "A quick rifle reload: magazine release, new magazine clicks into place, bolt clicks forward. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 1.2,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "throw_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "049b50323e7e4d905a680b2df14c081300ff712480a78d2144ed2888ebcc00b3",
+    "request": {
+      "text": "Grenade pin pull with a metal click and a short cloth swish as it is thrown. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.7,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "rocket_launch_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "8541caa3881c0c06694f35724b402d7b252de4f911839a3b0dfde70e5c489f80",
+    "request": {
+      "text": "One RPG launcher firing, explosive launch thump followed by a short rushing rocket hiss. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 1,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "blast_grenade_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "07c2cba673812ced6bb22149fa198ec0682b21020c7e48804a992e465399b420",
+    "request": {
+      "text": "One fragmentation grenade explosion, sharp crack, deep thump, short grit and debris fall. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 2,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "blast_rocket_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "d41ca544a796fc200218e2277006d43d094123b92a62eaab4c7cd6ce0f96b2ca",
+    "request": {
+      "text": "One rocket impact explosion, heavy low blast with metal fragments and debris falling. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 2.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "blast_charge_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "0e0a49aaca0f23e248d302d0f4f06b46db0b2993fb39a0c8cf9497abe7af637b",
+    "request": {
+      "text": "One powerful demolition explosion followed by collapsing concrete, twisting metal and falling rubble. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 3,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "smoke_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "de50f4e01579ca0c66be710601135b74b8d89aa284e30681d9fabc12625e599c",
+    "request": {
+      "text": "Smoke grenade beginning to release smoke with a pop and soft sustained pressurized hiss. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 2,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "charge_place_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "ace756ee162d54602019068517849a2ad8be898aa8afa2efc7aa8fdb5a76cf96",
+    "request": {
+      "text": "Setting down a demolition charge, fastening its strap and activating a timer with one small electronic click. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 1,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "impact_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "3dc16d9e0d4ca0032a8a848d1910027ddff2fe4b257c7aa838c7b23cc5b63902",
+    "request": {
+      "text": "One bullet strikes masonry, a sharp dry crack with a brief scatter of grit. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "heal_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "50f4ecf39de115d59839ae11abef86a3e5ad6114b12946cbf2df84d5b4abfbb0",
+    "request": {
+      "text": "Opening a medical pouch, tearing a sterile dressing wrapper and wrapping a cloth bandage. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 1.2,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "door_open_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "145127e857df62562d241413ac4ef091753b629fa7acbddd639e3919d0f9f772",
+    "request": {
+      "text": "One heavy wooden door opens, latch click followed by a brief hinge creak. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.8,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "door_close_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "ba32ae2f31fc83d4e48fb01a7236ca68a91cc2cc3d471e275d09b7cb6dad8d0a",
+    "request": {
+      "text": "One heavy wooden door closes with a solid short thud and latch click. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.7,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "window_open_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "dd9cef957f69485ae7fb087cc992c627d3c75da9827edec8e3f91a820aeadfa7",
+    "request": {
+      "text": "One window latch clicks and its framed glass pane slides open. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.8,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "window_close_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "3675daa63aac894913212d5c4290f6837282b60e8a0a054d2bb28ec811a715b4",
+    "request": {
+      "text": "One framed glass window slides closed with a small rattle and latch click. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.7,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "equip_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "f89933543ed89cb3958e13a28393de09ece48b4d23591928d5c28f7ee0c97267",
+    "request": {
+      "text": "A soldier lifts a rifle on its sling, tactical fabric rustle and a subdued metallic clack. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.6,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "stance_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "e6a8e2ba441f59a43cd33809d90d14c3aa6bee9bd432cef7a70b4680a3b7e37f",
+    "request": {
+      "text": "A soldier changes crouching posture, brief cloth and knee pad rustle. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "face_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "024cb7d67c1432e71cb2a4b598579ad174cdb601bb276c6ede03cb0fe66e94b5",
+    "request": {
+      "text": "A tiny boot pivot and soft clothing rustle. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "peek_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "22974d8adf6016aa609a36fe65dd7f2443c68fb6f821c9a3591c5a2ba024df6f",
+    "request": {
+      "text": "A short careful body lean around cover with quiet clothing brushing a wall. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "overwatch_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "3bfb22aa4c2448411a76a2ff8701be4d20818c59f8dc43dd90b4775abecca41b",
+    "request": {
+      "text": "A rifle is shouldered into a ready position, soft gear movement and small mechanism click. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "fire_mode_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "e60c610e3b2939acf9847b12ad0c632f910f4aa4a13912b7fb534984dd065ebe",
+    "request": {
+      "text": "One crisp small rifle selector switch click. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 0.5,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  },
+  "evacuate_001.mp3": {
+    "source": "elevenlabs",
+    "sha256": "300764a5df9c54cf29f56bce9ed8b480e6ab7b9d4ac14b7e2ae66ae4195fca24",
+    "request": {
+      "text": "Brief hurried footsteps retreating into the distance. Isolated realistic game sound effect, immediate onset, no music or speech.",
+      "duration_seconds": 1,
+      "loop": false,
+      "model_id": "eleven_text_to_sound_v2",
+      "prompt_influence": 0.5
+    }
+  }
+}

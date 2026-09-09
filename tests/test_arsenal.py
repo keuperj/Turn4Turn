@@ -23,6 +23,18 @@ class ArsenalTests(unittest.TestCase):
         self.assertEqual(set(g.units[0]['inventory']),{'M24 sniper','M9','Smoke grenade','Demolition charge'})
         with self.assertRaises(ValueError):g.action(dict(action='deploy',loadouts=choices))
 
+    def test_every_item_is_allowed_in_every_slot(self):
+        slots=['primary','sidearm','utility1','utility2']
+        for item in WEAPONS:
+            for slot in slots:
+                g=Game(41,deployed=False)
+                others=[w for w in WEAPONS if w!=item][:3]
+                values=dict(zip([s for s in slots if s!=slot],others));values[slot]=item
+                choices={u['id']:dict(values) for u in g.alive('soldier')}
+                g.deploy(dict(loadouts=choices))
+                self.assertEqual(set(g.units[0]['inventory']),set(values.values()))
+                self.assertEqual(g.units[0]['weapon'],values['primary'])
+
     def test_sniper_range_accuracy_and_slow_action(self):
         g=self.field();u=g.units[0];e=g.alive('alien')[0];e.update(x=u['x'],y=u['y']-18,hp=20)
         self.give(u,'M24 sniper');g.refresh_visibility()

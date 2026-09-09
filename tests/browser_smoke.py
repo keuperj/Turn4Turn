@@ -52,8 +52,9 @@ try:
         assert server.game.size==40
         page.locator('#mission-theme').select_option('urban');ready()
         page.locator('#mission-size').select_option('30');ready()
-        for slot,name in [('s0:primary','Shotgun'),('s0:utility1','Medikit'),('s0:utility2','Demolition charge')]:
+        for slot,name in [('s0:primary','Shotgun'),('s0:utility1','Medikit'),('s0:utility2','Demolition charge'),('s0:sidearm','M24 sniper')]:
             page.locator(f'[data-slot="{slot}"]').click()
+            assert page.locator('[data-choice]').count()==13
             page.locator(f'[data-choice="{name}"]').click()
         assert page.locator('[data-slot="s0:primary"] img').get_attribute('src')=='/assets/shotgun.png'
         page.wait_for_function("[...document.querySelectorAll('#preparation img')].every(i=>i.complete&&i.naturalWidth>0)")
@@ -72,6 +73,21 @@ try:
         assert camera!=page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.target.toArray()}")
         assert before==server.game.position(server.game.units[0])
         server.game=fixture();page.reload();page.wait_for_selector('#move-mode');ready()
+        page.locator('[data-unit="s2"]').click()
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.target.distanceTo({x:18,y:0,z:27})}")<.001
+        page.locator('[data-unit="s0"]').click()
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.minDistance===2&&b.controls.maxDistance===220}")
+        # Hover labels survive state refreshes and disappear on leaving the canvas.
+        click_point(14,27,height=.8)
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.actors.traverse(o=>{if(o.userData.health&&o.visible)n++});return n}")==1
+        page.mouse.move(5,5)
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.actors.traverse(o=>{if(o.userData.health&&o.visible)n++});return n}")==0
+        # Public enemy movement is followed; a redacted impact cannot reveal its source.
+        page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');const u=b.state.units.find(u=>u.team==='alien');await b.animate([{type:'move',unit:u.id,actor:u,origin:[14,23,0],x:15,y:23,z:0}],true)}")
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.target.distanceTo({x:15,y:0,z:23})}")<.001
+        page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');await b.animate([{type:'impact',unit:null,point:[14,27,0],hit:false}],true)}")
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.target.distanceTo({x:15,y:0,z:23})}")<.001
+        page.reload();page.wait_for_selector('#move-mode');ready()
         old=server.game.position(server.game.units[0]);click_point(12,25)
         assert 'PREVIEW' in page.locator('#message').text_content();assert server.game.position(server.game.units[0])==old
         page.keyboard.press('Escape');assert server.game.position(server.game.units[0])==old
@@ -93,6 +109,9 @@ try:
         click_point(12.5,24,height=.8)
         assert 'HP' in page.locator('#message').text_content()
         assert 'car' in page.locator('#message').text_content()
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.terrain.traverse(o=>{if(o.userData.health&&o.visible&&o.userData.structure==='car')n++});return n}")==1
+        page.mouse.move(5,5)
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.terrain.traverse(o=>{if(o.userData.health&&o.visible)n++});return n}")==0
         g.rng.randint=lambda a,b:1;click_point(12.5,24,height=.8,double=True);ready();assert g.props[0]['hp']<35
         page.locator('[data-unit="s1"]').click();page.locator('[data-weapon="RPG-7"]').click();ready()
         click_point(12.5,24,height=.8,double=True);ready();assert g.props[0]['destroyed']
@@ -126,7 +145,7 @@ try:
         click_point(11,10,height=.7,double=True);ready();assert u['ammo']==1
         assert page.locator('#confirmation').count()==0
         assert not errors,errors
-        print('PASS WebGL: mission configuration, 13 item images, visual loadouts, icons, minimap, double-click / cancel, automatic fire, smoke, corpses, structure clicks, healing, free facing, peeking, memories, corner throws.',flush=True)
+        print('PASS WebGL: four unrestricted equipment slots, hover health, sidebar camera focus, visible enemy tracking, expanded zoom bounds, mission configuration, 13 item images, visual loadouts, icons, minimap, double-click / cancel, automatic fire, smoke, corpses, structure clicks, healing, free facing, peeking, memories, corner throws.',flush=True)
         browser.close()
         disabled=p.chromium.launch(headless=True,executable_path=args.browser,args=['--no-sandbox','--disable-webgl','--disable-gpu'])
         blocked=disabled.new_page();blocked.goto(base);blocked.wait_for_function("document.getElementById('phase').textContent==='WEBGL REQUIRED'")

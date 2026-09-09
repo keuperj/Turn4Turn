@@ -5,8 +5,6 @@ import {Minimap} from './minimap.js';
 const $=id=>document.getElementById(id);
 const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','Alien carbine','M24 sniper','Smoke grenade','Demolition charge','Shotgun','Medikit'];
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
-const primaries=['M4A1','HK416','M110','M249','M24 sniper','Shotgun','M9','RPG-7'];
-const supports=['Medikit','Frag grenade','Smoke grenade','Demolition charge','RPG-7'];
 let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30;
 let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersion=-1;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,8 +21,8 @@ async function request(path,data){
     if(path==='/api/preview'){pending={...result,payload:data};message('Goal selected. Double-click the same point to execute; Escape cancels.');}
     else{
       pending=null;
-      if(state&&path==='/api/action')try{await battlefield.animate(result.events);}catch(error){console.warn('Animation failed; applying authoritative state.',error);}
-      state=result;
+      if(state&&path==='/api/action')try{await battlefield.animate(result.events,data?.action==='end_turn');}catch(error){console.warn('Animation failed; applying authoritative state.',error);}
+      state=result;await actionAudio.prepare(state);
       if(!state.units.some(u=>u.id===selected&&u.hp>0))selected=state.units.find(u=>u.team==='soldier'&&u.hp>0)?.id;
       message(state.status==='loadout'?'Choose the mission and equip your squad.':state.status==='active'?'Single-click a goal to preview; double-click it to execute.':'Mission complete. Prepare another operation.');
     }
@@ -34,7 +32,7 @@ async function request(path,data){
 function act(action,extra={}){goalVersion++;goalKey=null;pending=null;return request('/api/action',{action,unit:selected,...extra});}
 function preview(action,extra={}){return request('/api/preview',{action,unit:selected,...extra});}
 function cancel(){goalVersion++;goalKey=null;pending=null;render();message('Preview cancelled. Choose another point.');}
-function select(id){if(busy)return;selected=id;goalVersion++;goalKey=null;pending=null;mode='move';battlefield.setView('auto');$('view-level').value='auto';render();}
+function select(id){if(busy)return;selected=id;goalVersion++;goalKey=null;pending=null;mode='move';battlefield.setView('auto');$('view-level').value='auto';render();battlefield.focus(soldier());}
 function render(){
   $('theme-label').textContent=`${state.scenery.label.toUpperCase()} / ${state.size} × ${state.size}`;
   $('round').textContent=String(state.round).padStart(2,'0');$('seed').textContent=`SEED ${state.seed}`;
@@ -54,6 +52,7 @@ function render(){
   const aim=pending?.action==='attack'?pending:null;
   battlefield.sync(state,selected,null,mode,aim);
   battlefield.showPreview(pending);
+  actionAudio.setListener(state,battlefield.camera);
   minimap.draw(state,selected,battlefield.controls.target);
 }
 function renderDetails(){
@@ -107,18 +106,18 @@ function pick(hit,execute=false){
   chooseGoal(data,execute);
 }
 function hover(hit){if(!state||!hit)return;if(hit.memory){const m=state.last_seen.find(m=>m.id===hit.memory);$('tile-info').textContent=`${m.name} · LAST SEEN ROUND ${m.round} · UNCONFIRMED`;return;}const u=state.units.find(u=>u.id===hit.unit),p=[...state.props,...state.buildings].find(p=>p.id===hit.structure);$('tile-info').textContent=u?`${u.name} · ${u.hp}/${u.max_hp} HP · L${u.z}`:p?`${p.name||p.kind} · ${p.hp}/${p.max_hp} HP`:`TILE ${hit.x+1}, ${hit.y+1} · L${hit.z}`;}
-function initializeDraft(){if(draft)return;draft={};state.units.filter(u=>u.team==='soldier').forEach((u,i)=>draft[u.id]={primary:u.weapon,utility1:i===2?'Smoke grenade':'Frag grenade',utility2:i===3?'Demolition charge':'RPG-7'});}
+function initializeDraft(){if(draft)return;draft={};state.units.filter(u=>u.team==='soldier').forEach((u,i)=>draft[u.id]={primary:u.weapon,sidearm:'M9',utility1:i===2?'Smoke grenade':'Frag grenade',utility2:i===3?'Demolition charge':'RPG-7'});}
 function renderPreparation(){
   initializeDraft();
-  $('loadout-content').innerHTML=`<div class="mission-options"><label>THEATER<select id="mission-theme">${[['random','Random theater'],...Object.entries(state.themes).map(([key,t])=>[key,t.label])].map(([key,label])=>`<option value="${key}" ${configTheme===key?'selected':''}>${label}</option>`).join('')}</select></label><label>MAP SIZE<select id="mission-size">${[24,30,40].map((n,i)=>`<option value="${n}" ${configSize===n?'selected':''}>${['Compact','Standard','Large'][i]} · ${n} × ${n}</option>`).join('')}</select></label><div class="mission-summary">${state.scenery.label}<small>${state.size*state.size} ground tiles · randomized layout</small></div></div><p class="small-note">Click an equipment image to replace it. Main weapon + M9 + two different support items per fighter.</p><div class="loadout-grid">${state.units.filter(u=>u.team==='soldier').map((u,i)=>`<article class="loadout-card"><div class="loadout-person"><span class="portrait portrait-${i}"></span><div><b>${u.name}</b><small>${u.role}</small></div></div>${['primary','utility1','utility2'].map((slot,j)=>`<div class="slot"><span class="eyebrow">${['MAIN WEAPON','SUPPORT 1','SUPPORT 2'][j]}</span><button class="equipment-slot" data-slot="${u.id}:${slot}" title="Choose ${slot==='primary'?'main weapon':'support equipment'} for ${u.name}">${itemArt(draft[u.id][slot])}<b>${draft[u.id][slot]}</b></button></div>`).join('')}</article>`).join('')}</div><div class="deploy-row"><div><b>Ready for insertion</b><p id="loadout-error" role="alert">Equipment is fixed after deployment.</p></div>${button('deploy','deploy','Deploy equipped squad')}</div>`;
+  $('loadout-content').innerHTML=`<div class="mission-options"><label>THEATER<select id="mission-theme">${[['random','Random theater'],...Object.entries(state.themes).map(([key,t])=>[key,t.label])].map(([key,label])=>`<option value="${key}" ${configTheme===key?'selected':''}>${label}</option>`).join('')}</select></label><label>MAP SIZE<select id="mission-size">${[24,30,40].map((n,i)=>`<option value="${n}" ${configSize===n?'selected':''}>${['Compact','Standard','Large'][i]} · ${n} × ${n}</option>`).join('')}</select></label><div class="mission-summary">${state.scenery.label}<small>${state.size*state.size} ground tiles · randomized layout</small></div></div><p class="small-note">Click an equipment image to replace it. Four different items per fighter. Every slot accepts any weapon or item.</p><div class="loadout-grid">${state.units.filter(u=>u.team==='soldier').map((u,i)=>`<article class="loadout-card"><div class="loadout-person"><span class="portrait portrait-${i}"></span><div><b>${u.name}</b><small>${u.role}</small></div></div>${['primary','sidearm','utility1','utility2'].map((slot,j)=>`<div class="slot"><span class="eyebrow">${`SLOT ${j+1}`}</span><button class="equipment-slot" data-slot="${u.id}:${slot}" title="Choose equipment for ${u.name}">${itemArt(draft[u.id][slot])}<b>${draft[u.id][slot]}</b></button></div>`).join('')}</article>`).join('')}</div><div class="deploy-row"><div><b>Ready for insertion</b><p id="loadout-error" role="alert">Equipment is fixed after deployment.</p></div>${button('deploy','deploy','Deploy equipped squad')}</div>`;
   $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;request('/api/new',{theme:configTheme,size:configSize});};
   $('mission-size').onchange=()=>{configSize=Number($('mission-size').value);request('/api/new',{theme:configTheme,size:configSize});};
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{editSlot=b.dataset.slot.split(':');openEquipment();});
-  $('deploy').onclick=()=>{for(const [id,v] of Object.entries(draft)){if(v.utility1===v.utility2){$('loadout-error').textContent=`Choose two different support items for ${state.units.find(u=>u.id===id).name}.`;return;}}request('/api/action',{action:'deploy',loadouts:draft});};
+  $('deploy').onclick=()=>request('/api/action',{action:'deploy',loadouts:draft});
 }
 function openEquipment(){
-  const choices=editSlot?(editSlot[1]==='primary'?primaries:supports):itemOrder;
-  $('equipment-title').textContent=editSlot?'Choose '+(editSlot[1]==='primary'?'main weapon':'support item'):'Equipment catalog';
+  const choices=itemOrder;
+  $('equipment-title').textContent=editSlot?'Choose equipment for this slot':'Equipment catalog';
   $('equipment-grid').innerHTML=choices.map(name=>`<${editSlot?'button':'article'} class="catalog-item ${editSlot&&draft[editSlot[0]][editSlot[1]]===name?'active':''}" ${editSlot?`data-choice="${name}" title="Select ${name}"`:''}>${itemArt(name)}<b>${name}</b><p>${stats(name)}</p><small>${state.weapons[name].kind==='medical'?'2 treatments · +6 HP · 1 AP':state.weapons[name].kind==='shotgun'?'High power · short range':state.weapons[name].kind==='smoke'?'3-phase visual screen':state.weapons[name].kind==='charge'?'2-phase timer · heavy demolition':state.weapons[name].kind==='sniper'?'Bolt-action precision · 2 AP':'Finite ammunition'}</small></${editSlot?'button':'article'}>`).join('');
   document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{draft[editSlot[0]][editSlot[1]]=b.dataset.choice;$('equipment').close();renderPreparation();});
   if(!$('equipment').open)$('equipment').showModal();
@@ -136,7 +135,7 @@ document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.alt
 try{
   battlefield=new Battlefield($('map'),pick,hover);
   minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
-  battlefield.controls.addEventListener('change',()=>{if(state)minimap.draw(state,selected,battlefield.controls.target);});
+  battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
   request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;if(state.status==='loadout')renderPreparation();}});
 }catch(error){message('WebGL could not start. Enable WebGL in your browser and reload. '+error.message);$('phase').textContent='WEBGL REQUIRED';}
 // Expose the renderer instance for integration tests and local development tools.

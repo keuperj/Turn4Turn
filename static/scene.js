@@ -8,16 +8,16 @@ export class Battlefield {
   constructor(canvas, onPick, onHover) {
     this.canvas=canvas;this.onPick=onPick;this.onHover=onHover;
     this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#202c30');
-    this.scene.fog=new THREE.Fog('#202c30',42,95);
+    this.scene.fog=new THREE.Fog('#202c30',100,350);
     this.renderer=new THREE.WebGLRenderer({canvas,antialias:true});
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));
     this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace=THREE.SRGBColorSpace;
     this.renderer.toneMapping=THREE.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.08;
-    this.camera=new THREE.PerspectiveCamera(42,1,.1,240);
+    this.camera=new THREE.PerspectiveCamera(42,1,.1,500);
     this.camera.position.set(26,27,32);
     this.controls=new OrbitControls(this.camera,canvas);this.controls.target.set(8.5,0,8.5);
-    this.controls.enableDamping=true;this.controls.minDistance=7;this.controls.maxDistance=130;
+    this.controls.enableDamping=true;this.controls.minDistance=2;this.controls.maxDistance=220;
     this.controls.maxPolarAngle=Math.PI*.46;
     this.controls.mouseButtons={LEFT:THREE.MOUSE.PAN,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.ROTATE};
     this.scene.add(new THREE.HemisphereLight('#dbeaf0','#53635d',1.8));
@@ -37,7 +37,9 @@ export class Battlefield {
     canvas.addEventListener('pointerdown',e=>{this.down={x:e.clientX,y:e.clientY,button:e.button};});
     canvas.addEventListener('pointerup',e=>{if(this.down?.button===0&&Math.hypot(e.clientX-this.down.x,e.clientY-this.down.y)<5){const hit=this.pick(e);if(hit)this.onPick(hit,false);}this.down=null;});
     canvas.addEventListener('dblclick',e=>{e.preventDefault();const hit=this.pick(e);if(hit)this.onPick(hit,true);});
-    canvas.addEventListener('pointermove',e=>this.onHover?.(this.pick(e)));
+    canvas.addEventListener('pointermove',e=>{this.hoverPointer={clientX:e.clientX,clientY:e.clientY};this.updateHover();});
+    canvas.addEventListener('pointerleave',()=>{this.hoverPointer=null;this.updateHover();});
+    this.controls.addEventListener('change',()=>this.updateHover());
     new ResizeObserver(()=>this.resize()).observe(canvas.parentElement);this.resize();
     this.renderer.setAnimationLoop(time=>{if(time-(this.lastFrame||0)<16)return;this.lastFrame=time;this.controls.update();for(const m of this.models.values()){if(m.userData.rig&&!m.userData.walking){const r=m.userData.rig;r.body.position.y=r.baseY+Math.sin(performance.now()*.002+m.position.x)*.012;}}this.renderer.render(this.scene,this.camera);});
   }
@@ -141,7 +143,7 @@ export class Battlefield {
     root.userData.unit=u.id;root.traverse(o=>o.userData.unit=u.id);
     const ring=new THREE.Mesh(new THREE.RingGeometry(.34,.40,32),new THREE.MeshBasicMaterial({color:civilian?0x8fe5ad:friendly?0x69cddd:0xec8567,side:THREE.DoubleSide,transparent:true,opacity:.85}));ring.rotation.x=-Math.PI/2;ring.position.y=.04;root.add(ring);
     const direction=new THREE.Mesh(new THREE.ConeGeometry(.10,.22,3),new THREE.MeshBasicMaterial({color:friendly?0x92e5ed:0xe9ac91}));direction.rotation.x=-Math.PI/2;direction.position.set(0,.06,-.58);direction.userData.unit=u.id;root.add(direction);
-    const tag=this.healthLabel(u.name,u.hp,u.max_hp,civilian?'#bcebc6':friendly?'#b8edf2':'#ffc0a6',1.35);tag.position.y=prone?.8:knee?1.5:1.95;root.add(tag);
+    const tag=this.healthLabel(u.name,u.hp,u.max_hp,civilian?'#bcebc6':friendly?'#b8edf2':'#ffc0a6',1.35);tag.userData.unit=u.id;tag.position.y=prone?.8:knee?1.5:1.95;root.add(tag);
     return root;
   }
   sync(state,selected,target,mode,aim){
@@ -152,6 +154,7 @@ export class Battlefield {
     this.clear(this.actors);this.models.clear();
     for(const u of state.units){if(!this.actorVisible(u))continue;if(u.hp<=0){this.corpse(u);continue;}const model=this.figure(u);this.actors.add(model);this.models.set(u.id,model);}
     for(const m of state.last_seen||[]){if(!this.surfaceVisible(m.x,m.y,m.z))continue;const ghost=new THREE.Group(),mat=new THREE.MeshBasicMaterial({color:0x9ba3a8,transparent:true,opacity:.42,depthWrite:false});const body=new THREE.Mesh(new THREE.CapsuleGeometry(.19,.65,4,8),mat);body.position.y=.7;ghost.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),mat);head.position.y=1.3;ghost.add(head);const tag=this.label(`LAST SEEN · R${m.round}`,'#adb5ba',1.65);tag.position.y=1.65;ghost.add(tag);ghost.position.set(m.x,m.z*3,m.y);ghost.traverse(o=>o.userData.memory=m.id);this.actors.add(ghost);}
+    this.updateHover(true);
     this.lastSeed=state.seed;
     this.clear(this.overlay);
     const points=mode==='attack'?[]:state.movement[selected]||[];
@@ -163,10 +166,17 @@ export class Battlefield {
     if(aim&&u&&mode==='attack'&&state.weapons[u.weapon].radius){const radius=state.weapons[u.weapon].radius;const m=new THREE.Mesh(new THREE.RingGeometry(radius-.04,radius+.04,64),new THREE.MeshBasicMaterial({color:0xffad68,side:THREE.DoubleSide,depthTest:false}));m.rotation.x=-Math.PI/2;m.position.set(aim.x,aim.z*3+.08,aim.y);this.overlay.add(m);}
     const t=state.units.find(u=>u.id===target&&u.hp>0);if(u&&t&&this.actorVisible(u)&&this.actorVisible(t)&&mode!=='attack'){const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(u.x,u.z*3+1,u.y),new THREE.Vector3(t.x,t.z*3+1,t.y)]),new THREE.LineDashedMaterial({color:0xf3bc87,dashSize:.15,gapSize:.12}));line.computeLineDistances();this.overlay.add(line);}
   }
-  pick(e){const r=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.ray.setFromCamera(this.pointer,this.camera);const hits=this.ray.intersectObjects([...this.actors.children,...this.pickables],true);const hit=hits.find(h=>h.object.userData.memory||h.object.userData.portal||h.object.userData.unit||h.object.userData.structure||h.object.userData.x!==undefined);if(!hit)return null;const data={...hit.object.userData};if(data.unit||data.memory)return data;let structure=this.state.buildings.concat(this.state.props).find(p=>p.id===data.structure);if(structure){data.x=Math.max(structure.x,Math.min(structure.x+structure.width-1,Math.round(hit.point.x)));data.y=Math.max(structure.y,Math.min(structure.y+structure.depth-1,Math.round(hit.point.z)));data.z=Math.max(0,Math.min(structure.level||0,Math.floor((hit.point.y+.05)/3)));}else if(this.mode==='attack'&&data.x!==undefined){structure=this.state.buildings.find(b=>!b.destroyed&&data.z===b.level&&data.x>=b.x&&data.x<b.x+b.width&&data.y>=b.y&&data.y<b.y+b.depth);if(structure)data.structure=structure.id;}return data;}
-  healthLabel(name,hp,max,color='#d9cfac',width=2.3){const c=document.createElement('canvas');c.width=384;c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#0b1b25de';ctx.fillRect(0,0,384,96);ctx.fillStyle=color;ctx.font='bold 23px system-ui';ctx.textAlign='center';ctx.fillText(name.toUpperCase(),192,29,370);ctx.font='19px monospace';ctx.fillText(`${hp} / ${max} HP`,192,55);ctx.fillStyle='#3b484b';ctx.fillRect(14,68,356,10);ctx.fillStyle=color;ctx.fillRect(14,68,356*Math.max(0,hp/max),10);const map=new THREE.CanvasTexture(c),mat=new THREE.SpriteMaterial({map,depthTest:false});mat.userData.label=true;const sprite=new THREE.Sprite(mat);sprite.scale.set(width,width/4,1);return sprite;}
+  pick(e){this.scene.updateMatrixWorld(true);this.camera.updateMatrixWorld();const r=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.ray.setFromCamera(this.pointer,this.camera);const hits=this.ray.intersectObjects([...this.actors.children,...this.pickables],true);const hit=hits.find(h=>!h.object.userData.health&&h.object.visible&&h.object.parent?.visible&&(h.object.userData.memory||h.object.userData.portal||h.object.userData.unit||h.object.userData.structure||h.object.userData.x!==undefined));if(!hit)return null;const data={...hit.object.userData};if(data.unit||data.memory)return data;let structure=this.state.buildings.concat(this.state.props).find(p=>p.id===data.structure);if(structure){data.x=Math.max(structure.x,Math.min(structure.x+structure.width-1,Math.round(hit.point.x)));data.y=Math.max(structure.y,Math.min(structure.y+structure.depth-1,Math.round(hit.point.z)));data.z=Math.max(0,Math.min(structure.level||0,Math.floor((hit.point.y+.05)/3)));}else if(this.mode==='attack'&&data.x!==undefined){structure=this.state.buildings.find(b=>!b.destroyed&&data.z===b.level&&data.x>=b.x&&data.x<b.x+b.width&&data.y>=b.y&&data.y<b.y+b.depth);if(structure)data.structure=structure.id;}return data;}
+  updateHover(force=false){
+    if(!this.state||!this.ray)return;
+    const hit=this.hoverPointer?this.pick(this.hoverPointer):null;
+    const key=hit?.unit?`unit:${hit.unit}`:hit?.structure?`structure:${hit.structure}`:null;
+    if(force||key!==this.hoverKey){this.hoverKey=key;for(const group of [this.terrain,this.actors])group.traverse(o=>{if(o.userData.health)o.visible=!!key&&key===(o.userData.unit?`unit:${o.userData.unit}`:`structure:${o.userData.structure}`);});}
+    this.onHover?.(hit);
+  }
+  healthLabel(name,hp,max,color='#d9cfac',width=2.3){const c=document.createElement('canvas');c.width=384;c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#0b1b25de';ctx.fillRect(0,0,384,96);ctx.fillStyle=color;ctx.font='bold 23px system-ui';ctx.textAlign='center';ctx.fillText(name.toUpperCase(),192,29,370);ctx.font='19px monospace';ctx.fillText(`${hp} / ${max} HP`,192,55);ctx.fillStyle='#3b484b';ctx.fillRect(14,68,356,10);ctx.fillStyle=color;ctx.fillRect(14,68,356*Math.max(0,hp/max),10);const map=new THREE.CanvasTexture(c),mat=new THREE.SpriteMaterial({map,depthTest:false});mat.userData.label=true;const sprite=new THREE.Sprite(mat);sprite.scale.set(width,width/4,1);sprite.userData.health=true;sprite.visible=false;return sprite;}
   showPreview(preview){if(!preview)return;const u=this.state.units.find(u=>u.id===this.selected);if(!u)return;const points=preview.via?[[u.x,u.y,u.z],[preview.via.x,preview.via.y,preview.via.z],[preview.x,preview.y,preview.z]]:preview.path?[[u.x,u.y,u.z],...preview.path]:preview.x!==undefined?[[u.x,u.y,u.z],[preview.x,preview.y,preview.z]]:[];if(!points.length)return;const color=preview.action==='move'?0x8fe9ee:0xffc28b;const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(p[0],p[2]*3+.2,p[1]))),new THREE.LineDashedMaterial({color,dashSize:.2,gapSize:.12,depthTest:false}));line.computeLineDistances();this.overlay.add(line);const p=points.at(-1);const marker=new THREE.Mesh(new THREE.RingGeometry(.32,.40,40),new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide,depthTest:false}));marker.rotation.x=-Math.PI/2;marker.position.set(p[0],p[2]*3+.1,p[1]);this.overlay.add(marker);}
-  focus(u){if(!u)return;const delta=new THREE.Vector3(u.x,u.z*3,u.y).sub(this.controls.target);this.controls.target.add(delta);this.camera.position.add(delta);}
+  focus(u){if(!u)return;const delta=new THREE.Vector3(u.x,u.z*3,u.y).sub(this.controls.target);this.controls.target.add(delta);this.camera.position.add(delta);this.controls.update();this.camera.updateMatrixWorld();this.updateHover();}
   home(){const c=((this.state?.size||30)-1)/2;this.camera.position.set(c+this.state.size*.85,this.state.size*1.1,c+this.state.size);this.controls.target.set(c,0,c);}
   corpse(u){
     const model=this.figure({...u,stance:'standing'}),body=model.children[0];
@@ -191,9 +201,16 @@ export class Battlefield {
     if(r.civilian){for(const arm of r.arms){const wave=Math.sin(phase+(arm.side>0?0:Math.PI));const elbow=[arm.side*.25,r.shoulder-.25,wave*.10],hand=[arm.side*.26,r.shoulder-.50,wave*.23];this.placeLimb(arm.upper,[arm.side*.23,r.shoulder,0],elbow);this.placeLimb(arm.lower,elbow,hand);}}
     if(prone||climbing)for(const arm of r.arms){const wave=Math.sin(phase+arm.side*Math.PI/2);const elbow=[arm.side*.28,r.shoulder-.1+wave*.12,-.22],hand=[arm.side*.18,r.shoulder+(climbing?.2:-.12),-.35+wave*.12];this.placeLimb(arm.upper,[arm.side*.23,r.shoulder,0],elbow);this.placeLimb(arm.lower,elbow,hand);}
   }
-  async animate(events){
+  async animate(events,followEnemies=false){
     for(const e of events||[]){
-      actionAudio.play(e);
+      const actor=e.actor||this.state.units.find(u=>u.id===e.unit);
+      const follow=followEnemies&&actor?.team==='alien'&&e.type!=='hide';
+      if(follow){
+        const p=e.origin||(e.x!==undefined?[e.x,e.y,e.z]:null)||[actor.x,actor.y,actor.z];
+        const from=this.controls.target.clone(),to=new THREE.Vector3(p[0],p[2]*3,p[1]);
+        if(from.distanceTo(to)>.1)await this.tween(220,t=>{const v=from.clone().lerp(to,t);this.focus({x:v.x,y:v.z,z:v.y/3});});
+      }
+      if(e.type!=='impact')actionAudio.play(e);
       if(e.type==='hide'){const m=this.models.get(e.unit);if(m)m.visible=false;continue;}
       if(e.type==='move'){
         let model=this.models.get(e.unit);
@@ -204,18 +221,19 @@ export class Battlefield {
         const fromYaw=model.rotation.y,toYaw=(start.x!==end.x||start.z!==end.z)?Math.atan2(start.x-end.x,start.z-end.z):fromYaw;const yawDelta=Math.atan2(Math.sin(toYaw-fromYaw),Math.cos(toYaw-fromYaw));
         model.userData.walking=true;
         const duration=climbing?650:model.userData.rig.stance==='prone'?340:220;
-        await this.tween(duration,t=>{model.position.lerpVectors(start,end,t);model.rotation.y=fromYaw+yawDelta*Math.min(1,t*4);this.gait(model,t*Math.PI*2,climbing);});
+        await this.tween(duration,t=>{model.position.lerpVectors(start,end,t);if(follow)this.focus({x:model.position.x,y:model.position.z,z:model.position.y/3});model.rotation.y=fromYaw+yawDelta*Math.min(1,t*4);this.gait(model,t*Math.PI*2,climbing);});
         model.userData.walking=false;
       }
       if(e.type==='face'){const model=this.models.get(e.unit);if(model){const from=model.rotation.y,delta=Math.atan2(Math.sin(e.facing-from),Math.cos(e.facing-from));await this.tween(150,t=>model.rotation.y=from+delta*t);}}
       if(e.type==='peek_out'||e.type==='peek_return'){const model=this.models.get(e.unit);if(model){const from=model.position.clone(),to=new THREE.Vector3(e.point[0],e.point[2]*3,e.point[1]);await this.tween(220,t=>model.position.lerpVectors(from,to,t));}if(e.contacts){for(const u of e.contacts){if(!this.models.has(u.id)){const m=this.figure(u);this.actors.add(m);this.models.set(u.id,m);}}await this.tween(280,()=>{});}}
       if(e.type==='heal'){const p=new THREE.Vector3(e.point[0],e.point[2]*3+1,e.point[1]);await this.burst(p,0x80f3b4,.5,400);this.clear(this.fx);}
+      if(e.type==='rocket_launch'&&e.target){const from=new THREE.Vector3(e.point[0],e.point[2]*3+1,e.point[1]),to=new THREE.Vector3(e.target[0],e.target[2]*3+.4,e.target[1]),rocket=new THREE.Mesh(new THREE.SphereGeometry(.1,8,6),new THREE.MeshBasicMaterial({color:0xffdb9a}));this.fx.add(rocket);await this.tween(250,t=>rocket.position.lerpVectors(from,to,t));this.clear(this.fx);}
       if(e.type==='throw'){const points=[e.origin,...(e.via?[e.via]:[]),e.point].map(p=>new THREE.Vector3(p[0],p[2]*3+1,p[1])),ball=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),this.material(0x718268));this.fx.add(ball);for(let i=1;i<points.length;i++)await this.tween(i===1&&e.via?130:350,t=>{ball.position.lerpVectors(points[i-1],points[i],t);ball.position.y+=Math.sin(t*Math.PI)*(i===1&&e.via?.15:1);});this.clear(this.fx);}
       if(e.type==='portal'){const model=this.portalModels.get(e.id);if(model){const from=model.rotation.y,to=e.open?Math.PI*.48:0;await this.tween(240,t=>model.rotation.y=from+(to-from)*t);}}
       if(e.type==='shot'||e.type==='impact'){
         const point=new THREE.Vector3(e.point[0]+(e.hit||e.structure?0:.45),e.point[2]*3+(e.structure?1:e.hit?.8:.12),e.point[1]+(e.hit||e.structure?0:.3));
         if(e.origin){const origin=new THREE.Vector3(e.origin[0],e.origin[2]*3+1.1,e.origin[1]);const bullet=new THREE.Mesh(new THREE.SphereGeometry(.07,6,4),new THREE.MeshBasicMaterial({color:0xffe8b2}));this.fx.add(bullet);await this.tween(e.burst?35:100,t=>bullet.position.lerpVectors(origin,point,t));this.clear(this.fx);}
-        actionAudio.play({type:'impact'});await this.burst(point,e.hit&&!e.structure?0xb52a2c:0xffd18a,.7,e.burst?65:240);this.clear(this.fx);
+        actionAudio.play({type:'impact',point:e.point});await this.burst(point,e.hit&&!e.structure?0xb52a2c:0xffd18a,.7,e.burst?65:240);this.clear(this.fx);
       }
       if(e.type==='blast'){
         const point=new THREE.Vector3(e.x,e.z*3+.35,e.y);

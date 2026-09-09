@@ -9,14 +9,15 @@ class Arsenal:
         selections=data.get('loadouts')
         squad=self.alive('soldier')
         if not isinstance(selections,dict) or set(selections)!={u['id'] for u in squad}:raise ValueError('Choose equipment for all four fighters.')
-        primary=['M4A1','HK416','M110','M249','M24 sniper','Shotgun','M9','RPG-7']
-        utility=['Medikit','Frag grenade','Smoke grenade','Demolition charge','RPG-7']
         checked=[]
         for u in squad:
             v=selections[u['id']]
-            if not isinstance(v,dict) or v.get('primary') not in primary or v.get('utility1') not in utility or v.get('utility2') not in utility or v['utility1']==v['utility2']:
-                raise ValueError('Choose a weapon and two different support items per fighter.')
-            checked.append((u,list(dict.fromkeys([v['primary'],'M9',v['utility1'],v['utility2']]))))
+            if not isinstance(v,dict):raise ValueError('Choose four equipment items per fighter.')
+            items=[v.get('primary'),v.get('sidearm','M9'),v.get('utility1'),v.get('utility2')]
+            if any(not isinstance(w,str) or w not in WEAPONS for w in items):
+                raise ValueError('Every slot must contain an available weapon or item.')
+            if len(set(items))!=4:raise ValueError('Choose four different equipment items per fighter.')
+            checked.append((u,items))
         for u,items in checked:
             u['inventory']={w:dict(ammo=WEAPONS[w]['capacity'],reserve=0 if WEAPONS[w]['kind'] in ('grenade','smoke','charge','medical') else 1 if w=='RPG-7' else WEAPONS[w]['capacity']*3) for w in items}
             u.update(weapon=items[0],ammo=u['inventory'][items[0]]['ammo'],fire_mode='single')
@@ -42,7 +43,7 @@ class Arsenal:
         self.spend_ammo(u);u['ap']=0
         effect=dict(x=x,y=y,z=z,radius=3 if kind=='smoke' else 4,turns=3 if kind=='smoke' else 2)
         (self.smoke if kind=='smoke' else self.charges).append(effect)
-        self.events.append(dict(type='smoke' if kind=='smoke' else 'reload',unit=u['id'],**effect))
+        self.events.append(dict(type='smoke' if kind=='smoke' else 'charge_place',unit=u['id'],**effect))
         self.log.append(f"{u['name']} {'throws smoke (3 hostile phases)' if kind=='smoke' else 'sets demolition charge (2 hostile phases)' }.")
         self.geometry_revision+=1
 

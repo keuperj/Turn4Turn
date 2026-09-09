@@ -46,7 +46,7 @@ class FieldcraftTests(unittest.TestCase):
     def test_shotgun_power_and_short_range(self):
         g=self.field();u=g.units[0];e=g.alive('alien')[0];self.give(u,'Shotgun');e.update(x=u['x'],y=u['y']-3,hp=20)
         g.rng.randint=lambda a,b:1
-        g.action(dict(action='attack',unit=u['id'],x=e['x'],y=e['y'],z=0));self.assertEqual(e['hp'],10)
+        g.action(dict(action='attack',unit=u['id'],x=e['x'],y=e['y'],z=0));self.assertEqual(e['hp'],20-WEAPONS['Shotgun']['damage'])
         u['ap']=2;e['y']=u['y']-6
         self.assertEqual(g.chance(u,e),0)
         with self.assertRaises(ValueError):g.preview(dict(action='attack',unit=u['id'],x=e['x'],y=e['y'],z=0))

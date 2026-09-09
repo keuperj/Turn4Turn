@@ -1,5 +1,5 @@
 import unittest
-from game import Game
+from game import Game, WEAPONS
 
 
 class CombatTests(unittest.TestCase):
@@ -149,9 +149,10 @@ class CombatTests(unittest.TestCase):
         g.units[1].update(x=6, y=12)
         g.tiles[12][4] = 'high'
         g.action(dict(action='equip', unit='s0', weapon='Frag grenade'))
+        enemy_hp,ally_hp=g.units[4]['hp'],g.units[1]['hp']
         g.action(dict(action='blast', unit='s0', x=5, y=12))
-        self.assertEqual(g.units[4]['hp'], 1)
-        self.assertEqual(g.units[1]['hp'], 6)
+        self.assertEqual(g.units[4]['hp'], max(0,enemy_hp-WEAPONS['Frag grenade']['damage']))
+        self.assertEqual(g.units[1]['hp'], max(0,ally_hp-WEAPONS['Frag grenade']['damage']+2))
         self.assertEqual(g.tiles[12][4], 'rubble')
         self.assertEqual(g.units[0]['ammo'], 1)
         self.assertEqual(g.units[0]['ap'], 0)

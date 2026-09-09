@@ -1,22 +1,116 @@
-// Local synthesized action effects. No music, downloads or external audio service.
+// Audio is generated offline. Only local, numbered files are fetched during play.
+const weapons={'M4A1':'m4a1','HK416':'hk416','M110':'m110','M249':'m249','M9':'m9','M24 sniper':'m24_sniper','Shotgun':'shotgun','Alien carbine':'alien_carbine'};
+export function soundAction(e){
+  if(e.type==='shot')return 'shot_'+(weapons[e.weapon]||'m4a1');
+  if(e.type==='move')return e.origin&&e.origin[2]!==e.z?'climb':e.actor?.stance==='prone'?'crawl':'move';
+  if(e.type==='blast')return 'blast_'+({rocket:'rocket',charge:'charge'}[e.kind]||'grenade');
+  if(e.type==='portal')return `${e.kind==='window'?'window':'door'}_${e.open?'open':'close'}`;
+  if(e.type==='peek_out'||e.type==='peek_return')return 'peek';
+  if(['reload','throw','rocket_launch','smoke','charge_place','impact','hurt','heal','equip','stance','face','overwatch','fire_mode','evacuate'].includes(e.type))return e.type;
+  return null;
+}
 export class ActionAudio {
-  constructor(){this.enabled=localStorage.getItem('sound')!=='off';this.volume=Number(localStorage.getItem('volume')||.35);this.context=null;this.lastStep=0;}
-  async unlock(){if(!this.enabled)return;try{this.context??=new (window.AudioContext||window.webkitAudioContext)();await this.context.resume();}catch{this.enabled=false;}}
-  setEnabled(value){this.enabled=value;localStorage.setItem('sound',value?'on':'off');if(value)this.unlock();}
-  setVolume(value){this.volume=Number(value);localStorage.setItem('volume',this.volume);}
-  noise(duration,gain,lowpass=1500,delay=0){const c=this.context;if(!c||c.state!=='running')return;const n=Math.ceil(c.sampleRate*duration),b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/n*5);const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;f.type='lowpass';f.frequency.value=lowpass;g.gain.value=gain*this.volume;s.connect(f).connect(g).connect(c.destination);s.start(c.currentTime+delay);s.onended=()=>{s.disconnect();f.disconnect();g.disconnect();};}
-  tone(frequency,duration,gain,delay=0){const c=this.context;if(!c||c.state!=='running')return;const o=c.createOscillator(),g=c.createGain();o.type='triangle';o.frequency.setValueAtTime(frequency,c.currentTime+delay);o.frequency.exponentialRampToValueAtTime(Math.max(30,frequency*.35),c.currentTime+delay+duration);g.gain.setValueAtTime(gain*this.volume,c.currentTime+delay);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+delay+duration);o.connect(g).connect(c.destination);o.start(c.currentTime+delay);o.stop(c.currentTime+delay+duration);o.onended=()=>{o.disconnect();g.disconnect();};}
-  scream(){const c=this.context;if(!c||c.state!=='running')return;const o=c.createOscillator(),f=c.createBiquadFilter(),g=c.createGain();o.type='sawtooth';const base=240+Math.random()*110;o.frequency.setValueAtTime(base,c.currentTime);o.frequency.linearRampToValueAtTime(base*1.8,c.currentTime+.08);o.frequency.exponentialRampToValueAtTime(base*.65,c.currentTime+.48);f.type='bandpass';f.frequency.value=1100;f.Q.value=2;g.gain.setValueAtTime(.001,c.currentTime);g.gain.linearRampToValueAtTime(this.volume*.25,c.currentTime+.035);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.5);o.connect(f).connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.52);o.onended=()=>{o.disconnect();f.disconnect();g.disconnect();};this.noise(.25,.12,1800);}
-  play(event){if(!this.enabled||!this.context)return;const t=event.type;
-    if(t==='move'){if(performance.now()-this.lastStep<100)return;this.lastStep=performance.now();this.noise(.08,.3,450);this.noise(.07,.2,600,.10);}
-    if(t==='shot'){const profiles={'Shotgun':[.38,1,1600,60],'M9':[.12,.52,4300,180],'M4A1':[.19,.8,3300,100],'HK416':[.17,.82,3800,115],'M110':[.30,.95,2600,75],'M24 sniper':[.48,1,2100,55],'M249':[.23,.9,2900,90],'Alien carbine':[.2,.75,5500,290]};const [d,g,f,b]=profiles[event.weapon]||profiles.M4A1;this.noise(d,g,f);this.tone(b,d,.6);this.noise(.06,.17,6000,d);}
-    if(t==='heal'){this.noise(.15,.15,1700);this.tone(520,.15,.15);this.tone(680,.17,.13,.15);}
-    if(t==='hurt'){this.scream();}
-    if(t==='smoke'){this.noise(1.1,.4,4800);this.tone(130,.1,.2);}
-    if(t==='impact'){this.noise(.14,.5,1800);this.tone(210,.08,.25);}
-    if(t==='blast'){this.noise(.85,1.1,950);this.tone(65,.7,.8);this.noise(.5,.5,1800,.15);}
-    if(t==='portal'){this.tone(180,.17,.13);this.noise(.10,.4,600,.13);}
-    if(t==='reload'){this.noise(.09,.32,4000);this.noise(.10,.38,3000,.20);this.tone(400,.05,.12,.28);}
+  constructor(){
+    this.enabled=localStorage.getItem('sound')!=='off';this.volume=Number(localStorage.getItem('volume')||.35);
+    this.context=null;this.manifest={};this.buffers=new Map();this.previous=new Map();this.voices=new Set();this.ambientVoices=new Set();this.ambientVersion=0;this.theme=null;this.sceneKey=null;this.listener={x:0,y:0,z:0,rightX:1,rightY:0};
+    this.catalogReady=this.refreshCatalog();
+    document.addEventListener('visibilitychange',()=>{if(document.hidden){this.stopAmbience();this.stopEffects();}else this.startAmbience();});
+  }
+  async refreshCatalog(){
+    try{const response=await fetch('/api/audio');if(!response.ok)throw Error('Audio catalog unavailable');this.manifest=await response.json();this.buffers.clear();}
+    catch{this.manifest={};}
+  }
+  async unlock(){
+    if(!this.enabled)return;
+    try{
+      if(!this.context){
+        this.context=new (window.AudioContext||window.webkitAudioContext)();
+        this.master=this.context.createGain();this.master.gain.value=this.volume;
+        const limiter=this.context.createDynamicsCompressor();limiter.threshold.value=-10;limiter.knee.value=12;limiter.ratio.value=8;limiter.attack.value=.003;limiter.release.value=.15;
+        this.master.connect(limiter).connect(this.context.destination);
+      }
+      await this.context.resume();await this.catalogReady;
+      this.preload();this.startAmbience();
+    }catch{this.enabled=false;}
+  }
+  setEnabled(value){this.enabled=value;localStorage.setItem('sound',value?'on':'off');if(value)this.unlock();else{this.stopEffects();this.stopAmbience();}}
+  setVolume(value){this.volume=Math.max(0,Math.min(1,Number(value)||0));localStorage.setItem('volume',this.volume);if(this.master)this.master.gain.setTargetAtTime(this.volume,this.context.currentTime,.02);}
+  async buffer(url){
+    if(!this.context)return null;
+    if(!this.buffers.has(url))this.buffers.set(url,(async()=>{
+      try{const r=await fetch(url);if(!r.ok)throw Error('Missing sample');return await this.context.decodeAudioData(await r.arrayBuffer());}
+      catch{return null;}
+    })());
+    return this.buffers.get(url);
+  }
+  async preload(){
+    if(!this.context)return;
+    const urls=[...new Set(Object.entries(this.manifest).filter(([a])=>!a.startsWith('ambient_')||a==='ambient_'+this.theme).flatMap(([,samples])=>samples.map(s=>s.url)))];
+    // Limit simultaneous fetches; the Python localhost server is deliberately small.
+    await Promise.all(Array.from({length:4},async()=>{while(urls.length)await this.buffer(urls.shift());}));
+  }
+  async prepare(state){
+    const key=`${state.seed}:${state.theme}:${state.status}`;
+    if(key===this.sceneKey)return;
+    this.sceneKey=key;this.stopEffects();this.stopAmbience();this.theme=state.status==='active'?state.theme:null;
+    this.catalogReady=this.refreshCatalog();await this.catalogReady;
+    if(this.context){await this.preload();this.startAmbience();}
+  }
+  choose(action){
+    const all=this.manifest[action]||[],candidates=all.length>1?all.filter(s=>s.url!==this.previous.get(action)):all;
+    if(!candidates.length)return null;
+    const sample=candidates[Math.floor(Math.random()*candidates.length)];this.previous.set(action,sample.url);return sample;
+  }
+  async sample(action){
+    await this.catalogReady;
+    const chosen=this.choose(action);
+    // Try the other variants if one local file is missing or cannot be decoded.
+    for(const s of [chosen,...(this.manifest[action]||[]).filter(s=>s!==chosen)]){
+      if(!s)continue;const b=await this.buffer(s.url);if(b)return {buffer:b,sample:s};
+    }
+    return {buffer:this.fallback(action),sample:{placeholder:true}};
+  }
+  fallback(action){
+    if(!this.context)return null;
+    const ambient=action.startsWith('ambient_'),b=this.context.createBuffer(1,this.context.sampleRate*(ambient?2:.12),this.context.sampleRate),a=b.getChannelData(0);
+    let low=0;for(let i=0;i<a.length;i++){low=.92*low+.08*(Math.random()*2-1);a[i]=low*(ambient?.035:.12)*Math.sin(Math.PI*i/(a.length-1))**2;}
+    return b;
+  }
+  setListener(state,camera){
+    const squad=state.units.filter(u=>u.team==='soldier'&&u.hp>0);if(!squad.length)return;
+    const avg=k=>squad.reduce((sum,u)=>sum+u[k],0)/squad.length;
+    // Anchor loudness to the squad, not zoom; use camera orientation for stereo.
+    this.listener={x:avg('x'),y:avg('y'),z:avg('z'),rightX:camera.matrixWorld.elements[0],rightY:camera.matrixWorld.elements[2]};
+  }
+  stopEffects(){this.effectsVersion=(this.effectsVersion||0)+1;for(const s of [...this.voices])s.stop();this.voices.clear();}
+  async play(e){
+    const action=soundAction(e);
+    if(!action||!this.enabled||!this.context||document.hidden)return;
+    const version=this.effectsVersion||0,{buffer}=await this.sample(action);
+    if(!buffer||!this.enabled||version!==(this.effectsVersion||0)||document.hidden)return;
+    while(this.voices.size>=24){const first=this.voices.values().next().value;first.stop();this.voices.delete(first);}
+    const c=this.context,s=c.createBufferSource(),gain=c.createGain(),pan=c.createStereoPanner();s.buffer=buffer;
+    const point=e.type==='shot'?e.origin:e.type==='move'?[e.x,e.y,e.z]:e.point||(e.x!==undefined?[e.x,e.y,e.z]:e.actor?[e.actor.x,e.actor.y,e.actor.z]:null);
+    let volume=['face','peek','stance','equip','overwatch','fire_mode'].includes(action)?.28:action==='hurt'?.48:.65;
+    if(point){const dx=point[0]-this.listener.x,dy=point[1]-this.listener.y;volume/=1+Math.hypot(dx,dy)*.035;pan.pan.value=Math.max(-.85,Math.min(.85,(dx*this.listener.rightX+dy*this.listener.rightY)/14));}
+    gain.gain.value=volume;s.connect(gain).connect(pan).connect(this.master);this.voices.add(s);
+    s.onended=()=>{this.voices.delete(s);s.disconnect();gain.disconnect();pan.disconnect();};s.start();
+  }
+  stopAmbience(){
+    this.ambientVersion++;clearTimeout(this.ambientTimer);this.ambientRunning=false;
+    for(const s of [...this.ambientVoices])s.stop();this.ambientVoices.clear();
+  }
+  startAmbience(){
+    if(this.ambientRunning||!this.theme||!this.enabled||!this.context||document.hidden)return;
+    this.ambientRunning=true;const version=this.ambientVersion;
+    const next=async()=>{
+      const {buffer}=await this.sample('ambient_'+this.theme);
+      if(!buffer||version!==this.ambientVersion||!this.enabled||document.hidden)return;
+      const c=this.context,s=c.createBufferSource(),g=c.createGain(),now=c.currentTime,fade=Math.min(.3,buffer.duration/4);
+      s.buffer=buffer;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.22,now+fade);g.gain.setValueAtTime(.22,now+buffer.duration-fade);g.gain.linearRampToValueAtTime(0,now+buffer.duration);
+      s.connect(g).connect(this.master);this.ambientVoices.add(s);s.onended=()=>{this.ambientVoices.delete(s);s.disconnect();g.disconnect();};s.start();
+      this.ambientTimer=setTimeout(next,Math.max(50,(buffer.duration-fade)*1000));
+    };next();
   }
 }
 export const actionAudio=new ActionAudio();

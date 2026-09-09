@@ -198,7 +198,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         portal['open']=not portal['open']
         unit['ap']-=1
         self.geometry_revision+=1
-        self.emit(dict(type='portal',id=portal['id'],open=portal['open']),unit)
+        self.emit(dict(type='portal',id=portal['id'],open=portal['open'],kind=portal['kind']),unit)
         if self.detected(unit):self.log.append(f"{unit['name']} {'opens' if portal['open'] else 'closes'} a {portal['kind']}.")
 
     def chance(self, shooter, target):
@@ -287,6 +287,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             return
         self.spend_ammo(unit)
         unit['ap']=0
+        if w['kind']=='rocket':self.emit(dict(type='rocket_launch',unit=unit['id'],point=self.position(unit),target=[x,y,z]),unit)
         self.emit(dict(type='blast',unit=unit['id'],x=x,y=y,z=z,radius=w['radius'],kind=w['kind'],origin=self.position(unit)),unit)
         self.log.append(f"{unit['name']} uses {unit['weapon']} at {x+1}, {y+1}, level {z}.")
         for victim in self.blast_victims(unit,x,y,z):
@@ -332,6 +333,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             mode=data.get('mode')
             if mode not in ('single','auto') or (mode=='auto' and not WEAPONS[unit['weapon']].get('automatic')):raise ValueError('This weapon does not support that fire mode.')
             unit['fire_mode']=mode
+            self.emit(dict(type='fire_mode',unit=unit['id']),unit)
         elif kind == 'peek':
             self.peek(unit,data)
         elif kind == 'heal':
@@ -351,11 +353,13 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 raise ValueError('That item is not in this fighter’s inventory.')
             unit['inventory'][unit['weapon']]['ammo'] = unit['ammo']
             unit['weapon'], unit['ammo'] = weapon, unit['inventory'][weapon]['ammo']
+            self.emit(dict(type='equip',unit=unit['id']),unit)
         elif kind == 'stance':
             stance = data.get('stance')
             if not isinstance(stance, str) or stance not in STANCES or stance == unit['stance']:
                 raise ValueError('Choose a different valid stance.')
             unit['stance'], unit['ap'] = stance, unit['ap']-1
+            self.emit(dict(type='stance',unit=unit['id']),unit)
             self.log.append(f"{unit['name']} is now {stance}.")
         elif kind in ('move', 'blast'):
             x,y,z=data.get('x'),data.get('y'),data.get('z',unit['z'])
@@ -397,6 +401,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if not unit['ammo'] or WEAPONS[unit['weapon']]['kind'] in ('grenade', 'rocket', 'smoke', 'charge', 'medical'):
                 raise ValueError('Overwatch requires a loaded rifle or handgun.')
             unit['overwatch'], unit['ap'] = True, 0
+            self.emit(dict(type='overwatch',unit=unit['id']),unit)
             self.log.append(f"{unit['name']} is on overwatch.")
         else:
             raise ValueError('Unknown action.')

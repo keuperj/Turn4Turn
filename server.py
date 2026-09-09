@@ -5,6 +5,7 @@ import mimetypes
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from game import Game
+from audio_assets import discover, PATTERN
 
 ROOT = Path(__file__).parent / 'static'
 game = Game(deployed=False)
@@ -21,6 +22,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split('?')[0]
+        if path == '/api/audio':
+            self.send(200,json.dumps(discover()).encode())
+            return
+        if path.startswith('/sounds/'):
+            name=path.removeprefix('/sounds/')
+            file=ROOT/'sounds'/name
+            if PATTERN.fullmatch(name) and file.is_file() and not file.is_symlink():
+                self.send(200,file.read_bytes(),mimetypes.guess_type(name)[0] or 'application/octet-stream')
+            else:self.send(404,b'Not found','text/plain')
+            return
         if path == '/api/state':
             self.send(200, json.dumps(game.state()).encode())
             return

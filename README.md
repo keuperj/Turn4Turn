@@ -24,8 +24,8 @@ Every new mission opens a visual equipment screen:
 - Choose one of seven themes or a random theater.
 - Choose **Compact 24×24**, **Standard 30×30**, or **Large 40×40**. Building and
   scenery density scale with area; larger missions contain more hostiles.
-- Click a pictured main-weapon/support slot to open the equipment catalog.
-- Each fighter receives a main weapon, M9 and two different support items.
+- Click any pictured equipment slot to open the equipment catalog.
+- Each fighter has four selectable slots. Any weapon or item fits any slot; choose four distinct items.
 - The shield/check icon deploys the squad. Equipment cannot change afterward,
   but carried items can be switched freely while a fighter has AP.
 
@@ -172,8 +172,9 @@ Shotgun/medikit prompts: [SUPPORT-PROMPTS.md](static/assets/SUPPORT-PROMPTS.md).
 Previous additional prompts: [EQUIPMENT-PROMPTS.md](static/assets/EQUIPMENT-PROMPTS.md).
 Earlier prompts: [PROMPTS.md](static/assets/PROMPTS.md) and
 [ITEMS-PROMPT.md](static/assets/ITEMS-PROMPT.md). Figures and scenery are procedural
-3D models rather than photogrammetric scans. Sounds are local synthesized
-weapon reports, impacts, footsteps, explosions and pain cries; there is no music.
+3D models rather than photogrammetric scans. Sounds are local ElevenLabs-generated samples for weapons, movement, interactions,
+impacts, explosions and pain reactions, plus one ambience per map theme; there is no music.
+The game never calls ElevenLabs during play.
 
 Three.js / OrbitControls 0.169.0 is bundled with its MIT license in
 `static/vendor/THREE-LICENSE.txt`.
@@ -183,6 +184,7 @@ Three.js / OrbitControls 0.169.0 is bundled with its MIT license in
 ```sh
 python3 -m unittest discover -s tests -q
 python3 tests/browser_smoke.py --browser /snap/bin/chromium
+python3 tests/browser_audio.py
 ```
 
 The optional browser check requires Python Playwright and Chromium. It starts an
@@ -196,7 +198,8 @@ mission setup, icons, minimap navigation, firing and structure health previews.
 
 `POST /api/new` accepts `{"seed":83,"theme":"urban","size":40}` and starts mission
 preparation. `/api/action` with `action: "deploy"` accepts a `loadouts` map of the
-four fighter IDs, each with `primary`, `utility1` and `utility2`.
+four fighter IDs, each with `primary`, `sidearm`, `utility1` and `utility2` (legacy clients may omit
+`sidearm`, which defaults to M9).
 
 `POST /api/preview` validates an order and returns its description without
 spending resources. Example: `{"action":"attack","unit":"s0","x":12,"y":24,"z":0}`.
@@ -209,4 +212,37 @@ use `action:"interact"` plus a portal ID. The server revalidates on execution. `
 `world.py` — map generation; `server.py` — HTTP API; `static/scene.js` — WebGL;
 `static/environment.js` — scenery; `static/app.js` — controls and preparation;
 `static/minimap.js` — overview; `static/icons.js` — action icons;
-`static/audio.js` — action sound.
+`static/audio.js` — local sample playback, ambience, spatial mixing and variants;
+`audio_assets.py` — sound catalog, discovery and fallback creation;
+`tools/generate_sounds.py` — resumable offline ElevenLabs generation.
+
+World health bars appear only while hovering over a person or destructible object. Sidebar selection centers the camera on that fighter. Enemy phases follow visible hostile actions without exposing hidden enemies. Wheel zoom ranges from close inspection to a full-map view (2–220 units).
+
+
+## Sound files and additional variants
+
+The initial set contains **33 action sounds and seven ambient loops**, generated
+with ElevenLabs and stored in `static/sounds/`. Audio runs entirely from localhost.
+The sound toggle controls both effects and ambience; the volume slider updates
+currently playing sounds too. Ambience plays only during active missions and
+pauses when the tab is hidden. Shot positions use only public game events.
+
+Add numbered files such as `shot_m4a1_002.mp3`, `reload_002.wav` or
+`ambient_farm_002.ogg`. Reload the page or start a new mission to discover them.
+Playback randomly selects a matching variant and avoids immediate repeats when
+there is more than one. Ambient variants crossfade at loop boundaries.
+
+`GET /api/audio` discovers the local numbered MP3/WAV/Ogg files automatically.
+Real files take precedence over tracked placeholders. Generated placeholders
+remain available as backups; they are not mixed into groups with real samples.
+
+To fill any missing groups later, run `python3 tools/generate_sounds.py` with
+`ELEVENLABS_API_KEY` in your terminal environment or project-root `.env`.
+The script skips existing real sounds, saves every successful response, and
+stops API calls if quota, authentication, network or other service errors occur.
+All unfinished groups retain placeholders, so implementation/play never depends
+on API availability. It does not generate extra variants automatically.
+
+See [the sound-folder guide](static/sounds/README.md) for filenames, replacement
+rules and generation commands. Prompts and durations are editable in
+`audio_assets.py`. Credentials are never served to the browser.
