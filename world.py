@@ -43,7 +43,7 @@ def generate(game):
         cells={(bx,by,0) for by in range(y-1,y+depth+1) for bx in range(x-1,x+width+1)}
         if cells&reserved or any(game.tiles[by][bx]=='road' for bx,by,_ in cells):continue
         if any(not(x+width+2<=b['x'] or b['x']+b['width']+2<=x or y+depth+2<=b['y'] or b['y']+b['depth']+2<=y) for b in game.buildings):continue
-        i=len(game.buildings);levels=1 if game.theme in ('woods','farm') else r.choice([1,1,2])
+        i=len(game.buildings);levels=1 if game.theme in ('woods','farm') else (2 if i==0 else r.choice([1,2,2]))
         b=dict(id=f'b{i}',x=x,y=y,width=width,depth=depth,level=levels,name=theme['names'][i%4])
         game.buildings.append(b)
         for by in range(y,y+depth):
@@ -59,7 +59,29 @@ def generate(game):
                 portal=dict(id=f'p{len(game.portals)}',a=a,b=other,kind=kind,open=False,building=b['id'],side=side)
                 game.walls[edge_key(a,other)]=portal
                 if kind!='wall':game.portals.append(portal)
-        game.ladders.append(((x+width,y+depth-1,0),(x+width-1,y+depth-1,levels)))
+        # Connected two-room floors, with an optional third room in larger buildings.
+        for z in range(levels):
+            split_y=y+r.randint(1,depth-1)
+            doorway=x+r.randrange(width)
+            for bx in range(x,x+width):
+                a,other=(bx,split_y-1,z),(bx,split_y,z)
+                kind='door' if bx==doorway else 'wall'
+                wall=dict(id=f"{b['id']}_inner_{z}_h{bx}",a=a,b=other,kind=kind,open=False,building=b['id'],side='interior')
+                game.walls[edge_key(a,other)]=wall
+                if kind=='door':game.portals.append(wall)
+            if width>=4 and depth>=5:
+                split_x=x+width//2;door_y=r.randrange(y,split_y)
+                for by in range(y,split_y):
+                    a,other=(split_x-1,by,z),(split_x,by,z)
+                    kind='door' if by==door_y else 'wall'
+                    wall=dict(id=f"{b['id']}_inner_{z}_v{by}",a=a,b=other,kind=kind,open=False,building=b['id'],side='interior')
+                    game.walls[edge_key(a,other)]=wall
+                    if kind=='door':game.portals.append(wall)
+        if i%2:
+            # Interior ladders connect floors (or a single-storey loft/roof).
+            game.ladders.extend(((x+width-1,y+depth-1,z),(x+width-1,y+depth-1,z+1)) for z in range(levels))
+        else:
+            game.ladders.append(((x+width,y+depth-1,0),(x+width-1,y+depth-1,levels)))
         for z in range(levels):game.stairs.append(((x+width-1,y,z),(x+width-1,y,z+1)))
         reserved.update(cells)
     kinds=list(theme['props'])

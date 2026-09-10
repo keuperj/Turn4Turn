@@ -1,14 +1,14 @@
-import * as THREE from 'three';
+import * as G from './rendering.js';
 
 // Theme props share the footprints used by Python collision/pathfinding.
 export function addProp(view, p, parent=view.terrain) {
   if(p.destroyed){view.box(parent,p.width*.8,.12,p.depth*.8,p.x+(p.width-1)/2,.06,p.y+(p.depth-1)/2,0x45443e);return;}
-  const group=new THREE.Group();parent.add(group);
+  const group=new G.Group();parent.add(group);
   const x=p.x+(p.width-1)/2,z=p.y+(p.depth-1)/2;
   group.position.set(x,0,z);
   const box=(w,h,d,x,y,z,c)=>view.box(group,w,h,d,x,y,z,c);
   const color=p.color||'#91a5a1',metal=0x424c4e,glass=0x344e5b;
-  const cylinder=(r,h,x,y,z,c)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,14),view.material(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;};
+  const cylinder=(r,h,x,y,z,c)=>{const m=new G.Mesh(new G.CylinderGeometry(r,r,h,14),view.material(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;};
   const wheel=(x,z,r=.19)=>{const w=cylinder(r,.13,x,r,z,0x242927);w.rotation.z=Math.PI/2;};
   switch(p.kind){
     case 'car': case 'truck': case 'tractor': {
@@ -32,7 +32,7 @@ export function addProp(view, p, parent=view.terrain) {
       break;
     }
     case 'aircraft': {
-      const fuselage=new THREE.Mesh(new THREE.CapsuleGeometry(.34,2.7,6,12),view.material(0xcbd1c9));fuselage.rotation.x=Math.PI/2;fuselage.position.y=.72;fuselage.castShadow=true;group.add(fuselage);
+      const fuselage=new G.Mesh(new G.CapsuleGeometry(.34,2.7,6,12),view.material(0xcbd1c9));fuselage.rotation.x=Math.PI/2;fuselage.position.y=.72;fuselage.castShadow=true;group.add(fuselage);
       box(2.85,.10,.70,0,.7,.25,0xbcc7c5);box(1.35,.07,.45,0,.85,1.5,0xbcc7c5);
       box(.08,.8,.6,0,1.1,1.4,0x667e83);box(.36,.18,.60,0,.96,-.9,glass);
       for(const s of [-1,1]){const engine=cylinder(.15,.6,s*.8,.5,.15,metal);engine.rotation.x=Math.PI/2;wheel(s*.7,.5,.14);}wheel(0,-1.05,.13);
@@ -44,7 +44,7 @@ export function addProp(view, p, parent=view.terrain) {
       break;
     case 'tank': case 'silo':
       cylinder(.45,p.kind==='silo'?3.4:1.5,0,p.kind==='silo'?1.7:.75,0,0xa4aba4);
-      {const cap=new THREE.Mesh(new THREE.ConeGeometry(.48,.4,16),view.material(0x89978e));cap.position.y=p.kind==='silo'?3.6:1.7;group.add(cap);}break;
+      {const cap=new G.Mesh(new G.ConeGeometry(.48,.4,16),view.material(0x89978e));cap.position.y=p.kind==='silo'?3.6:1.7;group.add(cap);}break;
     case 'pipes':
       for(let i=0;i<3;i++){const c=cylinder(.13,1.8,-.26+i*.26,.22,0,metal);c.rotation.x=Math.PI/2;}break;
     case 'hay':
@@ -54,7 +54,7 @@ export function addProp(view, p, parent=view.terrain) {
       for(const s of [-1,1])box(.065,.40,.34,s*.32,.20,0,metal);break;
     case 'tree':
       cylinder(.09,1.8,0,.9,0,0x67513a);
-      for(let j=0;j<5;j++){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.48+(j%2)*.1,1),view.material([0x485a38,0x5c7043,0x748357][j%3]));m.position.set(Math.sin(j*2.4)*.24,1.6+j*.15,Math.cos(j*2.4)*.24);m.castShadow=true;group.add(m);}break;
+      for(let j=0;j<5;j++){const m=new G.Mesh(new G.IcosahedronGeometry(.48+(j%2)*.1,1),view.material([0x485a38,0x5c7043,0x748357][j%3]));m.position.set(Math.sin(j*2.4)*.24,1.6+j*.15,Math.cos(j*2.4)*.24);m.castShadow=true;group.add(m);}break;
   }
   const base={car:[1,2],truck:[1,2],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],tree:[1,1]}[p.kind]||[1,1];
   group.scale.set(p.width/base[0],p.kind==='car'?1.3:p.kind==='aircraft'?2:p.kind==='train'?1.5:1,p.depth/base[1]);
@@ -99,14 +99,15 @@ export function addBuilding(view,b,state){
       seg(.15,cut?.38:3,0,-.425);seg(.15,cut?.38:3,0,.425);
       if(!cut)seg(.7,wall.kind==='door'?.5:.6,wall.kind==='door'?2.5:2.4);
       if(wall.kind==='window')seg(.7,cut?.38:.85,0);
-      const hinge=new THREE.Group();hinge.position.set(x+(vertical?0:-.35),az*3,z+(vertical?-.35:0));
+      const hinge=new G.Group();hinge.position.set(x+(vertical?0:-.35),az*3,z+(vertical?-.35:0));
       const height=wall.kind==='door'?2.45:1.4,base=wall.kind==='door'?0:.9;
       const leaf=view.box(hinge,vertical?.065:.7,height,vertical?.7:.065,vertical?0:.35,base+height/2,vertical?.35:0,wall.kind==='door'?0x6d7c74:0x5b8793);
-      if(wall.kind==='window'){leaf.material.transparent=true;leaf.material.opacity=wall.open?.30:.65;}
+      if(wall.kind==='window'){leaf.material=new G.MeshStandardMaterial({color:0x5b8793,roughness:.18,metalness:.1});leaf.material.transparent=true;leaf.material.opacity=wall.open?.30:.65;}
       leaf.userData.portal=wall.id;
       if(wall.kind==='door')view.box(hinge,.035,.035,.11,vertical?.08:.6,1.15,vertical?.6:.08,0xd4bd82);
       hinge.rotation.y=wall.open?Math.PI*.48:0;parent.add(hinge);view.portalModels.set(wall.id,hinge);view.pickables.push(leaf);
-      if(cut||wall.kind==='door'){const icon=view.label(`${wall.open?'OPEN':'CLOSED'} ${wall.kind==='door'?'DOOR':'WINDOW'}`,wall.open?'#a4eacb':'#eed29b',1.0);icon.position.set(x,az*3+(wall.kind==='door'?2.65:2.5),z);parent.add(icon);}
+      hinge.traverse(o=>{if(o.isMesh)o.userData.portal=wall.id;});
+      const icon=view.hoverLabel(`${wall.open?'OPEN':'CLOSED'} ${wall.kind.toUpperCase()}`,`portal:${wall.id}`,wall.open?'#a4eacb':'#eed29b',1.0);icon.position.set(x,az*3+(wall.kind==='door'?2.65:2.5),z);parent.add(icon);
     }
   }
   if(limit>=b.level){
@@ -122,9 +123,11 @@ export function addBuilding(view,b,state){
   }
   for(const child of parent.children.slice(start))child.traverse(o=>{if(o.isMesh){o.userData.structure=b.id;view.pickables.push(o);}});
   const sign=view.healthLabel(b.name,b.hp,b.max_hp,'#eee4c6',2.5);sign.userData.structure=b.id;view.pickables.push(sign);sign.position.set(cx,Math.min(b.level,limit)*3+.35,b.y-.6);parent.add(sign);
-  for(const [a,d] of state.stairs.filter(([a])=>a[0]===b.x+b.width-1&&a[1]===b.y)){
+  for(const [a,d] of state.stairs.filter(([a])=>a[0]>=b.x&&a[0]<b.x+b.width&&a[1]>=b.y&&a[1]<b.y+b.depth)){
     if(a[2]>limit)continue;
-    if(a[2]===limit){const sign=view.label('STAIRS ↑','#f6d495',.9);sign.position.set(a[0],a[2]*3+.2,a[1]);parent.add(sign);}
-    else for(let i=0;i<9;i++)view.box(parent,.72,(i+1)/3,.095,a[0],a[2]*3+(i+1)/6,a[1]-.4+i*.095,0xb1afa0);
+    const id=`stairs:${a.join(',')}:${d.join(',')}`,link={transition:id,ends:[a,d],x:a[0],y:a[1],z:a[2]};
+    const sign=view.hoverLabel('STAIRS ↕',id,'#f6d495',.9);sign.position.set(a[0],a[2]*3+.7,a[1]);parent.add(sign);
+    // Keep an exposed flight in a cutaway instead of only a floating text marker.
+    for(let i=0;i<9;i++){const step=view.box(parent,.72,(i+1)/3,.095,a[0],a[2]*3+(i+1)/6,a[1]-.4+i*.095,0xb1afa0);step.userData={...link};view.pickables.push(step);}
   }
 }

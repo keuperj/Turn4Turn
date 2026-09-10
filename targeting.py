@@ -58,7 +58,7 @@ class Targeting:
             x,y,z=data.get('x'),data.get('y'),data.get('z',u['z'])
             if any(type(v) is not int for v in (x,y,z)):raise ValueError('Select a destination.')
             transition=any({self.position(u),(x,y,z)}=={tuple(a),tuple(b)} for a,b in self.ladders+self.stairs)
-            if (x,y,z) not in self.visible and not transition:raise ValueError('Explore that area first.')
+            if (x,y,z) not in self.explored and not transition:raise ValueError('Explore that area first.')
             path=self.paths(u,u['ap']*self.speed(u),known_units=True).get((x,y,z))
             if not path:raise ValueError('No reachable path to that point.')
             return dict(action='move',x=x,y=y,z=z,path=path,cost=math.ceil(len(path)/self.speed(u)),name='Move')

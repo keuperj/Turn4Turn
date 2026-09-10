@@ -22,6 +22,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split('?')[0]
+        if path == '/comparison':
+            self.send_response(302)
+            self.send_header('Location','/comparison/')
+            self.end_headers()
+            return
+        if path == '/comparison/':
+            self.send(200,(ROOT/'comparison'/'index.html').read_bytes(),'text/html; charset=utf-8')
+            return
+        if path.startswith('/comparison/'):
+            file=(ROOT/path.lstrip('/')).resolve()
+            if file.is_relative_to((ROOT/'comparison').resolve()) and file.is_file():
+                self.send(200,file.read_bytes(),mimetypes.guess_type(str(file))[0] or 'application/octet-stream')
+            else:self.send(404,b'Not found','text/plain')
+            return
         if path == '/api/audio':
             self.send(200,json.dumps(discover()).encode())
             return
@@ -35,7 +49,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/state':
             self.send(200, json.dumps(game.state()).encode())
             return
-        if path.startswith(('/assets/', '/vendor/')) or path in ('/scene.js','/environment.js','/icons.js','/minimap.js','/audio.js'):
+        if path.startswith(('/assets/', '/vendor/')) or path in ('/scene.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/audio.js'):
             file = (ROOT / path.lstrip('/')).resolve()
             if file.is_relative_to(ROOT.resolve()) and file.is_file():
                 self.send(200, file.read_bytes(), mimetypes.guess_type(str(file))[0] or 'application/octet-stream')

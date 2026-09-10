@@ -37,7 +37,15 @@ class FogOfWar:
         for x,y,z in self.visible:
             if z==0:self.known_tiles[(x,y)]=self.tiles[y][x]
         for wall in self.walls.values():
-            if tuple(wall['a']) in self.visible or tuple(wall['b']) in self.visible:
+            observed=tuple(wall['a']) in self.visible or tuple(wall['b']) in self.visible
+            if not observed and wall.get('side')!='interior' and wall['a'][2]>0:
+                # Upper exterior faces are visible from ground level even though
+                # their outside endpoints are not walkable upper-floor surfaces.
+                a,b=wall['a'],wall['b']
+                face=dict(x=(a[0]+b[0])/2+(b[0]-a[0])*.04,
+                          y=(a[1]+b[1])/2+(b[1]-a[1])*.04,z=a[2],stance='standing')
+                observed=any(self.sees(s,face) for s in self.alive('soldier'))
+            if observed:
                 self.known_walls[(tuple(wall['a']),tuple(wall['b']))]=copy.deepcopy(wall)
                 b=next(b for b in self.buildings if b['id']==wall['building'])
                 self.known_buildings[b['id']]=copy.deepcopy(b)

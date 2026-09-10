@@ -2,7 +2,7 @@
 
 A browser-based, XCOM-inspired single-mission game. Python owns combat,
 pathfinding, visibility, equipment and randomized missions. The locally bundled
-Three.js renderer displays the battlefield. There is no campaign or economy.
+Babylon.js 9.25.0 renderer displays the battlefield. There is no campaign or economy.
 
 ## Run
 
@@ -17,6 +17,11 @@ Open **http://localhost:8002**. Stop with Ctrl+C. Restart after Python changes;
 refresh after frontend changes. The loopback server stores one shared mission
 in memory, so connected tabs play the same battle.
 
+The separate [engine comparison](http://localhost:8002/comparison/) shows the same
+textured courtyard, animated soldier, vehicle and effects in Babylon.js,
+PlayCanvas and Three.js. It includes camera presets, floor cutaways and frame-time
+measurements. See [comparison notes and credits](static/comparison/README.md).
+
 ## Mission preparation
 
 Every new mission opens a visual equipment screen:
@@ -30,7 +35,9 @@ Every new mission opens a visual equipment screen:
   but carried items can be switched freely while a fighter has AP.
 
 Themes: urban district, factory, train station, airport, streets, woods and farm.
-Buildings have interior floors, roofs, doors, windows and stairs. Scenery includes
+Buildings have connected multi-room floors, internal doors, roofs, upper-floor
+windows, stairs, and both indoor and outdoor ladders. Missions include indoor
+enemy defenders, including upper-floor positions in multi-storey theaters. Scenery includes
 cars, trucks, trains, aircraft, industrial equipment and trees. Vehicles cannot
 be driven or boarded.
 
@@ -143,7 +150,10 @@ close inspection of an old location clear the corresponding stale marker.
 Open or close adjacent doors/windows for 1 AP. Windows cannot be traversed;
 closed shutters block fire. Open windows allow shots above the sill. Auto cutaway
 shows rooms when a door opens or a fighter enters. Use the floor selector to
-inspect interiors or roofs. Stairs and ladders connect walkable levels.
+inspect interiors or roofs. Stairs and ladders connect walkable levels. Door,
+window, stair and ladder labels appear only on hover; their geometry and labels
+are occluded by walls and ceilings in exterior view. Cutaways expose the selected
+floor. Internal doors block walking and sight until opened.
 
 Eliminate all hostiles to win; losing the squad ends the mission. Civilians
 head toward the southern evacuation boundary after hostile phases. Keep them
@@ -185,6 +195,7 @@ Three.js / OrbitControls 0.169.0 is bundled with its MIT license in
 python3 -m unittest discover -s tests -q
 python3 tests/browser_smoke.py --browser /snap/bin/chromium
 python3 tests/browser_audio.py
+python3 tests/browser_interiors.py
 ```
 
 The optional browser check requires Python Playwright and Chromium. It starts an
@@ -209,7 +220,9 @@ use `action:"interact"` plus a portal ID. The server revalidates on execution. `
 
 `game.py` — simulation; `targeting.py` — previews and coordinate attacks; `fieldcraft.py` — healing, facing and corners;
 `arsenal.py` — equipment/timers/destruction; `visibility.py` — squad knowledge;
-`world.py` — map generation; `server.py` — HTTP API; `static/scene.js` — WebGL;
+`world.py` — map generation; `server.py` — HTTP API; `static/scene.js` — Babylon battlefield;
+`static/rendering.js` — Babylon scene primitives, picking and camera;
+`static/characters.js` — glTF skeletons, animation and poses;
 `static/environment.js` — scenery; `static/app.js` — controls and preparation;
 `static/minimap.js` — overview; `static/icons.js` — action icons;
 `static/audio.js` — local sample playback, ambience, spatial mixing and variants;
@@ -246,3 +259,33 @@ on API availability. It does not generate extra variants automatically.
 See [the sound-folder guide](static/sounds/README.md) for filenames, replacement
 rules and generation commands. Prompts and durations are editable in
 `audio_assets.py`. Credentials are never served to the browser.
+
+
+Smoke obscures sight and targeting, but does not block movement. Fighters can
+preview and move to previously explored tiles inside or beyond a smoke cloud,
+including greyed-out tiles; unexplored destinations still require exploration or
+a nearby vertical connection. Moving through smoke does not reveal hidden enemies.
+
+
+## Babylon.js renderer
+
+The game runs entirely on the locally bundled Babylon.js engine. Three.js is
+retained only for the separate historical comparison and asset authoring tools.
+No CDN, account or external service is needed to play. Python remains authoritative
+for movement, sight, targeting, destruction, equipment and turns.
+
+The renderer includes rigged glTF fighters with walking/idle blending, attached
+equipment, adapted kneeling/prone poses, PBR materials with procedural surface
+normal maps, soft shadows, billboard smoke and native ray picking. The soldier
+is stylized; custom crawl/climb animation sets and photorealistic replacement
+models remain future art work. Doors, windows, floor cutaways, fog, memories,
+hover labels, camera tracking and all existing controls are preserved.
+
+Character credits: [model notes](static/assets/models/README.md). Engine license:
+[Apache 2.0](static/vendor/BABYLON-LICENSE.txt).
+
+Browser checks (Playwright + Chromium):
+`python3 tests/browser_smoke.py`, `python3 tests/browser_interiors.py`,
+`python3 tests/browser_babylon.py`, and `python3 tests/browser_audio.py`.
+The Babylon test checks actual skeleton animation and resource counts across
+state refreshes, in addition to saving a stance screenshot for inspection.

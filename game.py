@@ -61,7 +61,18 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             reachable=self.paths(self.units[0],999,ignore_units=True,ignore_doors=True)
         candidates=sorted(p for p in reachable if p[1]<self.size-11)
         self.rng.shuffle(candidates)
-        for i,(x,y,z) in enumerate(candidates[:(self.rng.randint(5,7) if self.size==24 else self.rng.randint(10,13) if self.size==40 else self.rng.randint(7,9))]):
+        enemy_count=self.rng.randint(5,7) if self.size==24 else self.rng.randint(10,13) if self.size==40 else self.rng.randint(7,9)
+        # Reserve roughly half the hostiles for rooms, spread across buildings/floors.
+        indoor=[]
+        for building in self.buildings:
+            positions=[p for p in sorted(reachable) if self.building_at(*p)==building and p[1]<self.size-6
+                       and p not in {tuple(v) for link in self.ladders+self.stairs for v in link}]
+            self.rng.shuffle(positions)
+            positions.sort(key=lambda p:p[2],reverse=True)
+            if positions:indoor.append(positions[0])
+        self.rng.shuffle(indoor);spawns=indoor[:max(2,enemy_count//2)]
+        spawns.extend(p for p in candidates if p not in spawns)
+        for i,(x,y,z) in enumerate(spawns[:enemy_count]):
             enemy=self.make_unit(f'e{i}',f'CONTACT {i+1}','alien',x,y,'Alien carbine','Raider',z)
             enemy['stance']=self.rng.choice(['standing','standing','kneeling','prone'])
             self.units.append(enemy)
@@ -367,7 +378,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 raise ValueError('Invalid destination.')
             if kind == 'move':
                 transition=any({self.position(unit),(x,y,z)}=={tuple(a),tuple(b)} for a,b in self.ladders+self.stairs)
-                if (x,y,z) not in self.visible and not transition:raise ValueError('That destination is not visible. Explore or use a nearby ladder/stair.')
+                if (x,y,z) not in self.explored and not transition:raise ValueError('Explore that destination or use a nearby ladder/stair.')
                 path = self.paths(unit,unit['ap']*self.speed(unit),known_units=True).get((x,y,z))
                 if not path:
                     raise ValueError('Destination cannot be reached. Use ladders to change levels; stand or kneel to climb.')
@@ -494,7 +505,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         detected=[t for t in self.alive('alien') if self.detected(t)]
         for u in self.alive('soldier'):
             movement[u['id']]=[dict(x=x,y=y,z=z,cost=math.ceil(len(path)/self.speed(u)))
-                              for (x,y,z),path in self.paths(u,u['ap']*self.speed(u),known_units=True).items() if path and (x,y,z) in self.visible]
+                              for (x,y,z),path in self.paths(u,u['ap']*self.speed(u),known_units=True).items() if path and (x,y,z) in self.explored]
             shots[u['id']]={t['id']:dict(chance=self.chance(u,t),cover=self.cover(u,t)) for t in detected}
             interactions[u['id']]=self.interactions(u)
             transitions[u['id']]=[dict(x=p[0],y=p[1],z=p[2]) for a,b in self.ladders+self.stairs for p in [tuple(b) if self.position(u)==tuple(a) else tuple(a) if self.position(u)==tuple(b) else None] if p and u['stance']!='prone']

@@ -98,14 +98,15 @@ async function chooseGoal(data,execute=false){
 function pick(hit,execute=false){
   if(!state||(busy&&activeRequest!=='/api/preview')||state.status!=='active')return;
   const u=state.units.find(u=>u.id===hit.unit),memory=state.last_seen?.find(m=>m.id===hit.memory);
-  const p=u||memory||hit;
+  let p=u||memory||hit;
+  if(mode==='move'&&hit.transition){const own=soldier(),at=hit.ends.findIndex(v=>v[0]===own.x&&v[1]===own.y&&v[2]===own.z);const end=hit.ends[at>=0?1-at:0];p={x:end[0],y:end[1],z:end[2]};}
   if(mode==='face'){if(!busy&&!execute)act('face',{x:p.x,y:p.y});return;}
   if(mode==='move'&&u?.team==='soldier'&&u.hp>0){select(u.id);return;}
   if(mode==='move'&&hit.portal){chooseGoal({action:'interact',unit:selected,portal:hit.portal},execute);return;}
   const data=mode==='attack'?(state.weapons[soldier().weapon].kind==='medical'?{action:'heal',unit:selected,target:u?.id}:{action:'attack',unit:selected,x:p.x,y:p.y,z:p.z,...(hit.structure?{structure:hit.structure}:{})}):{action:'move',unit:selected,x:p.x,y:p.y,z:p.z};
   chooseGoal(data,execute);
 }
-function hover(hit){if(!state||!hit)return;if(hit.memory){const m=state.last_seen.find(m=>m.id===hit.memory);$('tile-info').textContent=`${m.name} · LAST SEEN ROUND ${m.round} · UNCONFIRMED`;return;}const u=state.units.find(u=>u.id===hit.unit),p=[...state.props,...state.buildings].find(p=>p.id===hit.structure);$('tile-info').textContent=u?`${u.name} · ${u.hp}/${u.max_hp} HP · L${u.z}`:p?`${p.name||p.kind} · ${p.hp}/${p.max_hp} HP`:`TILE ${hit.x+1}, ${hit.y+1} · L${hit.z}`;}
+function hover(hit){if(!state)return;if(!hit){$('tile-info').textContent='RECON VIEW';return;}if(hit.transition){$('tile-info').textContent=`${hit.transition.startsWith('ladder:')?'LADDER':'STAIRS'} · L${hit.ends[0][2]} ↔ L${hit.ends[1][2]} · Double-click to approach or climb`;return;}if(hit.portal){const p=state.portals.find(p=>p.id===hit.portal);if(p){$('tile-info').textContent=`${p.open?'OPEN':'CLOSED'} ${p.kind.toUpperCase()} · L${p.a[2]}`;return;}}if(hit.memory){const m=state.last_seen.find(m=>m.id===hit.memory);$('tile-info').textContent=`${m.name} · LAST SEEN ROUND ${m.round} · UNCONFIRMED`;return;}const u=state.units.find(u=>u.id===hit.unit),p=[...state.props,...state.buildings].find(p=>p.id===hit.structure);$('tile-info').textContent=u?`${u.name} · ${u.hp}/${u.max_hp} HP · L${u.z}`:p?`${p.name||p.kind} · ${p.hp}/${p.max_hp} HP`:`TILE ${hit.x+1}, ${hit.y+1} · L${hit.z}`;}
 function initializeDraft(){if(draft)return;draft={};state.units.filter(u=>u.team==='soldier').forEach((u,i)=>draft[u.id]={primary:u.weapon,sidearm:'M9',utility1:i===2?'Smoke grenade':'Frag grenade',utility2:i===3?'Demolition charge':'RPG-7'});}
 function renderPreparation(){
   initializeDraft();
@@ -134,6 +135,7 @@ document.addEventListener('pointerdown',()=>actionAudio.unlock(),{once:true});do
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
 try{
   battlefield=new Battlefield($('map'),pick,hover);
+  await battlefield.ready;
   minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
   battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
   request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;if(state.status==='loadout')renderPreparation();}});
