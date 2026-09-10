@@ -122,11 +122,19 @@ export class Battlefield {
       for(let i=0;i<8;i++)this.box(this.terrain,.14,.04,1.6,theme.road_x-2+i*.6,.05,n-6,0xeee9d5);
     }
 
-    const evac=this.label('CIVILIAN EVACUATION →','#ace9c0',4);evac.position.set(c,.12,n-.3);this.terrain.add(evac);
+    if(state.civilians.total){const evac=this.label('CIVILIAN EVACUATION →','#ace9c0',4);evac.position.set(c,.12,n-.3);this.terrain.add(evac);}
     const grid=new G.GridHelper(n,n,0x9aaca3,0x6e8074);grid.position.set(c,.035,c);grid.material.transparent=true;grid.material.opacity=.16;this.terrain.add(grid);
     const explored=new Set(state.fog.explored.map(p=>p.join(','))),visible=new Set(state.fog.visible.map(p=>p.join(','))),fogTiles={explored:[],unseen:[]};
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){const b=state.buildings.find(b=>x>=b.x&&x<b.x+b.width&&y>=b.y&&y<b.y+b.depth),z=b?this.buildingLevel(b):0,key=`${x},${y},${z}`;if(!visible.has(key))fogTiles[explored.has(key)?'explored':'unseen'].push({x,y:z*3+.17,z:y});}
     this.tiles(this.terrain,fogTiles.explored,this.fogMaterials.explored,1.015);this.tiles(this.terrain,fogTiles.unseen,this.fogMaterials.unseen,1.015);
+    if(state.mission.flag){
+      const f=state.mission.flag,color=f.team==='soldier'?0x45b9dc:0xe45f4a,flag=new G.Group();
+      this.box(flag,.07,2.8,.07,0,1.4,0,0xc9d3ce);this.box(flag,.28,.08,.28,0,.04,0,0x59676a);
+      const finial=new G.Mesh(new G.SphereGeometry(.11,12,8),this.material(0xe4c775));finial.position.y=2.85;flag.add(finial);
+      for(let i=0;i<3;i++){const panel=this.box(flag,.62,.42,.035,.34+i*.05,2.52-i*.05,0,color);panel.rotation.z=-.05+i*.08;}
+      const marker=this.label(f.label,f.team==='soldier'?'#9cecff':'#ffad91',1.8);marker.position.set(.3,3.25,0);flag.add(marker);
+      flag.position.set(f.x,f.z*3,f.y);flag.traverse(o=>{o.userData.x=f.x;o.userData.y=f.y;o.userData.z=f.z;});this.terrain.add(flag);
+    }
     this.terrain.updateMatrixWorld();this.terrain.traverse(o=>{if(o.isMesh&&!o.userData.portal&&!o.userData.hoverFor&&!o.userData.health)o.native.freezeWorldMatrix();});
     this.terrainHoverItems=[];this.terrain.traverse(o=>{if(o.userData.hoverFor||o.userData.health)this.terrainHoverItems.push(o);});
   }
@@ -159,7 +167,7 @@ export class Battlefield {
     const first=!this.state||this.state.seed!==state.seed,sameState=this.state===state;this.state=state;this.selected=selected;
     if(first){this.home();const u=state.units.find(u=>u.id===selected);if(u){this.focus(u);this.camera.position.copy(this.controls.target).add(new G.Vector3(17,23,22));}}
     const terrainContext=JSON.stringify([this.viewMode,state.buildings.map(b=>this.buildingLevel(b))]);
-    if(!sameState||this.terrainContext!==terrainContext){const signature=JSON.stringify([state.seed,state.theme,state.tiles,state.walls,state.portals,state.ladders,state.stairs,this.viewMode,state.fog.visible,state.fog.explored,state.buildings.map(b=>[this.buildingLevel(b),b.hp]),state.props.map(p=>[p.id,p.hp])]);if(this.signature!==signature){this.build(state);this.signature=signature;}this.terrainState=state;this.terrainContext=terrainContext;}
+    if(!sameState||this.terrainContext!==terrainContext){const signature=JSON.stringify([state.seed,state.theme,state.mission.key,state.mission.flag,state.tiles,state.walls,state.portals,state.ladders,state.stairs,this.viewMode,state.fog.visible,state.fog.explored,state.buildings.map(b=>[this.buildingLevel(b),b.hp]),state.props.map(p=>[p.id,p.hp])]);if(this.signature!==signature){this.build(state);this.signature=signature;}this.terrainState=state;this.terrainContext=terrainContext;}
     const actorSignature=JSON.stringify([terrainContext,state.units.map(u=>[u.id,u.name,u.team,u.x,u.y,u.z,u.hp,u.max_hp,u.stance,u.facing,u.weapon,u.evacuated]),state.last_seen]);
     if(this.actorSignature!==actorSignature){this.clear(this.actors);this.models.clear();
       for(const u of state.units){if(!this.actorVisible(u))continue;if(u.hp<=0){this.corpse(u);continue;}const model=this.figure(u);this.actors.add(model);this.models.set(u.id,model);}

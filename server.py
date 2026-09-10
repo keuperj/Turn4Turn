@@ -83,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
                 seed = data.get('seed')
                 if seed is not None and (type(seed) is not int or not 0 <= seed <= 999999999):
                     raise ValueError('Seed must be an integer from 0 to 999999999.')
-                game = Game(seed, data.get('theme', 'random'), deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'))
+                game = Game(seed, data.get('theme', 'random'), deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'),mission=data.get('mission','rescue'))
             else:
                 game.action(data)
             self.send(200, json.dumps(game.state()).encode())

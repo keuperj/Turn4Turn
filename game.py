@@ -36,15 +36,24 @@ DIFFICULTIES = {
     'hard': dict(label='Hard', player_time=2, enemy_time=3),
 }
 
+MISSIONS = {
+    'eliminate': dict(label='Eliminate all enemies', objective='Eliminate every hostile fighter.', has_civilians=False),
+    'rescue': dict(label='Save the civilians', objective='Rescue every civilian or eliminate all hostiles. No civilian may be killed.', has_civilians=True),
+    'capture_flag': dict(label='Capture the enemy flag', objective='Reach the enemy flag within 30 rounds.', has_civilians=False, round_limit=30),
+    'defend_flag': dict(label='Defend the flag', objective='Keep the squad flag secure for 30 rounds or eliminate all hostiles.', has_civilians=False, round_limit=30),
+}
+
 
 class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
     size = 30
 
-    def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium'):
+    def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium', mission='rescue'):
         if type(size) is not int or size not in (24,30,40):raise ValueError('Map size must be 24, 30, or 40.')
         if not isinstance(difficulty,str) or difficulty not in DIFFICULTIES:raise ValueError('Difficulty must be easy, medium, or hard.')
+        if not isinstance(mission,str) or mission not in MISSIONS:raise ValueError('Unknown mission type.')
         self.size=size
         self.difficulty=difficulty
+        self.mission=mission
         self.player_time=DIFFICULTIES[difficulty]['player_time'];self.enemy_time=DIFFICULTIES[difficulty]['enemy_time']
         self.seed = seed if seed is not None else random.randrange(1_000_000)
         self.rng = random.Random(self.seed)
@@ -55,8 +64,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.smoke=[];self.charges=[]
         self.events,self.units=[],[]
         self.geometry_revision=0;self._los_cache={}
-        self.log = [f"Operation Silent Orchard — {THEMES[self.theme]['label']}.",
-                    'Eliminate hostiles. Keep civilians alive. Open doors to enter buildings.']
+        self.log = [f"Operation Silent Orchard — {THEMES[self.theme]['label']}.", MISSIONS[mission]['objective']]
         self.rng.seed(f'{self.seed}:{self.theme}')
         generate(self)
         for i, (name, role, weapon) in enumerate([
@@ -86,9 +94,19 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             enemy['stance']=self.rng.choice(['standing','standing','kneeling','prone'])
             self.units.append(enemy)
         occupied={self.position(u) for u in self.units}
-        civilians=[p for p in reachable if p[2]==0 and p not in occupied and 4<p[1]<self.size-6]
-        for i,(x,y,z) in enumerate(self.rng.sample(sorted(civilians),5)):
-            self.units.append(self.make_unit(f'c{i}',f'CIVILIAN {i+1}','civilian',x,y,None,'Noncombatant'))
+        if MISSIONS[mission]['has_civilians']:
+            civilians=[p for p in reachable if p[2]==0 and p not in occupied and 4<p[1]<self.size-6]
+            for i,(x,y,z) in enumerate(self.rng.sample(sorted(civilians),5)):
+                self.units.append(self.make_unit(f'c{i}',f'CIVILIAN {i+1}','civilian',x,y,None,'Noncombatant'))
+        self.flag=None
+        if mission=='capture_flag':
+            choices=[p for p in reachable if p[2]==0 and p[1]<self.size//3 and p not in occupied]
+            x,y,z=min(choices,key=lambda p:(p[1],abs(p[0]-self.size//2)))
+            self.flag=dict(x=x,y=y,z=z,team='alien',label='ENEMY FLAG')
+        elif mission=='defend_flag':
+            choices=[p for p in reachable if p[2]==0 and p[1]>=self.size-4 and p not in occupied]
+            x,y,z=min(choices,key=lambda p:(abs(p[1]-(self.size-3)),abs(p[0]-self.size//2)))
+            self.flag=dict(x=x,y=y,z=z,team='soldier',label='SQUAD FLAG')
         self.init_structures()
         self.init_fog()
 
@@ -328,8 +346,23 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
     def check_end(self):
         if not self.alive('soldier'):
             self.status = 'defeat'
+        elif self.mission=='rescue' and any(u['team']=='civilian' and u['hp']<=0 for u in self.units):
+            self.status = 'defeat'
+        elif self.mission=='capture_flag' and any(self.position(u)==(self.flag['x'],self.flag['y'],self.flag['z']) for u in self.alive('soldier')):
+            self.status = 'victory'
+        elif self.mission=='defend_flag' and any(self.position(u)==(self.flag['x'],self.flag['y'],self.flag['z']) for u in self.alive('alien')):
+            self.status = 'defeat'
         elif not self.alive('alien'):
             self.status = 'victory'
+        elif self.mission=='rescue' and (civilians:=[u for u in self.units if u['team']=='civilian']) and all(u.get('evacuated') for u in civilians):
+            self.status = 'victory'
+
+    def check_round_limit(self):
+        if self.status!='active' or self.round<30:return
+        if self.mission=='capture_flag':
+            self.status='defeat'
+        elif self.mission=='defend_flag':
+            self.status='victory'
 
     def action(self, data):
         if data.get('action')=='deploy':
@@ -475,6 +508,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.tick_utilities()
         self.civilian_turn()
         self.check_end()
+        self.check_round_limit()
         if self.status=='active':
             self.round+=1
             for soldier in self.alive('soldier'):
@@ -501,7 +535,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 self.toggle_portal(enemy,next(p for p in self.portals if p['id']==portal['id']))
                 break
         paths=self.paths(enemy,self.speed(enemy)*enemy['ap'])
-        goal=enemy.get('last_seen')
+        goal=(self.flag['x'],self.flag['y'],self.flag['z']) if self.mission=='defend_flag' else enemy.get('last_seen')
         if not goal or self.position(enemy)==tuple(goal):
             goal=self.rng.choice(sorted(paths))
         dest=min(paths,key=lambda p:abs(p[0]-goal[0])+abs(p[1]-goal[1])+abs(p[2]-goal[2])*3)
@@ -522,7 +556,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 blast_targets[u['id']]=[dict(x=x,y=y,z=z,victims=[v['id'] for v in self.blast_victims(u,x,y,z) if self.detected(v)])
                     for x,y,z in sorted(self.explored) if self.blast_valid(u,x,y,z)]
         civilians=[u for u in self.units if u['team']=='civilian']
-        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,difficulty=self.difficulty,difficulties=DIFFICULTIES,player_time=self.player_time,enemy_time=self.enemy_time,
+        mission=dict(key=self.mission,**MISSIONS[self.mission],flag=self.flag)
+        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,
                     corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
                     shots=shots,blast_targets=blast_targets,interactions=interactions,transitions=transitions,weapons=WEAPONS,stances=STANCES,
                     civilians=dict(alive=sum(u['hp']>0 for u in civilians),evacuated=sum(u['evacuated'] for u in civilians),total=len(civilians)),

@@ -70,6 +70,39 @@ class CombatTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             g.action(dict(action='end_turn'))
 
+    def test_mission_rosters_and_elimination_victory(self):
+        for mission in ('eliminate','capture_flag','defend_flag'):
+            g=Game(42,mission=mission)
+            self.assertFalse(any(u['team']=='civilian' for u in g.units))
+        g=Game(42,mission='eliminate')
+        for u in g.alive('alien'):u['hp']=0
+        g.check_end()
+        self.assertEqual(g.status,'victory')
+
+    def test_rescue_victory_and_civilian_loss(self):
+        g=Game(42,mission='rescue')
+        for u in g.alive('civilian'):u['evacuated']=True
+        g.check_end()
+        self.assertEqual(g.status,'victory')
+        g=Game(42,mission='rescue')
+        g.alive('civilian')[0]['hp']=0
+        g.check_end()
+        self.assertEqual(g.status,'defeat')
+
+    def test_capture_and_defend_flag_conditions(self):
+        capture=Game(42,mission='capture_flag')
+        capture.units[0].update(x=capture.flag['x'],y=capture.flag['y'],z=capture.flag['z'])
+        capture.check_end()
+        self.assertEqual(capture.status,'victory')
+        capture=Game(42,mission='capture_flag');capture.round=30;capture.check_round_limit()
+        self.assertEqual(capture.status,'defeat')
+        defend=Game(42,mission='defend_flag')
+        defend.alive('alien')[0].update(x=defend.flag['x'],y=defend.flag['y'],z=defend.flag['z'])
+        defend.check_end()
+        self.assertEqual(defend.status,'defeat')
+        defend=Game(42,mission='defend_flag');defend.round=30;defend.check_round_limit()
+        self.assertEqual(defend.status,'victory')
+
     def test_generated_maps_connected(self):
         for seed in range(50):
             g = Game(seed)

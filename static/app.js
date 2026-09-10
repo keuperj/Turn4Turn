@@ -5,7 +5,7 @@ import {Minimap} from './minimap.js';
 const $=id=>document.getElementById(id);
 const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','Alien carbine','M24 sniper','Smoke grenade','Demolition charge','Shotgun','Medikit'];
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
-let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium';
+let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium',configMission='rescue';
 let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersion=-1;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function itemArt(name){return photographs[name]?`<img class="item-photo" src="/assets/${photographs[name]}" alt="${name}">`:`<span class="item-art art-${itemOrder.indexOf(name)}" role="img" aria-label="${name}"></span>`;}
@@ -42,18 +42,20 @@ function cancel(){refreshMode(mode,'Preview cancelled. Choose another point.');}
 function select(id){if(busy)return;selected=id;goalVersion++;goalKey=null;pending=null;mode='move';battlefield.setView('auto');$('view-level').value='auto';render();battlefield.focus(soldier());}
 function render(){
   $('theme-label').textContent=`${state.scenery.label.toUpperCase()} / ${state.size} × ${state.size}`;
+  document.querySelector('.mission h1').textContent=state.mission.label;
+  document.querySelector('.mission p').textContent=state.mission.objective;
   $('round').textContent=String(state.round).padStart(2,'0');$('seed').textContent=`SEED ${state.seed}`;
   $('phase').textContent=state.status==='active'?'SQUAD PHASE':state.status.toUpperCase();
   $('contacts').textContent=state.units.filter(u=>u.team==='alien'&&u.hp>0).length+' VISIBLE CONTACTS';
   $('alive').textContent=state.units.filter(u=>u.team==='soldier'&&u.hp>0).length;
-  $('civilians').textContent=`CIVILIANS ${state.civilians.alive}/${state.civilians.total} · ${state.civilians.evacuated} EVAC`;
+  $('civilians').textContent=state.civilians.total?`CIVILIANS ${state.civilians.alive}/${state.civilians.total} · ${state.civilians.evacuated} EVAC`:state.mission.round_limit?`OBJECTIVE · ${Math.max(0,state.mission.round_limit-state.round+1)} ROUNDS LEFT`:'NO CIVILIANS';
   $('squad').innerHTML=state.units.filter(u=>u.team==='soldier').map((u,i)=>`<button class="soldier ${u.id===selected?'selected':''}" data-unit="${u.id}" title="Select ${u.name} (${i+1})" ${u.hp<=0?'disabled':''}><span class="portrait portrait-${i}"></span><span class="info"><b>${u.name}</b><small>${u.role} · L${u.z}</small><span class="health"><i style="width:${u.hp/u.max_hp*100}%"></i></span><small>${u.hp}/${u.max_hp} HP</small></span><span class="ap">${u.overwatch?'◉':'●'.repeat(u.ap)+'○'.repeat(Math.max(0,state.player_time-u.ap))}</span></button>`).join('');
   document.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>select(b.dataset.unit));
   renderDetails();renderOrderInfo();
   $('log').replaceChildren(...state.log.map(line=>{const el=document.createElement('div');el.textContent=line;return el;}));$('log').scrollTop=$('log').scrollHeight;
   $('end').disabled=state.status!=='active';
   $('outcome').hidden=['active','loadout'].includes(state.status);
-  if(!$('outcome').hidden){$('outcome').innerHTML=`<h2>${state.status==='victory'?'Sector secured':'Squad lost'}</h2><p>${state.status==='victory'?'All hostiles eliminated.':'All operatives have fallen.'}</p>${button('again','new','Prepare another mission')}`;$('again').onclick=newMission;}
+  if(!$('outcome').hidden){$('outcome').innerHTML=`<h2>${state.status==='victory'?'Mission accomplished':'Mission failed'}</h2><p>${state.mission.objective}</p>${button('again','new','Prepare another mission')}`;$('again').onclick=newMission;}
   if(state.status==='loadout'){renderPreparation();if(!$('preparation').open)$('preparation').showModal();}
   else if($('preparation').open)$('preparation').close();
   const aim=pending?.action==='attack'?pending:null;
@@ -118,15 +120,17 @@ function hover(hit){if(!state)return;if(!hit){$('tile-info').textContent='RECON 
 function initializeDraft(){if(draft)return;draft={};state.units.filter(u=>u.team==='soldier').forEach((u,i)=>draft[u.id]={primary:u.weapon,sidearm:'M9',utility1:i===2?'Smoke grenade':'Frag grenade',utility2:i===3?'Demolition charge':'RPG-7'});}
 function renderPreparation(){
   initializeDraft();
-  $('loadout-content').innerHTML=`<div class="mission-options"><label>THEATER<select id="mission-theme">${[['random','Random theater'],...Object.entries(state.themes).map(([key,t])=>[key,t.label])].map(([key,label])=>`<option value="${key}" ${configTheme===key?'selected':''}>${label}</option>`).join('')}</select></label><label>MAP SIZE<select id="mission-size">${[24,30,40].map((n,i)=>`<option value="${n}" ${configSize===n?'selected':''}>${['Compact','Standard','Large'][i]} · ${n} × ${n}</option>`).join('')}</select></label><div class="mission-summary">${state.scenery.label}<small>${state.size*state.size} ground tiles · randomized layout</small></div></div><p class="small-note">Click an equipment image to replace it. Four different items per fighter. Every slot accepts any weapon or item.</p><div class="loadout-grid">${state.units.filter(u=>u.team==='soldier').map((u,i)=>`<article class="loadout-card"><div class="loadout-person"><span class="portrait portrait-${i}"></span><div><b>${u.name}</b><small>${u.role}</small></div></div>${['primary','sidearm','utility1','utility2'].map((slot,j)=>`<div class="slot"><span class="eyebrow">${`SLOT ${j+1}`}</span><button class="equipment-slot" data-slot="${u.id}:${slot}" title="Choose equipment for ${u.name}">${itemArt(draft[u.id][slot])}<b>${draft[u.id][slot]}</b></button></div>`).join('')}</article>`).join('')}</div><div class="deploy-row"><div><b>Ready for insertion</b><p id="loadout-error" role="alert">Equipment is fixed after deployment.</p></div>${button('deploy','deploy','Deploy equipped squad')}</div>`;
+  $('loadout-content').innerHTML=`<div class="mission-options"><label>MISSION<select id="mission-type">${Object.entries(state.missions).map(([key,m])=>`<option value="${key}" ${configMission===key?'selected':''}>${m.label}</option>`).join('')}</select></label><label>THEATER<select id="mission-theme">${[['random','Random theater'],...Object.entries(state.themes).map(([key,t])=>[key,t.label])].map(([key,label])=>`<option value="${key}" ${configTheme===key?'selected':''}>${label}</option>`).join('')}</select></label><label>MAP SIZE<select id="mission-size">${[24,30,40].map((n,i)=>`<option value="${n}" ${configSize===n?'selected':''}>${['Compact','Standard','Large'][i]} · ${n} × ${n}</option>`).join('')}</select></label><div class="mission-summary">${state.mission.objective}<small>${state.size*state.size} ground tiles · randomized layout</small></div></div><p class="small-note">Click an equipment image to replace it. Four different items per fighter. Every slot accepts any weapon or item.</p><div class="loadout-grid">${state.units.filter(u=>u.team==='soldier').map((u,i)=>`<article class="loadout-card"><div class="loadout-person"><span class="portrait portrait-${i}"></span><div><b>${u.name}</b><small>${u.role}</small></div></div>${['primary','sidearm','utility1','utility2'].map((slot,j)=>`<div class="slot"><span class="eyebrow">${`SLOT ${j+1}`}</span><button class="equipment-slot" data-slot="${u.id}:${slot}" title="Choose equipment for ${u.name}">${itemArt(draft[u.id][slot])}<b>${draft[u.id][slot]}</b></button></div>`).join('')}</article>`).join('')}</div><div class="deploy-row"><div><b>Ready for insertion</b><p id="loadout-error" role="alert">Equipment is fixed after deployment.</p></div>${button('deploy','deploy','Deploy equipped squad')}</div>`;
   const difficultyLabel=document.createElement('label');difficultyLabel.textContent='DIFFICULTY';
   const difficultySelect=document.createElement('select');difficultySelect.id='mission-difficulty';
   for(const [key,d] of Object.entries(state.difficulties)){const option=new Option(`${d.label} · ${d.player_time} squad / ${d.enemy_time} hostile`,key);option.selected=configDifficulty===key;difficultySelect.add(option);}
   difficultyLabel.append(difficultySelect);document.querySelector('.mission-summary').before(difficultyLabel);
   document.querySelector('.mission-options').style.gridTemplateColumns='repeat(auto-fit,minmax(150px,1fr))';
-  $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});};
-  $('mission-size').onchange=()=>{configSize=Number($('mission-size').value);request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});};
-  $('mission-difficulty').onchange=()=>{configDifficulty=$('mission-difficulty').value;request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});};
+  const reloadMission=()=>request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission});
+  $('mission-type').onchange=()=>{configMission=$('mission-type').value;reloadMission();};
+  $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;reloadMission();};
+  $('mission-size').onchange=()=>{configSize=Number($('mission-size').value);reloadMission();};
+  $('mission-difficulty').onchange=()=>{configDifficulty=$('mission-difficulty').value;reloadMission();};
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{editSlot=b.dataset.slot.split(':');openEquipment();});
   $('deploy').onclick=()=>request('/api/action',{action:'deploy',loadouts:draft});
 }
@@ -137,7 +141,7 @@ function openEquipment(){
   document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{draft[editSlot[0]][editSlot[1]]=b.dataset.choice;$('equipment').close();renderPreparation();});
   if(!$('equipment').open)$('equipment').showModal();
 }
-function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});}
+function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission});}
 hydrate();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
 $('close-equipment').onclick=()=>$('equipment').close();$('close-help').onclick=()=>$('manual').close();
