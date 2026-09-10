@@ -3,9 +3,9 @@ import {actionAudio} from './audio.js';
 import {icon,button,hydrate} from './icons.js';
 import {Minimap} from './minimap.js';
 const $=id=>document.getElementById(id);
-const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','Alien carbine','M24 sniper','Smoke grenade','Demolition charge','Shotgun','Medikit'];
+const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','M24 sniper','Smoke grenade','Demolition charge','Shotgun','Medikit'];
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
-let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium',configMission='rescue';
+let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium',configMission='rescue',configLighting='day';
 let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersion=-1;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function itemArt(name){return photographs[name]?`<img class="item-photo" src="/assets/${photographs[name]}" alt="${name}">`:`<span class="item-art art-${itemOrder.indexOf(name)}" role="img" aria-label="${name}"></span>`;}
@@ -125,12 +125,15 @@ function renderPreparation(){
   const difficultySelect=document.createElement('select');difficultySelect.id='mission-difficulty';
   for(const [key,d] of Object.entries(state.difficulties)){const option=new Option(`${d.label} · ${d.player_time} squad / ${d.enemy_time} hostile`,key);option.selected=configDifficulty===key;difficultySelect.add(option);}
   difficultyLabel.append(difficultySelect);document.querySelector('.mission-summary').before(difficultyLabel);
+  const lightingLabel=document.createElement('label');lightingLabel.textContent='TIME';const lightingSelect=document.createElement('select');lightingSelect.id='mission-lighting';
+  for(const [key,label] of Object.entries(state.lighting_options)){const option=new Option(label,key);option.selected=configLighting===key;lightingSelect.add(option);}lightingLabel.append(lightingSelect);document.querySelector('.mission-summary').before(lightingLabel);
   document.querySelector('.mission-options').style.gridTemplateColumns='repeat(auto-fit,minmax(150px,1fr))';
-  const reloadMission=()=>request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission});
+  const reloadMission=()=>request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});
   $('mission-type').onchange=()=>{configMission=$('mission-type').value;reloadMission();};
   $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;reloadMission();};
   $('mission-size').onchange=()=>{configSize=Number($('mission-size').value);reloadMission();};
   $('mission-difficulty').onchange=()=>{configDifficulty=$('mission-difficulty').value;reloadMission();};
+  $('mission-lighting').onchange=()=>{configLighting=$('mission-lighting').value;reloadMission();};
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{editSlot=b.dataset.slot.split(':');openEquipment();});
   $('deploy').onclick=()=>request('/api/action',{action:'deploy',loadouts:draft});
 }
@@ -141,7 +144,7 @@ function openEquipment(){
   document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{draft[editSlot[0]][editSlot[1]]=b.dataset.choice;$('equipment').close();renderPreparation();});
   if(!$('equipment').open)$('equipment').showModal();
 }
-function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission});}
+function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';configLighting=state?.lighting||'day';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});}
 hydrate();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
 $('close-equipment').onclick=()=>$('equipment').close();$('close-help').onclick=()=>$('manual').close();
@@ -150,6 +153,8 @@ $('new').onclick=newMission;$('end').onclick=()=>act('end_turn');$('focus').oncl
 $('view-level').onchange=()=>{if(busy)return;pending=null;battlefield.setView($('view-level').value);render();};
 $('sound').checked=actionAudio.enabled;$('volume').value=actionAudio.volume;$('sound').onchange=()=>actionAudio.setEnabled($('sound').checked);$('volume').oninput=()=>actionAudio.setVolume($('volume').value);
 document.addEventListener('pointerdown',()=>actionAudio.unlock(),{once:true});document.addEventListener('keydown',()=>actionAudio.unlock(),{once:true});
+document.addEventListener('click',e=>{if(e.target.closest('button'))actionAudio.play({type:'button'});});
+document.addEventListener('change',e=>{if(e.target.matches('select'))actionAudio.play({type:'button'});});
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
 try{
   battlefield=new Battlefield($('map'),pick,hover);

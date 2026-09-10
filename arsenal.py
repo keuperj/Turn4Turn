@@ -1,4 +1,5 @@
 """Deployment, persistent obscurants and structural damage."""
+import copy
 import math
 
 
@@ -32,7 +33,7 @@ class Arsenal:
     def smoke_blocks(self,a,b):
         dx=b['x']-a['x'];dy=b['y']-a['y'];length=dx*dx+dy*dy
         if not length:return False
-        for s in self.smoke:
+        for s in self.smoke+self.fires:
             t=max(0,min(1,((s['x']-a['x'])*dx+(s['y']-a['y'])*dy)/length))
             if abs(a['z']+(b['z']-a['z'])*t-s['z'])<.8 and math.hypot(a['x']+dx*t-s['x'],a['y']+dy*t-s['y'])<=s['radius']:
                 return True
@@ -50,6 +51,8 @@ class Arsenal:
     def tick_utilities(self):
         for smoke in self.smoke:smoke['turns']-=1
         self.smoke=[s for s in self.smoke if s['turns']>0]
+        for fire in self.fires:fire['turns']-=1
+        self.fires=[f for f in self.fires if f['turns']>0]
         for c in list(self.charges):
             c['turns']-=1
             if c['turns']>0:continue
@@ -62,6 +65,7 @@ class Arsenal:
                     u['hp']=max(0,u['hp']-max(8,60-int(distance)*10))
                     if self.detected(u):self.events.append(dict(type='hurt',point=self.position(u),unit=u['id']))
             self.damage_area(c['x'],c['y'],c['z'],c['radius'],220)
+            self.ignite(c['x'],c['y'],c['z'],2)
             self.log.append('Demolition charge detonated.')
         self.geometry_revision+=1
 
@@ -107,12 +111,22 @@ class Arsenal:
             if not p.get('destroyed') and distance<=radius and (z==0 or 'level' in p):
                 self.damage_structure(p,max(1,round(power*(1-distance/(radius+1)))))
 
+    def ignite(self,x,y,z,radius=1):
+        candidates=[(a,b,z) for a,b,c in self.surfaces if c==z and math.hypot(a-x,b-y)<=radius]
+        self.rng.shuffle(candidates)
+        occupied={(f['x'],f['y'],f['z']) for f in self.fires}
+        for a,b,c in candidates[:max(1,min(4,radius*2))]:
+            if (a,b,c) not in occupied:self.fires.append(dict(x=a,y=b,z=c,radius=1.35,turns=self.rng.randint(1,3)))
+        self.geometry_revision+=1
+
     def damage_structure(self,p,damage):
         if p.get('destroyed'):return
         p['hp']=max(0,p['hp']-damage)
         if p['hp']:return
+        observed=any(c in self.visible for c in self.footprint(p))
         p['destroyed']=True
         cells=set(self.footprint(p))
+        x,y,_=self.rng.choice(sorted(cells));self.ignite(x,y,0,1)
         for x,y,_ in cells:self.tiles[y][x]='rubble';self.heights[y][x]=0
         self.blocked.difference_update(cells)
         if 'level' in p:
@@ -126,5 +140,7 @@ class Arsenal:
                 if (u['x'],u['y'],0) in cells and u['z']>0:
                     u['hp']=0;u['z']=0
             p['level']=0
-        if any(c in self.visible for c in cells):self.log.append(f"{p.get('name',p.get('kind','Structure'))} destroyed.")
+        if observed:
+            self.log.append(f"{p.get('name',p.get('kind','Structure'))} destroyed.")
+            (self.known_buildings if 'level' in p else self.known_props)[p['id']]=copy.deepcopy(p)
         self.geometry_revision+=1

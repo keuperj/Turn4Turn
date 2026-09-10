@@ -22,7 +22,7 @@ class TargetingTests(unittest.TestCase):
 
     def test_every_weapon_accepts_visible_ground(self):
         for name in WEAPONS:
-            if name=='Alien carbine' or WEAPONS[name]['kind']=='medical':continue
+            if WEAPONS[name]['kind']=='medical':continue
             g=self.field();u=g.units[0];self.give(u,name)
             data=dict(action='attack',unit=u['id'],x=u['x']-1,y=u['y'],z=0)
             g.preview(data);g.action(data)

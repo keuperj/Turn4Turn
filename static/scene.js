@@ -16,14 +16,14 @@ export class Battlefield {
     this.nativeScene.clearColor=B.Color4.FromHexString('#26383fff');
     this.nativeScene.fogMode=B.Scene.FOGMODE_LINEAR;this.nativeScene.fogColor=B.Color3.FromHexString('#26383f');this.nativeScene.fogStart=100;this.nativeScene.fogEnd=350;
     const image=this.nativeScene.imageProcessingConfiguration;image.toneMappingEnabled=true;image.toneMappingType=B.ImageProcessingConfiguration.TONEMAPPING_ACES;image.exposure=1.08;
-    const sky=new B.HemisphericLight('sky',new B.Vector3(0,1,0),this.nativeScene);sky.intensity=.85;sky.diffuse=B.Color3.FromHexString('#dbeaf0');sky.groundColor=B.Color3.FromHexString('#53635d');
+    const sky=new B.HemisphericLight('sky',new B.Vector3(0,1,0),this.nativeScene);this.sky=sky;sky.intensity=.85;sky.diffuse=B.Color3.FromHexString('#dbeaf0');sky.groundColor=B.Color3.FromHexString('#53635d');
     this.sun=new B.DirectionalLight('sun',new B.Vector3(.4,-1,-.4),this.nativeScene);this.sun.position.set(-12,28,12);this.sun.intensity=2.6;this.sun.diffuse=B.Color3.FromHexString('#fff1db');this.sun.shadowMinZ=1;this.sun.shadowMaxZ=120;
     this.shadows=new B.ShadowGenerator(1024,this.sun);this.shadows.usePercentageCloserFiltering=true;this.shadows.filteringQuality=B.ShadowGenerator.QUALITY_LOW;this.shadows.normalBias=.025;
     G.configure(this.nativeScene,this.shadows);this.scene=new G.Scene(this.nativeScene);
     this.camera=new G.PerspectiveCamera(42,1,.1,500);this.camera.position.set(26,27,32);
     this.controls=new OrbitControls(this.camera,canvas);this.controls.target.set(8.5,0,8.5);
     this.characters=new CharacterAssets(this);this.ready=this.characters.load();this.nativeScene.onAfterAnimationsObservable.add(()=>this.characters.afterAnimations());
-    this.terrain=new G.Group();this.actors=new G.Group();this.overlay=new G.Group();this.fx=new G.Group();
+    this.terrain=new G.Group();this.actors=new G.Group();this.overlay=new G.Group();this.fx=new G.Group();this.flames=[];this.elapsed=0;
     this.scene.add(this.terrain,this.actors,this.overlay,this.fx);this.models=new Map();this.pickables=[];this.portalModels=new Map();this.viewMode='auto';
     this.loader=new G.TextureLoader();
     this.ground=this.texture('/assets/terrain-mixed-v2.webp',6);this.camo=this.texture('/assets/camouflage.png',1);
@@ -44,7 +44,7 @@ export class Battlefield {
     canvas.addEventListener('pointerleave',()=>{this.hoverPointer=null;this.queueHover();});
     this.controls.addEventListener('change',()=>this.queueHover());
     new ResizeObserver(()=>this.resize()).observe(canvas.parentElement);this.resize();
-    this.engine.runRenderLoop(()=>{const dt=Math.min(this.engine.getDeltaTime()/1000,.1);this.controls.update();this.characters.update(dt);this.nativeScene.render();});
+    this.engine.runRenderLoop(()=>{const dt=Math.min(this.engine.getDeltaTime()/1000,.1);this.elapsed+=dt;this.controls.update();this.characters.update(dt);for(const f of this.flames){const pulse=.8+Math.sin(this.elapsed*7+f.phase)*.22;f.mesh.scale.set(pulse,pulse*(1.15+Math.sin(this.elapsed*5+f.phase)*.18),pulse);f.mesh.position.y=f.base+Math.sin(this.elapsed*6+f.phase)*.08;}this.nativeScene.render();});
 
   }
   texture(url,repeat){const t=this.loader.load(url);t.colorSpace=G.SRGBColorSpace;t.wrapS=t.wrapT=G.RepeatWrapping;t.repeat.set(repeat,repeat);t.anisotropy=Math.min(8,this.engine.getCaps().maxAnisotropy);return t;}
@@ -164,6 +164,7 @@ export class Battlefield {
   }
   sync(state,selected,target,mode,aim){
     this.mode=mode;
+    const night=state.lighting==='night';this.nativeScene.clearColor=B.Color4.FromHexString(night?'#07101cff':'#26383fff');this.nativeScene.fogColor=B.Color3.FromHexString(night?'#07101c':'#26383f');this.nativeScene.fogStart=night?45:100;this.nativeScene.fogEnd=night?150:350;this.sky.intensity=night?.18:.85;this.sun.intensity=night?.32:2.6;this.sun.diffuse=B.Color3.FromHexString(night?'#7592bd':'#fff1db');
     const first=!this.state||this.state.seed!==state.seed,sameState=this.state===state;this.state=state;this.selected=selected;
     if(first){this.home();const u=state.units.find(u=>u.id===selected);if(u){this.focus(u);this.camera.position.copy(this.controls.target).add(new G.Vector3(17,23,22));}}
     const terrainContext=JSON.stringify([this.viewMode,state.buildings.map(b=>this.buildingLevel(b))]);
@@ -176,10 +177,11 @@ export class Battlefield {
     }
     this.updateHover(true);
     this.lastSeed=state.seed;
-    this.clear(this.overlay);
+    this.clear(this.overlay);this.flames=[];
     const points=mode==='attack'?[]:state.movement[selected]||[];
     if(state.status==='active')for(const cost of [1,2])this.tiles(this.overlay,points.filter(p=>p.cost===cost&&this.surfaceVisible(p.x,p.y,p.z)).map(p=>({x:p.x,y:p.z*3+.05,z:p.y})),this.moveMaterials[cost-1],.91);
     for(const smoke of state.smoke||[]){for(let i=0;i<9;i++){const m=new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color:0xaab0ad,opacity:.6,depthWrite:false}));m.position.set(smoke.x+Math.sin(i*2.4)*smoke.radius*.6,smoke.z*3+.6+(i%3)*.4,smoke.y+Math.cos(i*2.4)*smoke.radius*.6);m.scale.set(smoke.radius*1.7,smoke.radius*1.7,1);this.overlay.add(m);}const label=this.label(`SMOKE ${smoke.turns}`,'#e2e5e2',1.5);label.position.set(smoke.x,smoke.z*3+2.3,smoke.y);this.overlay.add(label);}
+    for(const fire of state.fires||[]){for(let i=0;i<4;i++){const flame=new G.Mesh(new G.IcosahedronGeometry(.25+i*.035,1),new G.MeshBasicMaterial({color:i%2?0xffb12b:0xf04a19,transparent:true,opacity:.82,depthWrite:false}));flame.position.set(fire.x+(i%2-.5)*.28,fire.z*3+.28+(i%3)*.14,fire.y+(Math.floor(i/2)-.5)*.25);this.overlay.add(flame);this.flames.push({mesh:flame,base:flame.position.y,phase:i*1.7+fire.x});}for(let i=0;i<5;i++){const smoke=new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color:0x4f5655,opacity:.52,depthWrite:false}));smoke.position.set(fire.x+Math.sin(i*2.3)*.38,fire.z*3+.9+(i%3)*.42,fire.y+Math.cos(i*2.3)*.38);smoke.scale.set(1.4+i*.16,1.4+i*.16,1);this.overlay.add(smoke);}const label=this.label(`FIRE · ${fire.turns}`,'#ffb16e',1.35);label.position.set(fire.x,fire.z*3+2.7,fire.y);this.overlay.add(label);}
     for(const charge of state.charges||[]){this.box(this.overlay,.35,.18,.28,charge.x,charge.z*3+.1,charge.y,0x605746);const label=this.label(`CHARGE · ${charge.turns} PHASES`,'#ffb27d',1.7);label.position.set(charge.x,charge.z*3+.6,charge.y);this.overlay.add(label);}
     const u=state.units.find(u=>u.id===selected&&u.hp>0);
     if(u&&this.actorVisible(u)){const m=new G.Mesh(new G.RingGeometry(.45,.49,40),new G.MeshBasicMaterial({color:0xd6fdff,side:G.DoubleSide}));m.rotation.x=-Math.PI/2;m.position.set(u.x,u.z*3+.065,u.y);this.overlay.add(m);}
@@ -262,9 +264,9 @@ export class Battlefield {
       }
       if(e.type==='blast'){
         const point=new G.Vector3(e.x,e.z*3+.35,e.y);
-        const fire=new G.Mesh(new G.SphereGeometry(.7,12,8),new G.MeshBasicMaterial({color:0xffa044,transparent:true,opacity:.95}));fire.position.copy(point);this.fx.add(fire);
+        const fireballs=[];for(let i=0;i<7;i++){const fire=new G.Mesh(new G.IcosahedronGeometry(.3+(i%3)*.12,1),new G.MeshBasicMaterial({color:i%2?0xffd05a:0xff5a20,transparent:true,opacity:.95}));fire.position.copy(point);this.fx.add(fire);fireballs.push({fire,offset:new G.Vector3(Math.sin(i*2.4),.25+(i%3)*.28,Math.cos(i*2.4))});}
         const ring=new G.Mesh(new G.RingGeometry(.8,1,32),new G.MeshBasicMaterial({color:0xfac881,transparent:true,side:G.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.copy(point);ring.position.y=e.z*3+.20;this.fx.add(ring);
-        await this.tween(350,t=>{fire.scale.setScalar(.3+t*e.radius*1.5);fire.material.opacity=1-t;ring.scale.setScalar(.2+t*e.radius*1.8);ring.material.opacity=1-t;});this.clear(this.fx);
+        await this.tween(500,t=>{for(const f of fireballs){f.fire.position.copy(point).addScaledVector(f.offset,t*e.radius*.7);f.fire.scale.setScalar(.4+Math.sin(t*Math.PI)*e.radius*1.3);f.fire.material.opacity=1-t;}ring.scale.setScalar(.2+t*e.radius*2.2);ring.material.opacity=1-t;});this.clear(this.fx);
         await this.burst(point,0x73766d,e.radius*1.5,450);this.clear(this.fx);
       }
       if(e.type==='evacuate'){const m=this.models.get(e.unit);if(m)m.visible=false;}

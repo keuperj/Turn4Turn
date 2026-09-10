@@ -55,7 +55,7 @@ try:
         page.locator('#mission-size').select_option('30');ready()
         for slot,name in [('s0:primary','Shotgun'),('s0:utility1','Medikit'),('s0:utility2','Demolition charge'),('s0:sidearm','M24 sniper')]:
             page.locator(f'[data-slot="{slot}"]').click()
-            assert page.locator('[data-choice]').count()==13
+            assert page.locator('[data-choice]').count()==12
             page.locator(f'[data-choice="{name}"]').click()
         assert page.locator('[data-slot="s0:primary"] img').get_attribute('src')=='/assets/shotgun.png'
         page.wait_for_function("[...document.querySelectorAll('#preparation img')].every(i=>i.complete&&i.naturalWidth>0)")
@@ -64,7 +64,7 @@ try:
         page.set_viewport_size({'width':1440,'height':1050});page.locator('#deploy').click();ready()
         assert server.game.status=='active';assert server.game.units[0]['weapon']=='Shotgun'
         page.locator('#map').scroll_into_view_if_needed();page.screenshot(path='/tmp/ground-control-v6-city.png')
-        page.locator('#armory').click();assert page.locator('#equipment-grid .catalog-item').count()==13
+        page.locator('#armory').click();assert page.locator('#equipment-grid .catalog-item').count()==12
         page.wait_for_function("[...document.querySelectorAll('#equipment img')].every(i=>i.complete&&i.naturalWidth>0)")
         page.locator('#close-equipment').click()
         assert page.evaluate("[...document.querySelectorAll('button')].every(b=>b.title && (b.querySelector('svg,img,.item-art,.portrait')!==null))")
@@ -146,7 +146,7 @@ try:
         click_point(11,10,height=.7,double=True);ready();assert u['ammo']==1
         assert page.locator('#confirmation').count()==0
         assert not errors,errors
-        print('PASS WebGL: four unrestricted equipment slots, hover health, sidebar camera focus, visible enemy tracking, expanded zoom bounds, mission configuration, 13 item images, visual loadouts, icons, minimap, double-click / cancel, automatic fire, smoke, corpses, structure clicks, healing, free facing, peeking, memories, corner throws.',flush=True)
+        print('PASS WebGL: four unrestricted equipment slots, hover health, sidebar camera focus, visible enemy tracking, expanded zoom bounds, mission configuration, 12 item images, visual loadouts, icons, minimap, double-click / cancel, automatic fire, smoke, corpses, structure clicks, healing, free facing, peeking, memories, corner throws.',flush=True)
         browser.close()
         disabled=p.chromium.launch(headless=True,executable_path=args.browser,args=['--no-sandbox','--disable-webgl','--disable-gpu'])
         blocked=disabled.new_page();blocked.goto(base);blocked.wait_for_function("document.getElementById('phase').textContent==='WEBGL REQUIRED'")

@@ -47,6 +47,7 @@ class CombatTests(unittest.TestCase):
         self.assertEqual(g.units[0]['ammo'], 5)
         with self.assertRaises(ValueError):
             g.action(dict(action='reload', unit='s0'))
+        g.units[0]['hp']=100
         g.action(dict(action='end_turn'))
         self.assertEqual(g.round, 2)
         g.action(dict(action='reload', unit='s0'))
@@ -205,6 +206,7 @@ class CombatTests(unittest.TestCase):
             g.action(dict(action='overwatch', unit='s0'))
         g.action(dict(action='blast', unit='s0', x=5, y=12))
         u['ap'] = 2
+        g.fires=[];g.geometry_revision+=1;g._los_cache.clear()
         g.action(dict(action='reload', unit='s0'))
         self.assertEqual(u['ammo'], 1)
         self.assertEqual(u['inventory']['RPG-7']['reserve'], 0)
@@ -212,6 +214,26 @@ class CombatTests(unittest.TestCase):
         u['ap'] = 2
         with self.assertRaises(ValueError):
             g.action(dict(action='reload', unit='s0'))
+
+    def test_enemy_fighters_use_human_arsenal(self):
+        g=Game(42)
+        enemies=g.alive('alien')
+        self.assertTrue(all(u['role']=='Enemy fighter' and u['name'].startswith('HOSTILE ') for u in enemies))
+        self.assertTrue(all(u['weapon']!='Alien carbine' for u in enemies))
+        self.assertGreater(len({u['weapon'] for u in enemies}),1)
+
+    def test_fire_blocks_movement_and_expires(self):
+        g=self.clear();u=g.units[0]
+        g.fires=[dict(x=5,y=15,z=0,radius=1.35,turns=2)];g.geometry_revision+=1
+        self.assertNotIn((5,15,0),g.paths(u,10))
+        g.tick_utilities();self.assertTrue(g.fires)
+        g.tick_utilities();self.assertFalse(g.fires)
+
+    def test_night_reduces_visibility(self):
+        day=self.clear();night=self.clear();night.lighting='night';night.geometry_revision+=1;night._los_cache.clear();night.init_fog()
+        target=day.alive('alien')[0];target.update(x=5,y=5);night_target=night.alive('alien')[0];night_target.update(x=5,y=5)
+        self.assertTrue(day.sees(day.units[0],target))
+        self.assertFalse(night.sees(night.units[0],night_target))
 
     def test_blast_does_not_cross_levels(self):
         g = self.clear()

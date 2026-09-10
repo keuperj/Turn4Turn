@@ -21,9 +21,8 @@ WEAPONS = {
     'M24 sniper': dict(damage=10, capacity=5, accuracy=98, range=40, kind='sniper'),
     'Smoke grenade': dict(damage=0, capacity=2, accuracy=100, range=8, kind='smoke', radius=3),
     'Demolition charge': dict(damage=60, capacity=2, accuracy=100, range=1.5, kind='charge', radius=4),
-    'Alien carbine': dict(damage=3, capacity=5, accuracy=73, range=10, kind='rifle'),
 }
-for name in ('M4A1','HK416','M249','Alien carbine'):
+for name in ('M4A1','HK416','M249'):
     WEAPONS[name]['automatic'] = True
 
 STANCES = {'standing': dict(speed=5, defense=0, aim=0, eye=1.55),
@@ -47,13 +46,15 @@ MISSIONS = {
 class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
     size = 30
 
-    def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium', mission='rescue'):
+    def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium', mission='rescue', lighting='day'):
         if type(size) is not int or size not in (24,30,40):raise ValueError('Map size must be 24, 30, or 40.')
         if not isinstance(difficulty,str) or difficulty not in DIFFICULTIES:raise ValueError('Difficulty must be easy, medium, or hard.')
         if not isinstance(mission,str) or mission not in MISSIONS:raise ValueError('Unknown mission type.')
+        if lighting not in ('day','night'):raise ValueError('Lighting must be day or night.')
         self.size=size
         self.difficulty=difficulty
         self.mission=mission
+        self.lighting=lighting
         self.player_time=DIFFICULTIES[difficulty]['player_time'];self.enemy_time=DIFFICULTIES[difficulty]['enemy_time']
         self.seed = seed if seed is not None else random.randrange(1_000_000)
         self.rng = random.Random(self.seed)
@@ -61,7 +62,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             raise ValueError('Unknown mission theme.')
         self.theme = self.rng.choice(list(THEMES)) if theme == 'random' else theme
         self.round, self.status = 1, 'active' if deployed else 'loadout'
-        self.smoke=[];self.charges=[]
+        self.smoke=[];self.charges=[];self.fires=[]
         self.events,self.units=[],[]
         self.geometry_revision=0;self._los_cache={}
         self.log = [f"Operation Silent Orchard — {THEMES[self.theme]['label']}.", MISSIONS[mission]['objective']]
@@ -89,8 +90,10 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if positions:indoor.append(positions[0])
         self.rng.shuffle(indoor);spawns=indoor[:max(2,enemy_count//2)]
         spawns.extend(p for p in candidates if p not in spawns)
+        enemy_weapons=['M4A1','HK416','M110','M249','M9','M24 sniper','Shotgun'];self.rng.shuffle(enemy_weapons)
         for i,(x,y,z) in enumerate(spawns[:enemy_count]):
-            enemy=self.make_unit(f'e{i}',f'CONTACT {i+1}','alien',x,y,'Alien carbine','Raider',z)
+            weapon=enemy_weapons[i%len(enemy_weapons)]
+            enemy=self.make_unit(f'e{i}',f'HOSTILE {i+1}','alien',x,y,weapon,'Enemy fighter',z)
             enemy['stance']=self.rng.choice(['standing','standing','kneeling','prone'])
             self.units.append(enemy)
         occupied={self.position(u) for u in self.units}
@@ -140,6 +143,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         start = self.position(unit)
         blocked = set() if ignore_units else {self.position(u) for u in self.alive() if u != unit and (not known_units or self.detected(u))}
         blocked |= self.blocked
+        blocked |= {(f['x'],f['y'],f['z']) for f in self.fires if (f['x'],f['y'],f['z'])!=start}
         found, queue = {start: []}, deque([start])
         while queue:
             p = queue.popleft()
@@ -341,6 +345,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                         self.tiles[by][bx]='rubble'
 
         self.damage_area(x,y,z,w['radius'],w['damage']*(5 if w['kind']=='rocket' else 3))
+        self.ignite(x,y,z,1 if w['kind']=='grenade' else 2)
         self.geometry_revision+=1
 
     def check_end(self):
@@ -557,8 +562,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                     for x,y,z in sorted(self.explored) if self.blast_valid(u,x,y,z)]
         civilians=[u for u in self.units if u['team']=='civilian']
         mission=dict(key=self.mission,**MISSIONS[self.mission],flag=self.flag)
-        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,
-                    corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
+        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,
+                    corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,fires=self.fires,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
                     shots=shots,blast_targets=blast_targets,interactions=interactions,transitions=transitions,weapons=WEAPONS,stances=STANCES,
                     civilians=dict(alive=sum(u['hp']>0 for u in civilians),evacuated=sum(u['evacuated'] for u in civilians),total=len(civilians)),
                     log=self.log[-40:],events=self.events)

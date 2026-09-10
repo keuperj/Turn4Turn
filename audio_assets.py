@@ -20,7 +20,7 @@ for key, description in {
     'm4a1':'M4A1 5.56mm assault rifle', 'hk416':'HK416 5.56mm assault rifle',
     'm110':'M110 7.62mm marksman rifle', 'm249':'M249 light machine gun',
     'm9':'M9 9mm pistol', 'm24_sniper':'M24 bolt action sniper rifle',
-    'shotgun':'12 gauge pump action shotgun', 'alien_carbine':'alien energy carbine with a sharp electrical discharge',
+    'shotgun':'12 gauge pump action shotgun',
 }.items():
     entry('shot_'+key, f'Exactly one isolated shot from a {description}. Immediate sharp attack, powerful realistic report and short outdoor decay. No burst, no voices, no music, no handling before firing.', 1.5)
 entry('hurt','One adult soldier gives a short natural pained cry and gasp after being hit. Believable human vocal performance, no words, no electronic tones, no music, no other sounds.',1)
@@ -59,6 +59,7 @@ for key, (description, seconds) in {
     'overwatch':('A rifle is shouldered into a ready position, soft gear movement and small mechanism click',.5),
     'fire_mode':('One crisp small rifle selector switch click',.5),
     'evacuate':('Brief hurried footsteps retreating into the distance',1),
+    'button':('One short subdued tactical interface button click, crisp mechanical switch with a soft digital tick',.25),
 }.items():
     entry(key, description+'. Isolated realistic game sound effect, immediate onset, no music or speech.',seconds)
 

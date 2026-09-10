@@ -17,18 +17,19 @@ class FogOfWar:
     def sees(self, observer, target):
         if observer['hp']<=0 or target.get('evacuated'):return False
         distance=math.sqrt((observer['x']-target['x'])**2+(observer['y']-target['y'])**2+((observer['z']-target['z'])*2)**2)
-        return distance<=(20 if observer.get('weapon')=='M24 sniper' and observer['stance']=='standing' else SIGHT[observer['stance']])*PROFILE[target.get('stance','standing')] and self.line_of_sight(observer,target)
+        light=.58 if self.lighting=='night' else 1
+        return distance<=(20 if observer.get('weapon')=='M24 sniper' and observer['stance']=='standing' else SIGHT[observer['stance']])*light*PROFILE[target.get('stance','standing')] and self.line_of_sight(observer,target)
 
     def detected(self, unit):
         return unit['team']=='soldier' or any(self.sees(s,unit) for s in self.alive('soldier'))
 
     def refresh_visibility(self):
         if not hasattr(self,'explored'):return
-        key=(self.geometry_revision,tuple((self.position(s),s['stance'],s['hp'],s.get('weapon')) for s in self.alive('soldier')))
+        key=(self.geometry_revision,self.lighting,tuple((self.position(s),s['stance'],s['hp'],s.get('weapon')) for s in self.alive('soldier')))
         if key!=self._fog_key:
             visible=set()
             for s in self.alive('soldier'):
-                radius=20 if s.get('weapon')=='M24 sniper' and s['stance']=='standing' else SIGHT[s['stance']]
+                radius=(20 if s.get('weapon')=='M24 sniper' and s['stance']=='standing' else SIGHT[s['stance']])*(.58 if self.lighting=='night' else 1)
                 for x,y,z in self.surfaces:
                     if (x-s['x'])**2+(y-s['y'])**2+((z-s['z'])*2)**2>radius**2:continue
                     if self.line_of_sight(s,dict(x=x,y=y,z=z,stance='standing')):visible.add((x,y,z))

@@ -1,12 +1,12 @@
 // Audio is generated offline. Only local, numbered files are fetched during play.
-const weapons={'M4A1':'m4a1','HK416':'hk416','M110':'m110','M249':'m249','M9':'m9','M24 sniper':'m24_sniper','Shotgun':'shotgun','Alien carbine':'alien_carbine'};
+const weapons={'M4A1':'m4a1','HK416':'hk416','M110':'m110','M249':'m249','M9':'m9','M24 sniper':'m24_sniper','Shotgun':'shotgun'};
 export function soundAction(e){
   if(e.type==='shot')return 'shot_'+(weapons[e.weapon]||'m4a1');
   if(e.type==='move')return e.origin&&e.origin[2]!==e.z?'climb':e.actor?.stance==='prone'?'crawl':'move';
   if(e.type==='blast')return 'blast_'+({rocket:'rocket',charge:'charge'}[e.kind]||'grenade');
   if(e.type==='portal')return `${e.kind==='window'?'window':'door'}_${e.open?'open':'close'}`;
   if(e.type==='peek_out'||e.type==='peek_return')return 'peek';
-  if(['reload','throw','rocket_launch','smoke','charge_place','impact','hurt','heal','equip','stance','face','overwatch','fire_mode','evacuate'].includes(e.type))return e.type;
+  if(['reload','throw','rocket_launch','smoke','charge_place','impact','hurt','heal','equip','stance','face','overwatch','fire_mode','evacuate','button'].includes(e.type))return e.type;
   return null;
 }
 export class ActionAudio {
