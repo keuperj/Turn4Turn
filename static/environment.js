@@ -7,23 +7,36 @@ export function addProp(view, p, parent=view.terrain) {
   const x=p.x+(p.width-1)/2,z=p.y+(p.depth-1)/2;
   group.position.set(x,0,z);
   const box=(w,h,d,x,y,z,c)=>view.box(group,w,h,d,x,y,z,c);
-  const color=p.color||'#91a5a1',metal=0x424c4e,glass=0x344e5b;
-  const cylinder=(r,h,x,y,z,c)=>{const m=new G.Mesh(new G.CylinderGeometry(r,r,h,14),view.material(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;};
-  const wheel=(x,z,r=.19)=>{const w=cylinder(r,.13,x,r,z,0x242927);w.rotation.z=Math.PI/2;};
+  const color=p.color||'#91a5a1',metal=view.material(0x566164,'metal'),glass=view.material(0x294957,'glass'),rubber=view.material(0x202524,'rubber');
+  const cylinder=(r,h,x,y,z,c,finish='paint')=>{const m=new G.Mesh(new G.CylinderGeometry(r,r,h,12),typeof c==='object'?c:view.material(c,finish));m.position.set(x,y,z);m.receiveShadow=true;if(r>.16&&h>.2)m.castShadow=true;group.add(m);return m;};
+  const shape=(w,h,d,x,y,z,c,inset=.06,front=inset,back=inset)=>{const m=new G.Mesh(new G.BeveledBoxGeometry(w,h,d,inset,front,back),typeof c==='object'?c:view.material(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;};
+  const wheel=(x,z,r=.19)=>{const tire=cylinder(r,.14,x,r,z,rubber);tire.rotation.z=Math.PI/2;const hub=cylinder(r*.48,.151,x,r,z,metal);hub.rotation.z=Math.PI/2;};
   switch(p.kind){
     case 'car': case 'truck': case 'tractor': {
       const truck=p.kind==='truck',tractor=p.kind==='tractor';
-      box(.82,.33,tractor?.85:1.8,0,.43,0,color);
-      box(.70,.46,truck?.60:.85,0,.80,truck?-.48:0,color);
-      box(.62,.31,.03,0,.86,truck?-.80:-.44,glass);
-      box(.03,.29,.62,-.36,.87,0,glass);box(.03,.29,.62,.36,.87,0,glass);
-      if(truck)box(.77,.55,.9,0,.83,.44,0xa6a494);
-      for(const side of [-1,1])for(const end of [-1,1])wheel(side*.43,end*(tractor?.33:.56),tractor?.25:.19);
-      for(const s of [-1,1]){box(.15,.08,.04,s*.26,.48,-.92,0xf4e0b3);box(.13,.07,.04,s*.26,.47,.91,0xb15442);}
+      const body=view.material(color,'paint'),accent=view.material(((p.x*31+p.y*17)%2)?0xd7d0b4:0x596b6d,'paint');
+      if(tractor){
+        shape(.76,.38,.92,0,.30,-.02,body,.08,.12,.05);shape(.58,.48,.43,0,.62,-.20,body,.10,.08,.07);
+        box(.08,.65,.08,.24,.83,.14,metal);box(.54,.06,.38,0,.70,.29,accent);
+        for(const side of [-1,1]){wheel(side*.43,.25,.29);wheel(side*.40,-.39,.18);}
+      }else{
+        shape(.88,.38,1.86,0,.27,0,body,.07,.15,.11);
+        if(truck){
+          shape(.74,.53,.72,0,.57,-.47,body,.12,.17,.07);box(.78,.43,.78,0,.48,.49,accent);
+          for(const side of [-1,1])box(.035,.26,.68,side*.405,.69,.49,metal);
+        }else shape(.74,.50,.96,0,.56,-.02,body,.14,.20,.14);
+        const front=truck?-.72:-.50,sideDepth=truck?.52:.70;
+        box(.58,.27,.025,0,.69,front,glass);box(.025,.27,sideDepth,-.365,.69,-.06,glass);box(.025,.27,sideDepth,.365,.69,-.06,glass);
+        if(!truck)box(.55,.24,.025,0,.68,.49,glass);
+        for(const side of [-1,1])for(const end of [-1,1])wheel(side*.45,end*.60,.20);
+        box(.64,.055,.10,0,.23,-.96,metal);box(.64,.055,.10,0,.23,.96,metal);
+        for(const s of [-1,1]){box(.17,.085,.035,s*.27,.38,-.935,0xf4e0b3);box(.15,.075,.035,s*.27,.36,.935,0xa64035);}
+        if((p.x+p.y)%2)for(const side of [-1,1])box(.025,.075,1.20,side*.446,.36,.05,accent);
+      }
       break;
     }
     case 'train': {
-      box(1.65,.36,4.7,0,.45,0,metal);box(1.65,1.7,4.55,0,1.35,0,color);
+      box(1.65,.36,4.7,0,.45,0,metal);box(1.65,1.7,4.55,0,1.35,0,view.material(color,'metal'));
       box(1.58,.18,4.6,0,2.24,0,0xc5c9bd);
       for(let i=-1.5;i<=1.5;i+=.75)for(const s of [-1,1])box(.025,.55,.48,s*.84,1.62,i,glass);
       box(1.3,.6,.025,0,1.65,-2.29,glass);
@@ -39,7 +52,7 @@ export function addProp(view, p, parent=view.terrain) {
       break;
     }
     case 'container':
-      box(.94,1.7,2.9,0,.85,0,color);
+      box(.94,1.7,2.9,0,.85,0,view.material(color,'metal'));
       for(let z=-1.35;z<1.5;z+=.25)for(const s of [-1,1])box(.025,1.6,.045,s*.48,.85,z,0x687d79);
       break;
     case 'tank': case 'silo':
@@ -53,7 +66,7 @@ export function addProp(view, p, parent=view.terrain) {
       box(.84,.12,.38,0,.45,0,0x93734f);box(.84,.35,.08,0,.68,.19,0x93734f);
       for(const s of [-1,1])box(.065,.40,.34,s*.32,.20,0,metal);break;
     case 'tree':
-      cylinder(.09,1.8,0,.9,0,0x67513a);
+      cylinder(.09,1.8,0,.9,0,0x67513a,'wood');
       for(let j=0;j<5;j++){const m=new G.Mesh(new G.IcosahedronGeometry(.48+(j%2)*.1,1),view.material([0x485a38,0x5c7043,0x748357][j%3]));m.position.set(Math.sin(j*2.4)*.24,1.6+j*.15,Math.cos(j*2.4)*.24);m.castShadow=true;group.add(m);}break;
   }
   const base={car:[1,2],truck:[1,2],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],tree:[1,1]}[p.kind]||[1,1];

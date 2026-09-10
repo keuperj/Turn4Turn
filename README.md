@@ -76,7 +76,8 @@ Shortcuts: **1–4** select, **F** focus, **R** reload, **O** overwatch,
 
 ## Combat
 
-Each fighter has 2 AP. Standing moves 5 tiles/AP, kneeling 3, prone 2. Changing
+Difficulty sets the round budget: Easy gives the squad/hostiles 3/1 AP, Medium
+2/2 AP, and Hard 2/3 AP. Standing moves 5 tiles/AP, kneeling 3, prone 2. Changing
 stance costs 1 AP. Kneeling adds 5 aim and 10 defense; prone adds 10 aim and 20
 defense. Defense applies beyond two tiles. Prone fighters cannot climb or fire
 RPGs. Directional cover and high ground also affect accuracy.

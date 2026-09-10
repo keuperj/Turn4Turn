@@ -30,13 +30,22 @@ STANCES = {'standing': dict(speed=5, defense=0, aim=0, eye=1.55),
            'kneeling': dict(speed=3, defense=10, aim=5, eye=1.0),
            'prone': dict(speed=2, defense=20, aim=10, eye=.4)}
 
+DIFFICULTIES = {
+    'easy': dict(label='Easy', player_time=3, enemy_time=1),
+    'medium': dict(label='Medium', player_time=2, enemy_time=2),
+    'hard': dict(label='Hard', player_time=2, enemy_time=3),
+}
+
 
 class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
     size = 30
 
-    def __init__(self, seed=None, theme='random', deployed=True, size=30):
+    def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium'):
         if type(size) is not int or size not in (24,30,40):raise ValueError('Map size must be 24, 30, or 40.')
+        if not isinstance(difficulty,str) or difficulty not in DIFFICULTIES:raise ValueError('Difficulty must be easy, medium, or hard.')
         self.size=size
+        self.difficulty=difficulty
+        self.player_time=DIFFICULTIES[difficulty]['player_time'];self.enemy_time=DIFFICULTIES[difficulty]['enemy_time']
         self.seed = seed if seed is not None else random.randrange(1_000_000)
         self.rng = random.Random(self.seed)
         if not isinstance(theme, str) or theme not in ('random', *THEMES):
@@ -88,7 +97,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         items = [weapon, 'M9', 'Frag grenade', 'RPG-7'] if team == 'soldier' else [weapon] if weapon else []
         inventory = {w: dict(ammo=WEAPONS[w]['capacity'], reserve=0 if w == 'Frag grenade' else 1 if w == 'RPG-7' else WEAPONS[w]['capacity']*3) for w in items}
         return dict(id=uid,name=name,team=team,x=x,y=y,z=z,weapon=weapon,inventory=inventory,
-                    stance='standing',role=role,hp=hp,max_hp=hp,ap=2,ammo=inventory[weapon]['ammo'] if weapon else 0,
+                    stance='standing',role=role,hp=hp,max_hp=hp,ap=self.player_time if team=='soldier' else self.enemy_time if team=='alien' else 0,ammo=inventory[weapon]['ammo'] if weapon else 0,
                     overwatch=False,evacuated=False,fire_mode='single',facing=0 if team=='soldier' else math.pi)
 
     @staticmethod
@@ -423,7 +432,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.log.append(f'— Hostile phase / round {self.round} —')
         for enemy in self.alive('alien'):
             if not self.alive('soldier'): break
-            enemy['overwatch'],enemy['ap']=False,2
+            enemy['overwatch'],enemy['ap']=False,self.enemy_time
             if not enemy['ammo']:
                 self.spend_ammo(enemy,-WEAPONS[enemy['weapon']]['capacity'])
                 enemy['ap']-=1
@@ -433,8 +442,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 self.patrol(enemy)
                 continue
             best=max(targets,key=lambda t:self.chance(enemy,t))
-            if self.chance(enemy,best)<55 and enemy['ap']==2:
-                paths=self.paths(enemy,self.speed(enemy),ignore_doors=True)
+            if self.chance(enemy,best)<55 and enemy['ap']>1:
+                paths=self.paths(enemy,self.speed(enemy)*(enemy['ap']-1),ignore_doors=True)
                 def score(p):
                     hypothetical=dict(enemy,x=p[0],y=p[1],z=p[2])
                     distance=min(abs(p[0]-t['x'])+abs(p[1]-t['y'])+abs(p[2]-t['z'])*3 for t in targets)
@@ -453,7 +462,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                     previous=p
                 if prefix:
                     self.move(enemy,prefix)
-                    enemy['ap']-=1
+                    enemy['ap']-=math.ceil(len(prefix)/self.speed(enemy))
                 if enemy['hp']<=0: continue
                 if door and enemy['ap']:
                     self.toggle_portal(enemy,door)
@@ -469,7 +478,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         if self.status=='active':
             self.round+=1
             for soldier in self.alive('soldier'):
-                soldier['ap'],soldier['overwatch']=2,False
+                soldier['ap'],soldier['overwatch']=self.player_time,False
             self.log.append(f'— Squad phase / round {self.round} —')
         self.refresh_visibility()
 
@@ -491,7 +500,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if portal['kind']=='door' and not portal['open'] and self.rng.random()<.4:
                 self.toggle_portal(enemy,next(p for p in self.portals if p['id']==portal['id']))
                 break
-        paths=self.paths(enemy,self.speed(enemy))
+        paths=self.paths(enemy,self.speed(enemy)*enemy['ap'])
         goal=enemy.get('last_seen')
         if not goal or self.position(enemy)==tuple(goal):
             goal=self.rng.choice(sorted(paths))
@@ -513,7 +522,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 blast_targets[u['id']]=[dict(x=x,y=y,z=z,victims=[v['id'] for v in self.blast_victims(u,x,y,z) if self.detected(v)])
                     for x,y,z in sorted(self.explored) if self.blast_valid(u,x,y,z)]
         civilians=[u for u in self.units if u['team']=='civilian']
-        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,
+        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,difficulty=self.difficulty,difficulties=DIFFICULTIES,player_time=self.player_time,enemy_time=self.enemy_time,
                     corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
                     shots=shots,blast_targets=blast_targets,interactions=interactions,transitions=transitions,weapons=WEAPONS,stances=STANCES,
                     civilians=dict(alive=sum(u['hp']>0 for u in civilians),evacuated=sum(u['evacuated'] for u in civilians),total=len(civilians)),

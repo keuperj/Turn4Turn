@@ -43,6 +43,12 @@ export class Scene extends Group {
 class Geometry {constructor(kind,options){this.kind=kind;this.options=options;}dispose(){}}
 export class BoxGeometry extends Geometry{constructor(w,h,d){super('Box',{width:w,height:h,depth:d});}}
 export class PlaneGeometry extends Geometry{constructor(w,h){super('Plane',{width:w,height:h,sideOrientation:B.Mesh.DOUBLESIDE});}}
+// One indexed mesh for tile-sized layers. This replaces hundreds of individual
+// planes for picking, movement ranges and fog while preserving exact tile edges.
+export class TileGeometry extends Geometry{constructor(points,size=1){super('tiles',{points,size});}}
+// Low-poly beveled prism used by vehicles. The inset top produces readable
+// sloped panels without the cost of a dense imported model.
+export class BeveledBoxGeometry extends Geometry{constructor(w,h,d,inset=.08,frontInset=inset,backInset=inset){super('beveledBox',{w,h,d,inset,frontInset,backInset});}}
 export class SphereGeometry extends Geometry{constructor(r,segments=16){super('Sphere',{diameter:r*2,segments:Math.max(8,segments)});}}
 export class IcosahedronGeometry extends Geometry{constructor(r,detail=1){super('IcoSphere',{radius:r,subdivisions:Math.max(1,detail+1),flat:false});}}
 export class CylinderGeometry extends Geometry{constructor(top,bottom,h,segments=12){super('Cylinder',{diameterTop:top*2,diameterBottom:bottom*2,height:h,tessellation:segments});}}
@@ -76,9 +82,23 @@ export class MeshStandardMaterial {
  dispose(){this.native.dispose(false,false);}
 }
 export class MeshBasicMaterial extends MeshStandardMaterial{constructor(o={}){super(o);this.native.unlit=true;}}
-export class SpriteMaterial extends MeshBasicMaterial{constructor(o={}){super({...o,transparent:true,side:DoubleSide});this.native.useAlphaFromAlbedoTexture=true;if(this.map){this.map.native.uScale=-1;this.map.native.uOffset=1;}}}
+export class SpriteMaterial extends MeshBasicMaterial{constructor(o={}){super({...o,transparent:true,side:DoubleSide});this.native.useAlphaFromAlbedoTexture=true;}}
 export class LineDashedMaterial extends MeshBasicMaterial{constructor(o={}){super(o);this.dashSize=o.dashSize;this.gapSize=o.gapSize;}}
-function makeGeometry(g){if(g.kind==='ring'){const {inner,outer,segments}=g.options,positions=[],indices=[],normals=[],uvs=[];for(let i=0;i<=segments;i++){const a=i/segments*Math.PI*2;for(const r of [inner,outer]){positions.push(Math.cos(a)*r,Math.sin(a)*r,0);normals.push(0,0,1);uvs.push((Math.cos(a)+1)/2,(Math.sin(a)+1)/2);}if(i<segments){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}}const m=new B.Mesh('ring',world),data=new B.VertexData();Object.assign(data,{positions,indices,normals,uvs});data.applyToMesh(m);return m;}return B.MeshBuilder['Create'+g.kind](g.kind,g.options,world);}
+function customGeometry(g){
+ const positions=[],indices=[],normals=[],uvs=[];
+ if(g.kind==='ring'){
+  const {inner,outer,segments}=g.options;for(let i=0;i<=segments;i++){const a=i/segments*Math.PI*2;for(const r of [inner,outer]){positions.push(Math.cos(a)*r,Math.sin(a)*r,0);normals.push(0,0,1);uvs.push((Math.cos(a)+1)/2,(Math.sin(a)+1)/2);}if(i<segments){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}}
+ }else if(g.kind==='tiles'){
+  const half=g.options.size/2;for(const p of g.options.points){const i=positions.length/3,x=p.x,y=p.y,z=p.z;positions.push(x-half,y,z-half,x+half,y,z-half,x+half,y,z+half,x-half,y,z+half);normals.push(0,1,0,0,1,0,0,1,0,0,1,0);uvs.push(0,0,1,0,1,1,0,1);indices.push(i,i+1,i+2,i,i+2,i+3);}
+ }else if(g.kind==='beveledBox'){
+  const {w,h,d,inset,frontInset,backInset}=g.options,x=w/2,z=d/2,xi=Math.max(0,x-inset),zf=Math.max(0,z-frontInset),zb=Math.max(0,z-backInset);
+  positions.push(-x,0,-z,x,0,-z,x,0,z,-x,0,z,-xi,h,-zf,xi,h,-zf,xi,h,zb,-xi,h,zb);
+  indices.push(0,2,1,0,3,2,4,5,6,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7);
+  B.VertexData.ComputeNormals(positions,indices,normals);uvs.push(0,0,1,0,1,1,0,1,0,0,1,0,1,1,0,1);
+ }
+ const m=new B.Mesh(g.kind,world),data=new B.VertexData();Object.assign(data,{positions,indices,normals,uvs});data.applyToMesh(m);return m;
+}
+function makeGeometry(g){return ['ring','tiles','beveledBox'].includes(g.kind)?customGeometry(g):B.MeshBuilder['Create'+g.kind](g.kind,g.options,world);}
 export class Mesh extends Group {
  constructor(geometry,material){super(makeGeometry(geometry));this.geometry=geometry;this.isMesh=true;this.material=material;this.native.isPickable=true;}
  set material(m){this._material=m;this.native.material=m.native;if(m.visible===false){this.native.visibility=0;this.native.alwaysSelectAsActiveMesh=false;}}
@@ -86,7 +106,7 @@ export class Mesh extends Group {
  set castShadow(v){if(v)shadows?.addShadowCaster(this.native,false);else shadows?.removeShadowCaster(this.native,false);}
  set receiveShadow(v){this.native.receiveShadows=v;}
 }
-export class Sprite extends Mesh{constructor(mat){super(new PlaneGeometry(1,1),mat);this.native.billboardMode=B.Mesh.BILLBOARDMODE_ALL;this.native.isPickable=false;}}
+export class Sprite extends Mesh{constructor(mat){super(new PlaneGeometry(1,1),mat);this.native.bakeTransformIntoVertices(B.Matrix.Scaling(1,-1,1));this.native.billboardMode=B.Mesh.BILLBOARDMODE_ALL;this.native.isPickable=false;}}
 export class Line extends Group{constructor(geometry,material){super(B.MeshBuilder.CreateDashedLines('path',{points:geometry.options.points,dashSize:material.dashSize||.2,gapSize:material.gapSize||.1,dashNb:100},world));this.native.color=material.color.native;this.native.isPickable=false;this.geometry=geometry;this.material=material;}computeLineDistances(){}}
 export class GridHelper extends Group{constructor(n,divisions,color){const lines=[];for(let i=0;i<=divisions;i++){const p=-n/2+i*n/divisions;lines.push([new B.Vector3(p,0,-n/2),new B.Vector3(p,0,n/2)],[new B.Vector3(-n/2,0,p),new B.Vector3(n/2,0,p)]);}super(B.MeshBuilder.CreateLineSystem('grid',{lines},world));this.native.color=new Color(color).native.scale(.22);this.native.isPickable=false;this.material={set transparent(v){},set opacity(v){},dispose(){}};this.native.alpha=.16;}}
 export class PerspectiveCamera {
@@ -99,8 +119,9 @@ export class Raycaster {
  setFromCamera(pointer,camera){const e=world.getEngine();this.ray=world.createPickingRay((pointer.x+1)*e.getRenderWidth()/2,(1-pointer.y)*e.getRenderHeight()/2,B.Matrix.Identity(),camera.native,false);}
  intersectObjects(objects,recursive){const allowed=new Set();for(const o of objects){allowed.add(o);if(recursive)o.traverse(n=>allowed.add(n));}
  const owner=m=>{for(let n=m;n;n=n.parent){if(n.metadata?.pickOwner)return n.metadata.pickOwner;if(n.metadata?.owner&&allowed.has(n.metadata.owner))return n.metadata.owner;}return null;};
- return (world.multiPickWithRay(this.ray,m=>{const o=owner(m);return !!o&&m.isEnabled()&&m.isPickable&&!o.userData.health;})||[]).map(h=>({object:owner(h.pickedMesh),point:h.pickedPoint,distance:h.distance})).sort((a,b)=>a.distance-b.distance);
+ return (world.multiPickWithRay(this.ray,m=>{const o=owner(m);return !!o&&m.isEnabled()&&m.isPickable&&!o.userData.health;})||[]).map(hit=>({object:owner(hit.pickedMesh),point:hit.pickedPoint,distance:hit.distance})).sort((a,b)=>a.distance-b.distance);
  }
+ intersectTileLayers(levels,tiles){const hits=[],origin=this.ray.origin,direction=this.ray.direction;if(Math.abs(direction.y)<1e-6)return hits;for(const z of levels){const height=z*3+.04,t=(height-origin.y)/direction.y;if(t<0)continue;const point=new B.Vector3(origin.x+direction.x*t,height,origin.z+direction.z*t),x=Math.round(point.x),y=Math.round(point.z);if(Math.abs(point.x-x)>.49||Math.abs(point.z-y)>.49||!tiles.has(`${x},${y},${z}`))continue;hits.push({object:{userData:{x,y,z},visible:true,parent:{visible:true}},point,distance:t});}return hits;}
 }
 export class OrbitControls {
  constructor(camera,canvas){this.camera=camera;this.canvas=canvas;this.target=new Vector3();this.minDistance=2;this.maxDistance=220;this.maxPolarAngle=Math.PI*.46;this.listeners=[];this.last='';let drag;

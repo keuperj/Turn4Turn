@@ -5,7 +5,7 @@ import {Minimap} from './minimap.js';
 const $=id=>document.getElementById(id);
 const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','Alien carbine','M24 sniper','Smoke grenade','Demolition charge','Shotgun','Medikit'];
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
-let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30;
+let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium';
 let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersion=-1;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function itemArt(name){return photographs[name]?`<img class="item-photo" src="/assets/${photographs[name]}" alt="${name}">`:`<span class="item-art art-${itemOrder.indexOf(name)}" role="img" aria-label="${name}"></span>`;}
@@ -31,7 +31,14 @@ async function request(path,data){
 }
 function act(action,extra={}){goalVersion++;goalKey=null;pending=null;return request('/api/action',{action,unit:selected,...extra});}
 function preview(action,extra={}){return request('/api/preview',{action,unit:selected,...extra});}
-function cancel(){goalVersion++;goalKey=null;pending=null;render();message('Preview cancelled. Choose another point.');}
+function refreshMode(next,note=''){
+  mode=next;goalVersion++;goalKey=null;pending=null;
+  for(const [id,value] of [['move-mode','move'],['attack-mode','attack'],['face-mode','face']])$(id)?.classList.toggle('active',value===mode);
+  battlefield.sync(state,selected,null,mode,null);battlefield.showPreview(null);
+  minimap.draw(state,selected,battlefield.controls.target);
+  message(note||'Single-click a goal to preview; double-click it to execute.');
+}
+function cancel(){refreshMode(mode,'Preview cancelled. Choose another point.');}
 function select(id){if(busy)return;selected=id;goalVersion++;goalKey=null;pending=null;mode='move';battlefield.setView('auto');$('view-level').value='auto';render();battlefield.focus(soldier());}
 function render(){
   $('theme-label').textContent=`${state.scenery.label.toUpperCase()} / ${state.size} × ${state.size}`;
@@ -40,7 +47,7 @@ function render(){
   $('contacts').textContent=state.units.filter(u=>u.team==='alien'&&u.hp>0).length+' VISIBLE CONTACTS';
   $('alive').textContent=state.units.filter(u=>u.team==='soldier'&&u.hp>0).length;
   $('civilians').textContent=`CIVILIANS ${state.civilians.alive}/${state.civilians.total} · ${state.civilians.evacuated} EVAC`;
-  $('squad').innerHTML=state.units.filter(u=>u.team==='soldier').map((u,i)=>`<button class="soldier ${u.id===selected?'selected':''}" data-unit="${u.id}" title="Select ${u.name} (${i+1})" ${u.hp<=0?'disabled':''}><span class="portrait portrait-${i}"></span><span class="info"><b>${u.name}</b><small>${u.role} · L${u.z}</small><span class="health"><i style="width:${u.hp/u.max_hp*100}%"></i></span><small>${u.hp}/${u.max_hp} HP</small></span><span class="ap">${u.overwatch?'◉':'●'.repeat(u.ap)+'○'.repeat(2-u.ap)}</span></button>`).join('');
+  $('squad').innerHTML=state.units.filter(u=>u.team==='soldier').map((u,i)=>`<button class="soldier ${u.id===selected?'selected':''}" data-unit="${u.id}" title="Select ${u.name} (${i+1})" ${u.hp<=0?'disabled':''}><span class="portrait portrait-${i}"></span><span class="info"><b>${u.name}</b><small>${u.role} · L${u.z}</small><span class="health"><i style="width:${u.hp/u.max_hp*100}%"></i></span><small>${u.hp}/${u.max_hp} HP</small></span><span class="ap">${u.overwatch?'◉':'●'.repeat(u.ap)+'○'.repeat(Math.max(0,state.player_time-u.ap))}</span></button>`).join('');
   document.querySelectorAll('[data-unit]').forEach(b=>b.onclick=()=>select(b.dataset.unit));
   renderDetails();renderOrderInfo();
   $('log').replaceChildren(...state.log.map(line=>{const el=document.createElement('div');el.textContent=line;return el;}));$('log').scrollTop=$('log').scrollHeight;
@@ -60,9 +67,10 @@ function renderDetails(){
   const w=state.weapons[u.weapon],item=u.inventory[u.weapon],enabled=u.hp>0&&u.ap>0&&state.status==='active';
   const explosive=['grenade','rocket','smoke','charge','medical'].includes(w.kind);
   $('details').innerHTML=`<div class="eyebrow">${u.name} / EQUIPMENT</div><h2>${u.weapon}</h2><div class="stats"><span>${u.ammo}/${w.capacity} ${w.kind==='medical'?'USES':'LOADED'}</span><span>${item.reserve} RESERVE</span><span>${u.ap}/2 AP</span></div><div class="toolbar"><div><div class="eyebrow">ORDER</div>${button('move-mode','move','Preview movement to a tile',!enabled,mode==='move')}${button('attack-mode','attack',w.kind==='medical'?'Treat an adjacent wounded teammate':'Aim at any visible point within weapon range',!enabled,mode==='attack')}${button('face-mode','face','Choose facing direction · 0 AP',u.hp<=0||state.status!=='active',mode==='face')}</div><div><div class="eyebrow">ACTIONS</div>${button('reload','reload','Reload · 1 AP',!enabled||u.ammo===w.capacity||!item.reserve)}${button('watch','watch','Overwatch · ends turn',!enabled||!u.ammo||explosive||(w.kind==='sniper'&&u.ap<2))}</div></div><div class="inventory">${Object.entries(u.inventory).map(([name,item])=>`<button class="item ${name===u.weapon?'active':''}" data-weapon="${name}" title="Equip ${name}: ${stats(name)}" ${!enabled?'disabled':''}>${itemArt(name)}<b>${name}</b><small>${item.ammo} + ${item.reserve} ${state.weapons[name].kind==='medical'?'treatments':'rounds'}</small></button>`).join('')}</div>${w.automatic?`<div class="control-row"><span>FIRE MODE</span><div>${button('single-mode','single','Single shot · accurate',!enabled,u.fire_mode!=='auto')}${button('auto-mode','auto','Automatic · 3 rounds, −20 aim per shot',!enabled,u.fire_mode==='auto')}</div></div>`:''}<div class="control-row"><span>STANCE · 1 AP</span><div>${Object.keys(state.stances).map(s=>button(`stance-${s}`,s,`${s} · ${state.stances[s].speed} tiles/AP`,!enabled||s===u.stance,s===u.stance)).join('')}</div></div><div class="small-note">${stats(u.weapon)}${w.kind==='charge'?'<br>2-phase timer · 4-tile blast. Withdraw before detonation.':w.kind==='smoke'?'<br>Blocks both sides’ sight for 3 hostile phases.':''}</div>${interactionPanel(u,enabled)}`;
+  $('details').querySelector('.stats span:last-child').textContent=`${u.ap}/${state.player_time} AP`;
   document.querySelectorAll('[data-weapon]').forEach(b=>b.onclick=()=>{goalVersion++;goalKey=null;pending=null;mode='attack';act('equip',{weapon:b.dataset.weapon});});
-  $('move-mode').onclick=()=>{mode='move';goalVersion++;goalKey=null;pending=null;render();};$('attack-mode').onclick=()=>{mode='attack';goalVersion++;goalKey=null;pending=null;render();};
-  $('face-mode').onclick=()=>{mode='face';goalVersion++;goalKey=null;pending=null;render();message('Click any map point to face it · 0 AP.');};
+  $('move-mode').onclick=()=>refreshMode('move');$('attack-mode').onclick=()=>refreshMode('attack');
+  $('face-mode').onclick=()=>refreshMode('face','Click any map point to face it · 0 AP.');
   document.querySelectorAll('[data-peek]').forEach(b=>b.onclick=()=>{const [x,y,z]=b.dataset.peek.split(',').map(Number);act('peek',{x,y,z});});
   $('reload').onclick=()=>act('reload');$('watch').onclick=()=>act('overwatch');
   if(w.automatic){$('single-mode').onclick=()=>act('fire_mode',{mode:'single'});$('auto-mode').onclick=()=>act('fire_mode',{mode:'auto'});}
@@ -111,8 +119,14 @@ function initializeDraft(){if(draft)return;draft={};state.units.filter(u=>u.team
 function renderPreparation(){
   initializeDraft();
   $('loadout-content').innerHTML=`<div class="mission-options"><label>THEATER<select id="mission-theme">${[['random','Random theater'],...Object.entries(state.themes).map(([key,t])=>[key,t.label])].map(([key,label])=>`<option value="${key}" ${configTheme===key?'selected':''}>${label}</option>`).join('')}</select></label><label>MAP SIZE<select id="mission-size">${[24,30,40].map((n,i)=>`<option value="${n}" ${configSize===n?'selected':''}>${['Compact','Standard','Large'][i]} · ${n} × ${n}</option>`).join('')}</select></label><div class="mission-summary">${state.scenery.label}<small>${state.size*state.size} ground tiles · randomized layout</small></div></div><p class="small-note">Click an equipment image to replace it. Four different items per fighter. Every slot accepts any weapon or item.</p><div class="loadout-grid">${state.units.filter(u=>u.team==='soldier').map((u,i)=>`<article class="loadout-card"><div class="loadout-person"><span class="portrait portrait-${i}"></span><div><b>${u.name}</b><small>${u.role}</small></div></div>${['primary','sidearm','utility1','utility2'].map((slot,j)=>`<div class="slot"><span class="eyebrow">${`SLOT ${j+1}`}</span><button class="equipment-slot" data-slot="${u.id}:${slot}" title="Choose equipment for ${u.name}">${itemArt(draft[u.id][slot])}<b>${draft[u.id][slot]}</b></button></div>`).join('')}</article>`).join('')}</div><div class="deploy-row"><div><b>Ready for insertion</b><p id="loadout-error" role="alert">Equipment is fixed after deployment.</p></div>${button('deploy','deploy','Deploy equipped squad')}</div>`;
-  $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;request('/api/new',{theme:configTheme,size:configSize});};
-  $('mission-size').onchange=()=>{configSize=Number($('mission-size').value);request('/api/new',{theme:configTheme,size:configSize});};
+  const difficultyLabel=document.createElement('label');difficultyLabel.textContent='DIFFICULTY';
+  const difficultySelect=document.createElement('select');difficultySelect.id='mission-difficulty';
+  for(const [key,d] of Object.entries(state.difficulties)){const option=new Option(`${d.label} · ${d.player_time} squad / ${d.enemy_time} hostile`,key);option.selected=configDifficulty===key;difficultySelect.add(option);}
+  difficultyLabel.append(difficultySelect);document.querySelector('.mission-summary').before(difficultyLabel);
+  document.querySelector('.mission-options').style.gridTemplateColumns='repeat(auto-fit,minmax(150px,1fr))';
+  $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});};
+  $('mission-size').onchange=()=>{configSize=Number($('mission-size').value);request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});};
+  $('mission-difficulty').onchange=()=>{configDifficulty=$('mission-difficulty').value;request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});};
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{editSlot=b.dataset.slot.split(':');openEquipment();});
   $('deploy').onclick=()=>request('/api/action',{action:'deploy',loadouts:draft});
 }
@@ -123,7 +137,7 @@ function openEquipment(){
   document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{draft[editSlot[0]][editSlot[1]]=b.dataset.choice;$('equipment').close();renderPreparation();});
   if(!$('equipment').open)$('equipment').showModal();
 }
-function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;request('/api/new',{theme:configTheme,size:configSize});}
+function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty});}
 hydrate();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
 $('close-equipment').onclick=()=>$('equipment').close();$('close-help').onclick=()=>$('manual').close();
@@ -138,7 +152,7 @@ try{
   await battlefield.ready;
   minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
   battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
-  request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;if(state.status==='loadout')renderPreparation();}});
+  request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;configDifficulty=state.difficulty;if(state.status==='loadout')renderPreparation();}});
 }catch(error){message('WebGL could not start. Enable WebGL in your browser and reload. '+error.message);$('phase').textContent='WEBGL REQUIRED';}
 // Expose the renderer instance for integration tests and local development tools.
 export {battlefield};
