@@ -83,11 +83,11 @@ try:
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.actors.traverse(o=>{if(o.userData.health&&o.visible)n++});return n}")==1
         page.mouse.move(5,5)
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.actors.traverse(o=>{if(o.userData.health&&o.visible)n++});return n}")==0
-        # Public enemy movement is followed; a redacted impact cannot reveal its source.
+        # Hostile-phase movement and visible impacts are followed; impact events never reveal their source.
         page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');const u=b.state.units.find(u=>u.team==='alien');await b.animate([{type:'move',unit:u.id,actor:u,origin:[14,23,0],x:15,y:23,z:0}],true)}")
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.target.distanceTo({x:15,y:0,z:23})}")<.001
         page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');await b.animate([{type:'impact',unit:null,point:[14,27,0],hit:false}],true)}")
-        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.target.distanceTo({x:15,y:0,z:23})}")<.001
+        assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.controls.target.distanceTo({x:14,y:0,z:27})}")<.001
         page.reload();page.wait_for_selector('#move-mode');ready()
         old=server.game.position(server.game.units[0]);click_point(12,25)
         assert 'PREVIEW' in page.locator('#message').text_content();assert server.game.position(server.game.units[0])==old

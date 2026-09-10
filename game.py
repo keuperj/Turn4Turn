@@ -267,6 +267,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
 
     def fire_round(self, shooter, target, reaction=False, hit_cap=None):
         chance = self.chance(dict(shooter,fire_mode='single') if reaction else shooter, target)
+        shooter['facing']=math.atan2(shooter['x']-target['x'],shooter['y']-target['y'])
         self.spend_ammo(shooter)
         if not reaction:
             shooter['ap'] = max(0, shooter['ap']-1) if WEAPONS[shooter['weapon']]['kind'] == 'handgun' else 0
@@ -474,7 +475,11 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if not enemy['ammo']:
                 self.spend_ammo(enemy,-WEAPONS[enemy['weapon']]['capacity'])
                 enemy['ap']-=1
-            targets=[t for t in self.alive('soldier') if self.sees(enemy,t)]
+            if self.mission=='defend_flag':
+                self.advance_enemy(enemy,(self.flag['x'],self.flag['y'],self.flag['z']))
+                if self.position(enemy)==(self.flag['x'],self.flag['y'],self.flag['z']):break
+            civilians=[t for t in self.alive('civilian') if self.sees(enemy,t)] if self.mission=='rescue' else []
+            targets=civilians if self.mission=='rescue' else [t for t in self.alive('soldier') if self.sees(enemy,t)]
             if targets:enemy['last_seen']=self.position(targets[0])
             if not targets:
                 self.patrol(enemy)
@@ -505,7 +510,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 if door and enemy['ap']:
                     self.toggle_portal(enemy,door)
             if enemy['hp']<=0 or not enemy['ap']: continue
-            targets=[t for t in self.alive('soldier') if self.sees(enemy,t)]
+            civilians=[t for t in self.alive('civilian') if self.sees(enemy,t)] if self.mission=='rescue' else []
+            targets=civilians if self.mission=='rescue' else [t for t in self.alive('soldier') if self.sees(enemy,t)]
             if not targets:enemy['overwatch'],enemy['ap']=True,0;continue
             best=max(targets,key=lambda t:self.chance(enemy,t))
             if self.chance(enemy,best): self.fire(enemy,best)
@@ -540,12 +546,28 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 self.toggle_portal(enemy,next(p for p in self.portals if p['id']==portal['id']))
                 break
         paths=self.paths(enemy,self.speed(enemy)*enemy['ap'])
-        goal=(self.flag['x'],self.flag['y'],self.flag['z']) if self.mission=='defend_flag' else enemy.get('last_seen')
+        civilians=self.alive('civilian') if self.mission=='rescue' else []
+        nearest=min(civilians,key=lambda u:abs(u['x']-enemy['x'])+abs(u['y']-enemy['y'])+abs(u['z']-enemy['z'])*3) if civilians else None
+        goal=self.position(nearest) if nearest else enemy.get('last_seen')
         if not goal or self.position(enemy)==tuple(goal):
             goal=self.rng.choice(sorted(paths))
         dest=min(paths,key=lambda p:abs(p[0]-goal[0])+abs(p[1]-goal[1])+abs(p[2]-goal[2])*3)
         self.move(enemy,paths[dest])
         if enemy['hp']>0:enemy['overwatch'],enemy['ap']=True,0
+
+    def advance_enemy(self,enemy,goal):
+        """Spend the hostile's phase advancing directly on a mission objective."""
+        if not enemy['ap']:return
+        paths=self.paths(enemy,self.speed(enemy)*enemy['ap'],ignore_doors=True)
+        destination=min(paths,key=lambda p:abs(p[0]-goal[0])+abs(p[1]-goal[1])+abs(p[2]-goal[2])*3)
+        prefix=[];previous=self.position(enemy);door=None
+        for p in paths[destination]:
+            wall=self.walls.get(edge_key(previous,p))
+            if wall and wall['kind']=='door' and not wall['open']:door=wall;break
+            prefix.append(p);previous=p
+        if prefix:
+            self.move(enemy,prefix);enemy['ap']-=math.ceil(len(prefix)/self.speed(enemy))
+        if door and enemy['hp']>0 and enemy['ap']:self.toggle_portal(enemy,door)
 
     def state(self):
         self.refresh_visibility()

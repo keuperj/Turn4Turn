@@ -58,7 +58,7 @@ class Arsenal:
             if c['turns']>0:continue
             self.charges.remove(c)
             point=(c['x'],c['y'],c['z'])
-            if point in self.visible:self.events.append(dict(type='blast',unit=None,kind='charge',**c))
+            self.events.append(dict(type='blast',unit=None,kind='charge',**c))
             for u in self.alive():
                 distance=math.sqrt((u['x']-c['x'])**2+(u['y']-c['y'])**2+((u['z']-c['z'])*3)**2)
                 if distance<=c['radius']:

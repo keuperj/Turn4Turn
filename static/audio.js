@@ -52,7 +52,7 @@ export class ActionAudio {
   async prepare(state){
     const key=`${state.seed}:${state.theme}:${state.status}`;
     if(key===this.sceneKey)return;
-    this.sceneKey=key;this.stopEffects();this.stopAmbience();this.theme=state.status==='active'?state.theme:null;
+    const sameMission=this.sceneSeed===state.seed&&this.sceneTheme===state.theme;this.sceneKey=key;this.sceneSeed=state.seed;this.sceneTheme=state.theme;if(!sameMission||state.status==='loadout')this.stopEffects();this.stopAmbience();this.theme=state.status==='active'?state.theme:null;
     this.catalogReady=this.refreshCatalog();await this.catalogReady;
     if(this.context){await this.preload();this.startAmbience();}
   }
@@ -91,7 +91,7 @@ export class ActionAudio {
     while(this.voices.size>=24){const first=this.voices.values().next().value;first.stop();this.voices.delete(first);}
     const c=this.context,s=c.createBufferSource(),gain=c.createGain(),pan=c.createStereoPanner();s.buffer=buffer;
     const point=e.type==='shot'?e.origin:e.type==='move'?[e.x,e.y,e.z]:e.point||(e.x!==undefined?[e.x,e.y,e.z]:e.actor?[e.actor.x,e.actor.y,e.actor.z]:null);
-    let volume=['face','peek','stance','equip','overwatch','fire_mode'].includes(action)?.28:action==='hurt'?.48:.65;
+    let volume=action.startsWith('blast_')?.92:['face','peek','stance','equip','overwatch','fire_mode'].includes(action)?.28:action==='hurt'?.48:.7;
     if(point){const dx=point[0]-this.listener.x,dy=point[1]-this.listener.y;volume/=1+Math.hypot(dx,dy)*.035;pan.pan.value=Math.max(-.85,Math.min(.85,(dx*this.listener.rightX+dy*this.listener.rightY)/14));}
     gain.gain.value=volume;s.connect(gain).connect(pan).connect(this.master);this.voices.add(s);
     s.onended=()=>{this.voices.delete(s);s.disconnect();gain.disconnect();pan.disconnect();};s.start();
@@ -106,10 +106,10 @@ export class ActionAudio {
     const next=async()=>{
       const {buffer}=await this.sample('ambient_'+this.theme);
       if(!buffer||version!==this.ambientVersion||!this.enabled||document.hidden)return;
-      const c=this.context,s=c.createBufferSource(),g=c.createGain(),now=c.currentTime,fade=Math.min(.3,buffer.duration/4);
-      s.buffer=buffer;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.22,now+fade);g.gain.setValueAtTime(.22,now+buffer.duration-fade);g.gain.linearRampToValueAtTime(0,now+buffer.duration);
-      s.connect(g).connect(this.master);this.ambientVoices.add(s);s.onended=()=>{this.ambientVoices.delete(s);s.disconnect();g.disconnect();};s.start();
-      this.ambientTimer=setTimeout(next,Math.max(50,(buffer.duration-fade)*1000));
+      const c=this.context,s=c.createBufferSource(),g=c.createGain(),pan=c.createStereoPanner(),now=c.currentTime,fade=Math.min(.7,buffer.duration/3),level=.34+Math.random()*.14;
+      s.buffer=buffer;s.playbackRate.value=.92+Math.random()*.16;pan.pan.value=(Math.random()-.5)*.45;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(level,now+fade);g.gain.setValueAtTime(level,now+buffer.duration/s.playbackRate.value-fade);g.gain.linearRampToValueAtTime(0,now+buffer.duration/s.playbackRate.value);
+      s.connect(g).connect(pan).connect(this.master);this.ambientVoices.add(s);s.onended=()=>{this.ambientVoices.delete(s);s.disconnect();g.disconnect();pan.disconnect();};s.start();
+      this.ambientTimer=setTimeout(next,Math.max(50,(buffer.duration/s.playbackRate.value-fade*1.5)*1000));
     };next();
   }
 }

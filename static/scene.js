@@ -231,13 +231,14 @@ export class Battlefield {
   async animate(events,followEnemies=false){
     for(const e of events||[]){
       const actor=e.actor||this.state.units.find(u=>u.id===e.unit);
-      const follow=followEnemies&&actor?.team==='alien'&&e.type!=='hide';
+      const eventPoint=e.origin||(e.x!==undefined?[e.x,e.y,e.z]:null)||e.point;
+      const follow=followEnemies&&e.type!=='hide'&&(actor?.team==='alien'||['blast','impact','hurt','portal'].includes(e.type));
       if(follow){
-        const p=e.origin||(e.x!==undefined?[e.x,e.y,e.z]:null)||[actor.x,actor.y,actor.z];
+        const p=eventPoint||[actor.x,actor.y,actor.z];
         const from=this.controls.target.clone(),to=new G.Vector3(p[0],p[2]*3,p[1]);
         if(from.distanceTo(to)>.1)await this.tween(220,t=>{const v=from.clone().lerp(to,t);this.focus({x:v.x,y:v.z,z:v.y/3});});
       }
-      if(e.type!=='impact')actionAudio.play(e);
+      if(e.type!=='impact')await actionAudio.play(e);
       if(e.type==='hide'){const m=this.models.get(e.unit);if(m)m.visible=false;continue;}
       if(e.type==='move'){
         let model=this.models.get(e.unit);
@@ -259,7 +260,7 @@ export class Battlefield {
       if(e.type==='portal'){const model=this.portalModels.get(e.id);if(model){const from=model.rotation.y,to=e.open?Math.PI*.48:0;await this.tween(240,t=>model.rotation.y=from+(to-from)*t);}}
       if(e.type==='shot'||e.type==='impact'){
         const point=new G.Vector3(e.point[0]+(e.hit||e.structure?0:.45),e.point[2]*3+(e.structure?1:e.hit?.8:.12),e.point[1]+(e.hit||e.structure?0:.3));
-        if(e.origin){const origin=new G.Vector3(e.origin[0],e.origin[2]*3+1.1,e.origin[1]);const bullet=new G.Mesh(new G.SphereGeometry(.07,6,4),new G.MeshBasicMaterial({color:0xffe8b2}));this.fx.add(bullet);await this.tween(e.burst?35:100,t=>bullet.position.lerpVectors(origin,point,t));this.clear(this.fx);}
+        if(e.origin){const model=this.models.get(e.unit);if(model){const yaw=Math.atan2(e.origin[0]-e.point[0],e.origin[1]-e.point[1]),from=model.rotation.y,delta=Math.atan2(Math.sin(yaw-from),Math.cos(yaw-from));await this.tween(120,t=>model.rotation.y=from+delta*t);}const origin=new G.Vector3(e.origin[0],e.origin[2]*3+1.1,e.origin[1]);const bullet=new G.Mesh(new G.SphereGeometry(.07,6,4),new G.MeshBasicMaterial({color:0xffe8b2}));this.fx.add(bullet);await this.tween(e.burst?35:100,t=>bullet.position.lerpVectors(origin,point,t));this.clear(this.fx);}
         actionAudio.play({type:'impact',point:e.point});await this.burst(point,e.hit&&!e.structure?0xb52a2c:0xffd18a,.7,e.burst?65:240);this.clear(this.fx);
       }
       if(e.type==='blast'){

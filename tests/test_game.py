@@ -1,3 +1,4 @@
+import math
 import unittest
 from game import Game, WEAPONS
 
@@ -47,7 +48,7 @@ class CombatTests(unittest.TestCase):
         self.assertEqual(g.units[0]['ammo'], 5)
         with self.assertRaises(ValueError):
             g.action(dict(action='reload', unit='s0'))
-        g.units[0]['hp']=100
+        g.units[0]['hp']=100;g.mission='eliminate'
         g.action(dict(action='end_turn'))
         self.assertEqual(g.round, 2)
         g.action(dict(action='reload', unit='s0'))
@@ -234,6 +235,21 @@ class CombatTests(unittest.TestCase):
         target=day.alive('alien')[0];target.update(x=5,y=5);night_target=night.alive('alien')[0];night_target.update(x=5,y=5)
         self.assertTrue(day.sees(day.units[0],target))
         self.assertFalse(night.sees(night.units[0],night_target))
+
+    def test_fighter_turns_toward_shot(self):
+        g=self.clear();shooter,target=g.units[0],g.alive('alien')[0];target.update(x=10,y=16)
+        g.fire_round(shooter,target)
+        self.assertAlmostEqual(shooter['facing'],-math.pi/2)
+
+    def test_mission_enemies_advance_on_objectives(self):
+        defend=self.clear();defend.mission='defend_flag';defend.flag=dict(x=5,y=16,z=0)
+        enemy=defend.alive('alien')[0];enemy.update(x=5,y=2,ap=2)
+        before=abs(enemy['y']-defend.flag['y']);defend.advance_enemy(enemy,(5,16,0))
+        self.assertLess(abs(enemy['y']-defend.flag['y']),before)
+        rescue=self.clear();rescue.mission='rescue';enemy=rescue.alive('alien')[0];civilian=rescue.alive('civilian')[0]
+        enemy.update(x=5,y=2,ap=2);civilian.update(x=5,y=12)
+        before=abs(enemy['y']-civilian['y']);rescue.patrol(enemy)
+        self.assertLess(abs(enemy['y']-civilian['y']),before)
 
     def test_blast_does_not_cross_levels(self):
         g = self.clear()
