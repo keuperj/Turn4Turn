@@ -33,23 +33,24 @@ try:
             page.mouse.move(*pixel)
         def hover_key():return page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.hoverKey}")
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.terrain.traverse(o=>{if(o.userData.hoverFor&&o.visible)n++});return n}")==0
-        door=next(p for p in g.portals if p['building']=='b0' and p['kind']=='door' and p['side']=='south')
+        exterior_offset={'north':(0,4,-8),'south':(0,4,8),'west':(-8,4,0),'east':(8,4,0)}
+        door=next(p for p in g.portals if p['building']=='b0' and p['kind']=='door' and p['side']!='interior')
         point=[(door['a'][0]+door['b'][0])/2,1.3,(door['a'][1]+door['b'][1])/2]
-        aim(point,(1,4,8));hover_point(point)
+        aim(point,exterior_offset[door['side']]);hover_point(point)
         assert hover_key()=='portal:'+door['id'],hover_key()
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.terrain.traverse(o=>{if(o.userData.hoverFor&&o.visible&&o.material.depthTest)n++});return n}")==1
         page.mouse.move(5,5);assert hover_key() is None
-        window=next(p for p in g.portals if p['building']=='b0' and p['kind']=='window' and p['side']=='east' and p['a'][2]==1)
+        window=next(p for p in g.portals if p['building']=='b0' and p['kind']=='window' and p['side']!='interior' and p['a'][2]==1)
         point=[(window['a'][0]+window['b'][0])/2,4.6,(window['a'][1]+window['b'][1])/2]
-        aim(point,(8,4,1));hover_point(point)
+        aim(point,exterior_offset[window['side']]);hover_point(point)
         assert hover_key()=='portal:'+window['id'],hover_key()
         page.screenshot(path='/tmp/ground-control-upper-window.png')
         # Same interior rung: exterior wall occludes both picking and label; cutaway exposes it.
         a,b=next((a,b) for a,b in g.ladders if a[:2]==b[:2])
         point=[a[0]-.30,a[2]*3+1.1,a[1]];key='ladder:'+','.join(map(str,a))+':'+','.join(map(str,b))
-        aim(point,(8,3,0),building=g.building_at(*a)['id']);hover_point(point)
+        aim(point,(5,8,5),building=g.building_at(*a)['id']);hover_point(point)
         assert hover_key()!=key,hover_key()
-        aim(point,(8,3,0),'0',building=g.building_at(*a)['id']);hover_point(point)
+        aim(point,(5,8,5),'0',building=g.building_at(*a)['id']);hover_point(point)
         assert hover_key()==key,hover_key()
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let good=true;b.terrain.traverse(o=>{if(o.userData.transition?.startsWith('ladder:'))good&&=o.material.depthTest});return good}")
         page.screenshot(path='/tmp/ground-control-multiroom.png')

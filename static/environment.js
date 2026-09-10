@@ -6,6 +6,7 @@ export function addProp(view, p, parent=view.terrain) {
   const group=new G.Group();parent.add(group);
   const x=p.x+(p.width-1)/2,z=p.y+(p.depth-1)/2;
   group.position.set(x,0,z);
+  if(['tree','tree_oak','tree_pine','tree_birch','bush','flowerbed','sign','lamp','trash','bench'].includes(p.kind))group.rotation.y=(p.variant||0)*Math.PI/2;
   const box=(w,h,d,x,y,z,c)=>view.box(group,w,h,d,x,y,z,c);
   const color=p.color||'#91a5a1',metal=view.material(0x566164,'metal'),glass=view.material(0x294957,'glass'),rubber=view.material(0x202524,'rubber');
   const cylinder=(r,h,x,y,z,c,finish='paint')=>{const m=new G.Mesh(new G.CylinderGeometry(r,r,h,12),typeof c==='object'?c:view.material(c,finish));m.position.set(x,y,z);m.receiveShadow=true;if(r>.16&&h>.2)m.castShadow=true;group.add(m);return m;};
@@ -62,26 +63,47 @@ export function addProp(view, p, parent=view.terrain) {
       for(let i=0;i<3;i++){const c=cylinder(.13,1.8,-.26+i*.26,.22,0,metal);c.rotation.x=Math.PI/2;}break;
     case 'hay':
       {const hay=cylinder(.40,.8,0,.42,0,0xc3a658);hay.rotation.z=Math.PI/2;}break;
-    case 'bench':
-      box(.84,.12,.38,0,.45,0,0x93734f);box(.84,.35,.08,0,.68,.19,0x93734f);
+    case 'bench': {
+      const timber=view.material((p.variant||0)%2?0x79583f:0x93734f,'wood');
+      for(const offset of [-.14,0,.14])box(.84,.055,.10,0,.46,offset,timber);
+      for(const offset of [.52,.68])box(.84,.055,.09,0,offset,.21,timber);
       for(const s of [-1,1])box(.065,.40,.34,s*.32,.20,0,metal);break;
-    case 'tree':
-      cylinder(.09,1.8,0,.9,0,0x67513a,'wood');
-      for(let j=0;j<5;j++){const m=new G.Mesh(new G.IcosahedronGeometry(.48+(j%2)*.1,1),view.material([0x485a38,0x5c7043,0x748357][j%3]));m.position.set(Math.sin(j*2.4)*.24,1.6+j*.15,Math.cos(j*2.4)*.24);m.castShadow=true;group.add(m);}break;
+    }
+    case 'tree': case 'tree_oak': {
+      cylinder(.10,1.9,0,.95,0,(p.variant||0)%2?0x73563a:0x67513a,'wood');
+      for(let j=0;j<6;j++){const m=new G.Mesh(new G.IcosahedronGeometry(.42+(j%3)*.09,1),view.material([0x3f5735,0x526b3e,0x6d7d47][(j+(p.variant||0))%3]));m.position.set(Math.sin(j*2.4)*.28,1.65+(j%3)*.19,Math.cos(j*2.4)*.28);m.castShadow=true;group.add(m);}break;
+    }
+    case 'tree_pine':
+      cylinder(.085,2.5,0,1.25,0,0x5e4933,'wood');
+      for(let j=0;j<4;j++){const crown=new G.Mesh(new G.ConeGeometry(.62-j*.09,1.15,10),view.material([0x304c35,0x3c5a3c,0x486746][j%3]));crown.position.y=1.25+j*.48;crown.castShadow=true;group.add(crown);}break;
+    case 'tree_birch':
+      cylinder(.075,2.25,0,1.12,0,0xd4d0b6,'wood');
+      for(let j=0;j<4;j++){const crown=new G.Mesh(new G.IcosahedronGeometry(.34+(j%2)*.08,1),view.material([0x70834a,0x8b9457,0x5f7845][j%3]));crown.position.set(Math.sin(j*1.9)*.18,1.75+j*.18,Math.cos(j*1.9)*.18);group.add(crown);}break;
+    case 'bush':
+      for(let j=0;j<4;j++){const shrub=new G.Mesh(new G.IcosahedronGeometry(.24+(j%2)*.08,1),view.material([0x3f603c,0x587446,0x6e8150][(j+(p.variant||0))%3]));shrub.position.set(Math.sin(j*1.8)*.22,.25+(j%2)*.13,Math.cos(j*1.8)*.20);group.add(shrub);}break;
+    case 'flowerbed':
+      box(.92,.12,.48,0,.06,0,view.material(0x725d3f,'soil'));for(let j=0;j<7;j++){const flower=new G.Mesh(new G.SphereGeometry(.035,8,6),view.material([0xd7c66a,0xa96058,0xc6c0dc][j%3]));flower.position.set(-.36+j*.12,.18,(j%2-.5)*.20);group.add(flower);}break;
+    case 'sign':
+      cylinder(.035,1.35,0,.67,0,metal);box(.72,.42,.055,0,1.22,0,view.material(p.color,'paint'));box(.58,.035,.06,0,1.22,.032,view.material(0xe1dbc4));break;
+    case 'lamp':
+      cylinder(.035,2.5,0,1.25,0,metal);box(.42,.035,.035,.18,2.42,0,metal);{const lamp=new G.Mesh(new G.SphereGeometry(.12,10,8),view.material(0xe9dca8));lamp.position.set(.36,2.35,0);group.add(lamp);}break;
+    case 'trash':
+      cylinder(.25,.58,0,.29,0,view.material((p.variant||0)%2?0x4e615e:0x59605c,'metal'));{const lid=new G.Mesh(new G.CylinderGeometry(.27,.27,.045,12),metal);lid.position.y=.60;group.add(lid);}break;
   }
-  const base={car:[1,2],truck:[1,2],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],tree:[1,1]}[p.kind]||[1,1];
+  const base={car:[1,2],truck:[1,2],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1]}[p.kind]||[1,1];
   group.scale.set(p.width/base[0],p.kind==='car'?1.3:p.kind==='aircraft'?2:p.kind==='train'?1.5:1,p.depth/base[1]);
   group.traverse(o=>{if(o.isMesh){o.userData.structure=p.id;view.pickables.push(o);}});
-  const health=view.healthLabel(p.kind,p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,p.kind==='aircraft'?3:p.kind==='train'?4:2.6,z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
+  const labelY={aircraft:3,train:4,tree:3,tree_oak:3.2,tree_pine:3.7,tree_birch:3.1,bush:1.2,flowerbed:.9,sign:2,lamp:3,trash:1.1}[p.kind]||2.6;
+  const health=view.healthLabel(p.kind.replaceAll('_',' '),p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,labelY,z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
   return group;
 }
 
 export function addBuilding(view,b,state){
   const parent=view.terrain,start=parent.children.length;
   if(b.destroyed){view.box(parent,b.width,.14,b.depth,b.x+(b.width-1)/2,.07,b.y+(b.depth-1)/2,0x66625b);return;}
-  const timber=['woods','farm'].includes(state.theme);
-  const wallMaterial=timber?view.material(state.theme==='farm'&&b.id==='b1'?0x905342:0x897053,'wood'):['urban','streets','train_station'].includes(state.theme)?view.material(state.scenery.wall,'brick'):view.concreteMat;
-  const trim=state.theme==='airport'?0x708f9a:state.theme==='factory'?0x69817e:0xbab6a1;
+  const timber=b.facade==='timber'||(!b.facade&&['woods','farm'].includes(state.theme));
+  const finish=timber?'wood':b.facade==='metal'?'metal':b.facade==='brick'?'brick':b.facade==='concrete'?'concrete':'paint';
+  const wallMaterial=view.material(b.color||state.scenery.wall,finish),trim=b.accent|| (state.theme==='airport'?0x708f9a:state.theme==='factory'?0x69817e:0xbab6a1);
   const limit=view.buildingLevel(b),cx=b.x+(b.width-1)/2,cy=b.y+(b.depth-1)/2;
   for(let level=0;level<=Math.min(limit,b.level);level++){
     view.box(parent,b.width,.10,b.depth,cx,level*3-.055,cy,level===b.level?view.concreteMat:view.material(level?0x888474:0x958c78));
@@ -133,6 +155,27 @@ export function addBuilding(view,b,state){
       // Glazed upper control-room facade; real operable window stays in its wall slot.
       for(const side of [-1,1])view.box(parent,b.width-.12,.52,.015,cx,roofY-.8,cy+side*b.depth/2,0x4c7687);
     }
+    const roofMat=view.material(b.accent||0x696d67,b.roof==='sawtooth'?'metal':'paint');
+    if(b.roof==='gable'){
+      for(const side of [-1,1]){const slope=view.box(parent,b.width+.25,.10,b.depth*.57,cx,roofY+.43,cy+side*b.depth*.26,roofMat);slope.rotation.x=side*.34;}
+    }else if(b.roof==='sawtooth'){
+      for(let x=b.x+.55;x<b.x+b.width;x+=1.25){const slope=view.box(parent,1.2,.08,b.depth-.2,x,roofY+.28,cy,roofMat);slope.rotation.z=.30;}
+    }else if(b.roof==='dome'){
+      const dome=new G.Mesh(new G.SphereGeometry(Math.min(b.width,b.depth)*.28,14,10),roofMat);dome.scale.y=.48;dome.position.set(cx,roofY+.22,cy);parent.add(dome);
+    }else if(b.roof==='terrace'){
+      for(const side of [-1,1]){view.box(parent,.12,.48,b.depth+.1,b.x+(side>0?b.width-.5:-.5),roofY+.24,cy,roofMat);view.box(parent,b.width+.1,.48,.12,cx,roofY+.24,b.y+(side>0?b.depth-.5:-.5),roofMat);}
+    }else if(b.roof==='vented'){
+      for(let i=0;i<Math.max(1,Math.floor(b.width/3));i++){view.box(parent,.65,.42,.55,b.x+.8+i*2,roofY+.21,cy,view.material(0x65716f,'metal'));const vent=new G.Mesh(new G.CylinderGeometry(.11,.13,.75,10),view.material(0x596361,'metal'));vent.position.set(b.x+1.35+i*2,roofY+.37,cy);parent.add(vent);}
+    }
+  }
+  const front=b.front||'south',horizontal=front==='north'||front==='south',direction=front==='north'?-1:front==='south'?1:front==='west'?-1:1;
+  if(b.archetype==='commercial'){
+    const awning=view.box(parent,horizontal?Math.min(3,b.width-.3):.72,.16,horizontal?.72:Math.min(3,b.depth-.3),horizontal?cx:b.x+(direction>0?b.width-.15:-.15),2.48,horizontal?b.y+(direction>0?b.depth-.15:-.15):cy,view.material(trim,'paint'));
+    if(horizontal)awning.rotation.x=direction*.12;else awning.rotation.z=-direction*.12;
+  }else if(b.archetype==='residential'&&b.level>1){
+    for(let level=1;level<b.level;level++){const balcony=view.box(parent,horizontal?Math.min(2.3,b.width-.4):.55,.10,horizontal?.55:Math.min(2.3,b.depth-.4),horizontal?cx:b.x+(direction>0?b.width-.22:-.22),level*3+.18,horizontal?b.y+(direction>0?b.depth-.22:-.22):cy,view.material(trim,'metal'));for(const side of [-1,1])view.box(parent,.04,.72,.04,balcony.position.x+(horizontal?side*.8:0),level*3+.52,balcony.position.z+(horizontal?0:side*.8),view.material(trim,'metal'));}
+  }else if(b.archetype==='civic'){
+    for(const side of [-1,1])view.box(parent,.16,2.55,.16,horizontal?cx+side*.72:b.x+(direction>0?b.width-.18:-.18),1.27,horizontal?b.y+(direction>0?b.depth-.18:-.18):cy+side*.72,view.material(trim,'concrete'));
   }
   for(const child of parent.children.slice(start))child.traverse(o=>{if(o.isMesh){o.userData.structure=b.id;view.pickables.push(o);}});
   const sign=view.healthLabel(b.name,b.hp,b.max_hp,'#eee4c6',2.5);sign.userData.structure=b.id;view.pickables.push(sign);sign.position.set(cx,Math.min(b.level,limit)*3+.35,b.y-.6);parent.add(sign);
