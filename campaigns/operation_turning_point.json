@@ -1,0 +1,17 @@
+{
+  "id": "operation-turning-point",
+  "title": "Operation Turning Point",
+  "description": "A ten-mission campaign from first contact to the final counteroffensive.",
+  "missions": [
+    {"title":"Broken Arrow","mission":"rescue","objective":"Extract the trapped railway workers before the hostile patrol reaches them.","theme":"train_station","size":24,"difficulty":"easy","lighting":"day","seed":41001},
+    {"title":"Blacktop","mission":"eliminate","objective":"Clear the road junction and reopen the supply route.","theme":"streets","size":24,"difficulty":"easy","lighting":"night","seed":41002},
+    {"title":"Cold Storage","mission":"capture_flag","objective":"Seize the enemy command marker inside the industrial zone.","theme":"factory","size":30,"difficulty":"medium","lighting":"night","seed":41003},
+    {"title":"Harvest Moon","mission":"rescue","objective":"Protect and evacuate civilians crossing the occupied farmland.","theme":"farm","size":30,"difficulty":"medium","lighting":"night","seed":41004},
+    {"title":"Terminal Velocity","mission":"defend_flag","objective":"Hold the forward communications post until relief arrives.","theme":"airport","size":30,"difficulty":"medium","lighting":"day","seed":41005},
+    {"title":"Green Line","mission":"eliminate","objective":"Destroy the hostile force concealed along the woodland approach.","theme":"woods","size":30,"difficulty":"medium","lighting":"day","seed":41006},
+    {"title":"Glass House","mission":"capture_flag","objective":"Breach the urban command sector and capture its operations flag.","theme":"urban","size":40,"difficulty":"hard","lighting":"night","seed":41007},
+    {"title":"Last Train","mission":"defend_flag","objective":"Defend the railhead while the final evacuation train is prepared.","theme":"train_station","size":40,"difficulty":"hard","lighting":"night","seed":41008},
+    {"title":"Open Skies","mission":"rescue","objective":"Rescue the airfield ground crews under sustained attack.","theme":"airport","size":40,"difficulty":"hard","lighting":"day","seed":41009},
+    {"title":"Turn for Turn","mission":"eliminate","objective":"Defeat the remaining hostile command force and end the campaign.","theme":"urban","size":40,"difficulty":"hard","lighting":"day","seed":41010}
+  ]
+}

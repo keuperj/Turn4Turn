@@ -1,4 +1,4 @@
-# Ground Control — tactical operations
+# Turn4Turn — tactical operations
 
 A browser-based, XCOM-inspired single-mission game. Python owns combat,
 pathfinding, visibility, equipment and randomized missions. The locally bundled

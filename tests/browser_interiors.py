@@ -24,7 +24,7 @@ try:
         browser=p.chromium.launch(headless=True,executable_path='/snap/bin/chromium',args=['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
         page=browser.new_page(viewport={'width':1440,'height':1050});page.set_default_timeout(60000)
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
-        page.goto(base);page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
+        page.goto(base+'/?mode=single');page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
         def aim(point,offset=(7,4,7),view='exterior',building='b0'):
             page.locator('#map').scroll_into_view_if_needed()
             page.evaluate('''async args=>{const {battlefield:b}=await import('/app.js');b.testWorld??={...b.state};const building=b.testWorld.buildings.find(v=>v.id===args.building);b.state={...b.testWorld,props:[],buildings:[building],walls:b.testWorld.walls.filter(w=>w.building===args.building),ladders:b.testWorld.ladders.filter(([a,d])=>d[0]>=building.x&&d[0]<building.x+building.width&&d[1]>=building.y&&d[1]<building.y+building.depth)};b.setView(args.view);b.sync(b.state,b.selected,null,'move',null);b.controls.target.set(...args.point);b.camera.position.set(...args.point.map((v,i)=>v+args.offset[i]));b.controls.update();b.camera.updateMatrixWorld();}''',dict(point=point,offset=offset,view=view,building=building))

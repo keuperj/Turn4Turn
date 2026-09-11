@@ -7,6 +7,7 @@ const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','M24 s
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
 let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium',configMission='rescue',configLighting='day';
 let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersion=-1;
+let screen='landing',campaignData=null,campaignProgress=null,campaignRun=false;
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function itemArt(name){return photographs[name]?`<img class="item-photo" src="/assets/${photographs[name]}" alt="${name}">`:`<span class="item-art art-${itemOrder.indexOf(name)}" role="img" aria-label="${name}"></span>`;}
 function soldier(){return state?.units.find(u=>u.id===selected);}
@@ -55,8 +56,8 @@ function render(){
   $('log').replaceChildren(...state.log.map(line=>{const el=document.createElement('div');el.textContent=line;return el;}));$('log').scrollTop=$('log').scrollHeight;
   $('end').disabled=state.status!=='active';
   $('outcome').hidden=['active','loadout'].includes(state.status);
-  if(!$('outcome').hidden){$('outcome').innerHTML=`<h2>${state.status==='victory'?'Mission accomplished':'Mission failed'}</h2><p>${state.mission.objective}</p>${button('again','new','Prepare another mission')}`;$('again').onclick=newMission;}
-  if(state.status==='loadout'){renderPreparation();if(!$('preparation').open)$('preparation').showModal();}
+  if(!$('outcome').hidden){if(campaignRun&&state.status==='victory')recordCampaignVictory();const label=campaignRun?(state.status==='victory'?'Campaign overview':'Retry mission'):'Prepare another mission';$('outcome').innerHTML=`<h2>${state.status==='victory'?'Mission accomplished':'Mission failed'}</h2><p>${state.mission.objective}</p>${button('again','new',label)}`;$('again').onclick=campaignRun?(state.status==='victory'?showCampaign:startCampaignMission):newMission;}
+  if(state.status==='loadout'&&screen==='game'){renderPreparation();if(!$('preparation').open)$('preparation').showModal();}
   else if($('preparation').open)$('preparation').close();
   const aim=pending?.action==='attack'?pending:null;
   battlefield.sync(state,selected,null,mode,aim);
@@ -145,11 +146,27 @@ function openEquipment(){
   if(!$('equipment').open)$('equipment').showModal();
 }
 function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';configLighting=state?.lighting||'day';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});}
+function campaignSave(){if(campaignProgress)localStorage.setItem('turn4turn-campaign',JSON.stringify(campaignProgress));}
+function loadCampaignSave(){try{const p=JSON.parse(localStorage.getItem('turn4turn-campaign'));if(p?.id===campaignData.id&&Number.isInteger(p.index)&&p.index>=0&&p.index<=campaignData.missions.length)return p;}catch{}return null;}
+function closeDialogs(){for(const d of document.querySelectorAll('dialog[open]'))d.close();}
+function showLanding(){screen='landing';closeDialogs();$('campaign-screen').hidden=true;$('landing').hidden=false;}
+function showGame(){screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state)render();}
+function renderCampaign(){
+  const p=campaignProgress||{id:campaignData.id,index:0};$('campaign-title').textContent=campaignData.title;$('campaign-description').textContent=campaignData.description;
+  $('campaign-progress').innerHTML=campaignData.missions.map((m,i)=>`<button class="campaign-node ${i<p.index?'complete':i===p.index?'current':'locked'}" data-campaign-mission="${i}" ${i!==p.index?'disabled':''}><small>${String(i+1).padStart(2,'0')} · ${i<p.index?'COMPLETE':i===p.index?'CURRENT':'LOCKED'}</small><b>${escape(m.title)}</b><span>${escape(m.objective)}</span></button>`).join('');
+  const complete=p.index>=campaignData.missions.length,hasSave=!!loadCampaignSave();$('campaign-actions').innerHTML=`<button id="new-campaign">Start new campaign</button>${hasSave&&!complete?'<button id="resume-campaign" class="primary">Resume current mission</button>':''}${complete?'<button id="replay-campaign" class="primary">Play campaign again</button>':''}`;
+  document.querySelector('[data-campaign-mission]:not([disabled])')?.addEventListener('click',startCampaignMission);$('new-campaign').onclick=()=>{campaignProgress={id:campaignData.id,index:0,activeSeed:null};campaignSave();renderCampaign();};
+  $('resume-campaign')?.addEventListener('click',startCampaignMission);$('replay-campaign')?.addEventListener('click',()=>{campaignProgress={id:campaignData.id,index:0,activeSeed:null};campaignSave();startCampaignMission();});
+}
+function showCampaign(){screen='campaign';campaignRun=true;closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=false;campaignProgress=loadCampaignSave()||{id:campaignData.id,index:0,activeSeed:null};renderCampaign();}
+function startCampaignMission(){if(busy||campaignProgress.index>=campaignData.missions.length)return;const m=campaignData.missions[campaignProgress.index];campaignRun=true;campaignProgress.activeSeed=m.seed;campaignSave();draft=null;selected='s0';mode='move';configTheme=m.theme;configSize=m.size;configDifficulty=m.difficulty;configMission=m.mission;configLighting=m.lighting;showGame();request('/api/new',m);}
+function recordCampaignVictory(){if(!campaignProgress||campaignProgress.activeSeed!==state.seed)return;campaignProgress.index=Math.min(campaignData.missions.length,campaignProgress.index+1);campaignProgress.activeSeed=null;campaignSave();}
+function startSingle(){campaignRun=false;showGame();newMission();}
 hydrate();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
 $('close-equipment').onclick=()=>$('equipment').close();$('close-help').onclick=()=>$('manual').close();
 $('armory').onclick=()=>{if(!state)return;editSlot=null;openEquipment();};$('help').onclick=()=>$('manual').showModal();
-$('new').onclick=newMission;$('end').onclick=()=>act('end_turn');$('focus').onclick=()=>battlefield?.focus(soldier());$('reset-camera').onclick=()=>battlefield?.home();
+$('home').onclick=showLanding;$('campaign-home').onclick=showLanding;$('campaign-mode').onclick=showCampaign;$('single-game').onclick=startSingle;$('new').onclick=()=>campaignRun?startCampaignMission():newMission();$('end').onclick=()=>act('end_turn');$('focus').onclick=()=>battlefield?.focus(soldier());$('reset-camera').onclick=()=>battlefield?.home();
 $('view-level').onchange=()=>{if(busy)return;pending=null;battlefield.setView($('view-level').value);render();};
 $('sound').checked=actionAudio.enabled;$('volume').value=actionAudio.volume;$('sound').onchange=()=>actionAudio.setEnabled($('sound').checked);$('volume').oninput=()=>actionAudio.setVolume($('volume').value);
 document.addEventListener('pointerdown',()=>actionAudio.unlock(),{once:true});document.addEventListener('keydown',()=>actionAudio.unlock(),{once:true});
@@ -161,7 +178,8 @@ try{
   await battlefield.ready;
   minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
   battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
-  request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;configDifficulty=state.difficulty;if(state.status==='loadout')renderPreparation();}});
+  campaignData=await fetch('/api/campaign').then(r=>r.json());
+  request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;configDifficulty=state.difficulty;configMission=state.mission.key;configLighting=state.lighting;if(new URLSearchParams(location.search).get('mode')==='single'){campaignRun=false;showGame();}else showLanding();}});
 }catch(error){message('WebGL could not start. Enable WebGL in your browser and reload. '+error.message);$('phase').textContent='WEBGL REQUIRED';}
 // Expose the renderer instance for integration tests and local development tools.
 export {battlefield};

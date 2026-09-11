@@ -18,7 +18,7 @@ try:
  with sync_playwright() as p:
   b=p.chromium.launch(executable_path='/snap/bin/chromium',headless=True,args=['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
   page=b.new_page(viewport={'width':1440,'height':1050});errors=[];page.on('pageerror',lambda e:errors.append(str(e)));page.set_default_timeout(60000)
-  page.goto(f'http://127.0.0.1:{httpd.server_port}');page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
+  page.goto(f'http://127.0.0.1:{httpd.server_port}/?mode=single');page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
   page.evaluate("async()=>{const {battlefield:v}=await import('/app.js');window.v=v;v.controls.target.set(16,.6,25);v.camera.position.set(16,5,33);v.controls.update();}")
   assert page.evaluate('v.characters.instances.size')==4
   entry="v.characters.instances.get(v.models.get('s0'))"

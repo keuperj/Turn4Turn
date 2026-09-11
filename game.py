@@ -46,15 +46,18 @@ MISSIONS = {
 class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
     size = 30
 
-    def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium', mission='rescue', lighting='day'):
+    def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium', mission='rescue', lighting='day', title=None, objective=None):
         if type(size) is not int or size not in (24,30,40):raise ValueError('Map size must be 24, 30, or 40.')
         if not isinstance(difficulty,str) or difficulty not in DIFFICULTIES:raise ValueError('Difficulty must be easy, medium, or hard.')
         if not isinstance(mission,str) or mission not in MISSIONS:raise ValueError('Unknown mission type.')
         if lighting not in ('day','night'):raise ValueError('Lighting must be day or night.')
+        if title is not None and (not isinstance(title,str) or not 0<len(title)<=80):raise ValueError('Invalid mission title.')
+        if objective is not None and (not isinstance(objective,str) or not 0<len(objective)<=240):raise ValueError('Invalid mission objective.')
         self.size=size
         self.difficulty=difficulty
         self.mission=mission
         self.lighting=lighting
+        self.operation_title=title or MISSIONS[mission]['label'];self.mission_objective=objective or MISSIONS[mission]['objective']
         self.player_time=DIFFICULTIES[difficulty]['player_time'];self.enemy_time=DIFFICULTIES[difficulty]['enemy_time']
         self.seed = seed if seed is not None else random.randrange(1_000_000)
         self.rng = random.Random(self.seed)
@@ -65,7 +68,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.smoke=[];self.charges=[];self.fires=[]
         self.events,self.units=[],[]
         self.geometry_revision=0;self._los_cache={}
-        self.log = [f"Operation Silent Orchard — {THEMES[self.theme]['label']}.", MISSIONS[mission]['objective']]
+        self.log = [f"{self.operation_title} — {THEMES[self.theme]['label']}.", self.mission_objective]
         self.rng.seed(f'{self.seed}:{self.theme}')
         generate(self)
         for i, (name, role, weapon) in enumerate([
@@ -583,7 +586,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 blast_targets[u['id']]=[dict(x=x,y=y,z=z,victims=[v['id'] for v in self.blast_victims(u,x,y,z) if self.detected(v)])
                     for x,y,z in sorted(self.explored) if self.blast_valid(u,x,y,z)]
         civilians=[u for u in self.units if u['team']=='civilian']
-        mission=dict(key=self.mission,**MISSIONS[self.mission],flag=self.flag)
+        mission={**MISSIONS[self.mission],'key':self.mission,'label':self.operation_title,'objective':self.mission_objective,'flag':self.flag}
         return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,
                     corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,fires=self.fires,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
                     shots=shots,blast_targets=blast_targets,interactions=interactions,transitions=transitions,weapons=WEAPONS,stances=STANCES,

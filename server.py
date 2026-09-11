@@ -8,6 +8,7 @@ from game import Game
 from audio_assets import discover, PATTERN
 
 ROOT = Path(__file__).parent / 'static'
+CAMPAIGN_FILE = Path(__file__).parent / 'campaigns' / 'operation_turning_point.json'
 game = Game(deployed=False)
 
 
@@ -39,6 +40,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/audio':
             self.send(200,json.dumps(discover()).encode())
             return
+        if path == '/api/campaign':
+            self.send(200,CAMPAIGN_FILE.read_bytes())
+            return
         if path.startswith('/sounds/'):
             name=path.removeprefix('/sounds/')
             file=ROOT/'sounds'/name
@@ -57,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send(404, b'Not found', 'text/plain')
             return
         files = {'/': ('index.html', 'text/html; charset=utf-8'),
-                 '/style.css': ('style.css', 'text/css'), '/app.js': ('app.js', 'text/javascript')}
+                 '/style.css': ('style.css', 'text/css'), '/campaign.css': ('campaign.css','text/css'), '/app.js': ('app.js', 'text/javascript')}
         if path not in files:
             self.send(404, b'Not found', 'text/plain')
             return
@@ -83,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
                 seed = data.get('seed')
                 if seed is not None and (type(seed) is not int or not 0 <= seed <= 999999999):
                     raise ValueError('Seed must be an integer from 0 to 999999999.')
-                game = Game(seed, data.get('theme', 'random'), deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'),mission=data.get('mission','rescue'),lighting=data.get('lighting','day'))
+                game = Game(seed, data.get('theme', 'random'), deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'),mission=data.get('mission','rescue'),lighting=data.get('lighting','day'),title=data.get('title'),objective=data.get('objective'))
             else:
                 game.action(data)
             self.send(200, json.dumps(game.state()).encode())
@@ -92,10 +96,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Local tactical combat prototype')
+    parser = argparse.ArgumentParser(description='Turn4Turn tactical combat')
     parser.add_argument('--port', type=int, default=8000)
     args = parser.parse_args()
-    print(f'Battlefield ready at http://localhost:{args.port}', flush=True)
+    print(f'Turn4Turn ready at http://localhost:{args.port}', flush=True)
     try:
         HTTPServer(('127.0.0.1', args.port), Handler).serve_forever()
     except KeyboardInterrupt:
