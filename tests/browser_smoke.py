@@ -142,11 +142,12 @@ try:
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.actors.children.some(o=>o.userData.memory)}")
         page.screenshot(path='/tmp/ground-control-v7-peek.png')
         page.locator('[data-weapon="Frag grenade"]').click();ready()
-        click_point(11,10,height=.7);assert 'CORNER THROW' in page.locator('#message').text_content()
+        assert page.locator('#details img[src*="stance-"]').count()==3
+        click_point(11,10,height=.7);assert 'ATTACK PREVIEW' in page.locator('#message').text_content()
         click_point(11,10,height=.7,double=True);ready();assert u['ammo']==1
         assert page.locator('#confirmation').count()==0
         assert not errors,errors
-        print('PASS WebGL: four unrestricted equipment slots, hover health, sidebar camera focus, visible enemy tracking, expanded zoom bounds, mission configuration, 12 item images, visual loadouts, icons, minimap, double-click / cancel, automatic fire, smoke, corpses, structure clicks, healing, free facing, peeking, memories, corner throws.',flush=True)
+        print('PASS WebGL: four unrestricted equipment slots, hover health, sidebar camera focus, visible enemy tracking, expanded zoom bounds, mission configuration, 12 item images, visual loadouts, generated stance icons, minimap, double-click / cancel, automatic fire, smoke, corpses, structure clicks, healing, free facing, peeking, memories, obstacle-clearing throws.',flush=True)
         browser.close()
         disabled=p.chromium.launch(headless=True,executable_path=args.browser,args=['--no-sandbox','--disable-webgl','--disable-gpu'])
         blocked=disabled.new_page();blocked.goto(base);blocked.wait_for_function("document.getElementById('phase').textContent==='WEBGL REQUIRED'")

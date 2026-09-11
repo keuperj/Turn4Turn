@@ -21,6 +21,7 @@ const paths={
   map:'M2 5l7-3 6 3 7-3v17l-7 3-6-3-7 3zM9 2v17M15 5v17',
   sound:'M3 9h4l5-5v16l-5-5H3zM16 8a6 6 0 0 1 0 8M19 5a10 10 0 0 1 0 14'
 };
-export function icon(name){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.attack}"/></svg>`;}
+const generated={single:'fire-single.png',auto:'fire-auto.png',standing:'stance-standing.png',kneeling:'stance-kneeling.png',prone:'stance-prone.png'};
+export function icon(name){return generated[name]?`<img src="/assets/${generated[name]}" alt="" aria-hidden="true" style="width:29px;height:29px;object-fit:contain;pointer-events:none;filter:drop-shadow(0 1px 2px #0008)">`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.attack}"/></svg>`;}
 export function button(id,name,hint,disabled=false,active=false){return `<button ${id?`id="${id}"`:''} class="icon-button ${active?'active':''}" title="${hint}" aria-label="${hint}" ${disabled?'disabled':''}>${icon(name)}</button>`;}
 export function hydrate(){document.querySelectorAll('[data-icon]').forEach(b=>{b.innerHTML=icon(b.dataset.icon);b.classList.add('icon-button');b.setAttribute('aria-label',b.title);});}
