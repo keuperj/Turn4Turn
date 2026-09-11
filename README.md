@@ -1,6 +1,6 @@
 # Turn4Turn — tactical operations
 
-A browser-based, XCOM-inspired single-mission game. Python owns combat,
+A browser-based, XCOM-inspired game. Python owns combat,
 pathfinding, visibility, equipment and randomized missions. The locally bundled
 Babylon.js 9.25.0 renderer displays the battlefield. There is no campaign or economy.
 

@@ -29,8 +29,9 @@ class Targeting:
         if distance>vision:raise ValueError('That point is beyond this fighter’s sight range.')
         point=dict(x=x,y=y,z=z,stance='standing')
         direct=self._trace_sight(u,point,True,target_structure=structure['id'] if structure else None)
-        via=None if direct else self.corner_throw(u,point)
-        if not direct and not via:raise ValueError('Line of sight is blocked. Grenades can turn a corner only from directly beside its edge.')
+        throwable=w['kind'] in ('grenade','smoke')
+        via=None if direct or throwable else self.corner_throw(u,point)
+        if not direct and not via and not throwable:raise ValueError('Line of sight is blocked.')
         if (x,y,z) not in self.explored and not structure:raise ValueError('Explore or peek into this area before throwing there.')
         target=next((v for v in self.alive() if self.position(v)==(x,y,z) and self.detected(v)),None) if not structure else None
         automatic=u.get('fire_mode')=='auto' and w.get('automatic')

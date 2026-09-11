@@ -69,11 +69,11 @@ class InteriorTests(unittest.TestCase):
         u['stance']='prone'
         self.assertNotIn(tuple(a),g.paths(u,10))
 
-    def test_closed_door_blocks_grenade_and_blast_damage(self):
+    def test_grenade_arcs_over_closed_door_but_door_blocks_blast_damage(self):
         g,u,p=self.at_portal()
         g.action(dict(action='equip',unit=u['id'],weapon='Frag grenade'))
         x,y,z=p['a']
-        self.assertFalse(g.blast_valid(u,x,y,z))
+        self.assertTrue(g.blast_valid(u,x,y,z))
         target=g.units[4]
         target.update(x=x,y=y,z=z)
         self.assertNotIn(target,g.blast_victims(u,u['x'],u['y'],0))

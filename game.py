@@ -317,8 +317,9 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         if w['kind']=='rocket':
             return unit['stance']!='prone' and self.line_of_sight(unit,target)
         if z>unit['z']+1: return False
-        # An outdoor grenade arcs over low cover; walls and ceilings still stop it.
-        return self.line_of_sight(dict(unit,stance='standing'),target,include_cover=False) or bool(self.corner_throw(unit,target))
+        # Hand-thrown explosives use a ballistic arc. The destination must be an
+        # explored surface in range, but intervening cover does not require sight.
+        return w['kind'] in ('grenade','smoke') or self.line_of_sight(dict(unit,stance='standing'),target,include_cover=False)
 
     def blast_victims(self, unit, x, y, z=0):
         w=WEAPONS[unit['weapon']]
@@ -587,7 +588,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                     for x,y,z in sorted(self.explored) if self.blast_valid(u,x,y,z)]
         civilians=[u for u in self.units if u['team']=='civilian']
         mission={**MISSIONS[self.mission],'key':self.mission,'label':self.operation_title,'objective':self.mission_objective,'flag':self.flag}
-        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,
+        casualties=dict(enemy=sum(u['team']=='alien' and u['hp']<=0 for u in self.units),friendly=sum(u['team']=='soldier' and u['hp']<=0 for u in self.units))
+        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,casualties=casualties,
                     corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,fires=self.fires,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
                     shots=shots,blast_targets=blast_targets,interactions=interactions,transitions=transitions,weapons=WEAPONS,stances=STANCES,
                     civilians=dict(alive=sum(u['hp']>0 for u in civilians),evacuated=sum(u['evacuated'] for u in civilians),total=len(civilians)),

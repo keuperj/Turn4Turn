@@ -76,11 +76,11 @@ class FieldcraftTests(unittest.TestCase):
         self.assertEqual(u['hp'],0);self.assertEqual(g.position(u),(9,10,0))
         self.assertEqual(g.events[-1]['type'],'peek_return')
 
-    def test_corner_throw_requires_corner_range_and_clear_second_leg(self):
+    def test_grenade_arc_does_not_require_corner_path(self):
         g,u,e=self.corner();point=dict(x=11,y=10,z=0,stance='standing');self.give(u,'Frag grenade')
         g.explored.add((11,10,0))
         self.assertFalse(g.line_of_sight(u,point));self.assertIsNotNone(g.corner_throw(u,point))
-        result=g.preview(dict(action='attack',unit=u['id'],x=11,y=10,z=0));self.assertEqual(result['via'],dict(x=9,y=9,z=0))
+        result=g.preview(dict(action='attack',unit=u['id'],x=11,y=10,z=0));self.assertIsNone(result['via'])
         g.action(dict(action='attack',unit=u['id'],x=11,y=10,z=0));self.assertEqual(u['ammo'],1)
         u.update(y=11,ap=2)
         self.assertIsNone(g.corner_throw(u,point))

@@ -8,6 +8,7 @@ const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':
 let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium',configMission='rescue',configLighting='day';
 let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersion=-1;
 let screen='landing',campaignData=null,campaignProgress=null,campaignRun=false;
+const bodyCount=document.createElement('span');bodyCount.id='body-count';$('seed').before(bodyCount);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function itemArt(name){return photographs[name]?`<img class="item-photo" src="/assets/${photographs[name]}" alt="${name}">`:`<span class="item-art art-${itemOrder.indexOf(name)}" role="img" aria-label="${name}"></span>`;}
 function soldier(){return state?.units.find(u=>u.id===selected);}
@@ -48,6 +49,7 @@ function render(){
   $('round').textContent=String(state.round).padStart(2,'0');$('seed').textContent=`SEED ${state.seed}`;
   $('phase').textContent=state.status==='active'?'SQUAD PHASE':state.status.toUpperCase();
   $('contacts').textContent=state.units.filter(u=>u.team==='alien'&&u.hp>0).length+' VISIBLE CONTACTS';
+  $('body-count').textContent=`BODY COUNT · ENEMY ${state.casualties.enemy} / FRIENDLY ${state.casualties.friendly}`;
   $('alive').textContent=state.units.filter(u=>u.team==='soldier'&&u.hp>0).length;
   $('civilians').textContent=state.civilians.total?`CIVILIANS ${state.civilians.alive}/${state.civilians.total} · ${state.civilians.evacuated} EVAC`:state.mission.round_limit?`OBJECTIVE · ${Math.max(0,state.mission.round_limit-state.round+1)} ROUNDS LEFT`:'NO CIVILIANS';
   $('squad').innerHTML=state.units.filter(u=>u.team==='soldier').map((u,i)=>`<button class="soldier ${u.id===selected?'selected':''}" data-unit="${u.id}" title="Select ${u.name} (${i+1})" ${u.hp<=0?'disabled':''}><span class="portrait portrait-${i}"></span><span class="info"><b>${u.name}</b><small>${u.role} · L${u.z}</small><span class="health"><i style="width:${u.hp/u.max_hp*100}%"></i></span><small>${u.hp}/${u.max_hp} HP</small></span><span class="ap">${u.overwatch?'◉':'●'.repeat(u.ap)+'○'.repeat(Math.max(0,state.player_time-u.ap))}</span></button>`).join('');
@@ -129,6 +131,10 @@ function renderPreparation(){
   const lightingLabel=document.createElement('label');lightingLabel.textContent='TIME';const lightingSelect=document.createElement('select');lightingSelect.id='mission-lighting';
   for(const [key,label] of Object.entries(state.lighting_options)){const option=new Option(label,key);option.selected=configLighting===key;lightingSelect.add(option);}lightingLabel.append(lightingSelect);document.querySelector('.mission-summary').before(lightingLabel);
   document.querySelector('.mission-options').style.gridTemplateColumns='repeat(auto-fit,minmax(150px,1fr))';
+  if(campaignRun){
+    for(const select of document.querySelectorAll('.mission-options select'))select.disabled=true;
+    document.querySelector('.mission-summary').insertAdjacentHTML('beforeend','<small>Campaign mission settings are fixed.</small>');
+  }
   const reloadMission=()=>request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});
   $('mission-type').onchange=()=>{configMission=$('mission-type').value;reloadMission();};
   $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;reloadMission();};

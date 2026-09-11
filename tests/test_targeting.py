@@ -38,6 +38,19 @@ class TargetingTests(unittest.TestCase):
             with self.assertRaises(ValueError):g.preview(dict(data,**updates))
         self.assertEqual(u['ap'],2)
 
+    def test_grenade_can_arc_over_blocking_wall_to_explored_ground(self):
+        g=self.field();u=g.units[0];self.give(u,'Frag grenade')
+        target=(u['x'],u['y']-2,0)
+        edge=edge_key((u['x'],u['y']-1,0),target)
+        g.buildings.append(dict(id='barrier',x=0,y=0,width=1,depth=1,level=0))
+        g.walls[edge]=dict(a=(u['x'],u['y']-1,0),b=target,building='barrier',kind='wall',open=False)
+        g.geometry_revision+=1;g._los_cache.clear();g.explored.add(target)
+        self.assertFalse(g.line_of_sight(u,dict(x=target[0],y=target[1],z=0,stance='standing')))
+        self.assertTrue(g.blast_valid(u,*target))
+        preview=g.preview(dict(action='attack',unit=u['id'],x=target[0],y=target[1],z=0))
+        self.assertEqual(preview['name'],'Ground point')
+        self.assertIsNone(preview['via'])
+
     def test_structure_surface_target_and_blocking_wall(self):
         g=self.field();u=g.units[0]
         b=dict(id='front',name='BUILDING',x=12,y=23,width=4,depth=3,level=1)
