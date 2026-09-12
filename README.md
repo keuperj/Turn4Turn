@@ -14,8 +14,10 @@ python3 server.py --port 8002
 ```
 
 Open **http://localhost:8002**. Stop with Ctrl+C. Restart after Python changes;
-refresh after frontend changes. The loopback server stores one shared mission
-in memory, so connected tabs play the same battle.
+refresh after frontend changes. Each consenting player gets an isolated session.
+The default limit is 10 active players; use `--max-players 20` to change it.
+Idle sessions release their slot after 30 minutes. Player identity, campaign
+progress, and an optional preferred loadout are stored in browser cookies.
 
 The separate [engine comparison](http://localhost:8002/comparison/) shows the same
 textured courtyard, animated soldier, vehicle and effects in Babylon.js,

@@ -21,7 +21,7 @@ try:
         page=browser.new_page(viewport={'width':1280,'height':900});page.set_default_timeout(60000)
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
         base=f'http://127.0.0.1:{httpd.server_port}'
-        page.goto(base+'/?mode=single');page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
+        page.goto(base+'/?mode=single');page.wait_for_selector('#welcome[open]');page.locator('#welcome-name').fill('Audio Tester');page.locator('#cookie-consent').check();page.locator('#welcome-form button').click();page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
         page.keyboard.press('Shift')
         result=page.evaluate('''async()=>{
           const {actionAudio:a,soundAction}=await import('/audio.js');await a.unlock();await a.preload();

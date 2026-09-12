@@ -10,6 +10,19 @@ let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersi
 let screen='landing',campaignData=null,campaignProgress=null,campaignRun=false;
 const bodyCount=document.createElement('span');bodyCount.id='body-count';$('seed').before(bodyCount);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cookie=name=>document.cookie.split('; ').find(v=>v.startsWith(name+'='))?.slice(name.length+1);
+const cookieJSON=name=>{try{return JSON.parse(decodeURIComponent(cookie(name)||''));}catch{return null;}};
+const setCookie=(name,value)=>document.cookie=`${name}=${encodeURIComponent(JSON.stringify(value))}; Path=/; Max-Age=31536000; SameSite=Lax`;
+const deleteCookie=name=>document.cookie=`${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+function showServerFull(){closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=true;$('server-full').hidden=false;}
+async function ensureSession(){
+  const current=await fetch('/api/session').then(r=>r.json());if(current.accepted)return true;
+  const dialog=$('welcome'),form=$('welcome-form'),error=$('welcome-error');$('welcome-name').value=decodeURIComponent(cookie('turn4turn_name')||'');dialog.showModal();
+  return new Promise(resolve=>form.onsubmit=async event=>{event.preventDefault();error.textContent='';
+    try{const response=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({consent:$('cookie-consent').checked,username:$('welcome-name').value})});const result=await response.json();if(!response.ok){if(result.full){dialog.close();showServerFull();resolve(false);return;}throw Error(result.error);}dialog.close();resolve(true);}
+    catch(reason){error.textContent=reason.message;}
+  });
+}
 function itemArt(name){return photographs[name]?`<img class="item-photo" src="/assets/${photographs[name]}" alt="${name}">`:`<span class="item-art art-${itemOrder.indexOf(name)}" role="img" aria-label="${name}"></span>`;}
 function soldier(){return state?.units.find(u=>u.id===selected);}
 function message(text){$('message').textContent=text;}
@@ -120,7 +133,11 @@ function pick(hit,execute=false){
   chooseGoal(data,execute);
 }
 function hover(hit){if(!state)return;if(!hit){$('tile-info').textContent='RECON VIEW';return;}if(hit.transition){$('tile-info').textContent=`${hit.transition.startsWith('ladder:')?'LADDER':'STAIRS'} · L${hit.ends[0][2]} ↔ L${hit.ends[1][2]} · Double-click to approach or climb`;return;}if(hit.portal){const p=state.portals.find(p=>p.id===hit.portal);if(p){$('tile-info').textContent=`${p.open?'OPEN':'CLOSED'} ${p.kind.toUpperCase()} · L${p.a[2]}`;return;}}if(hit.memory){const m=state.last_seen.find(m=>m.id===hit.memory);$('tile-info').textContent=`${m.name} · LAST SEEN ROUND ${m.round} · UNCONFIRMED`;return;}const u=state.units.find(u=>u.id===hit.unit),p=[...state.props,...state.buildings].find(p=>p.id===hit.structure);$('tile-info').textContent=u?`${u.name} · ${u.hp}/${u.max_hp} HP · L${u.z}`:p?`${p.name||p.kind} · ${p.hp}/${p.max_hp} HP`:`TILE ${hit.x+1}, ${hit.y+1} · L${hit.z}`;}
-function initializeDraft(){if(draft)return;draft={};state.units.filter(u=>u.team==='soldier').forEach((u,i)=>draft[u.id]={primary:u.weapon,sidearm:'M9',utility1:i===2?'Smoke grenade':'Frag grenade',utility2:i===3?'Demolition charge':'RPG-7'});}
+function initializeDraft(){
+  if(draft)return;const saved=cookieJSON('turn4turn_loadout'),soldiers=state.units.filter(u=>u.team==='soldier'),slots=['primary','sidearm','utility1','utility2'];
+  if(saved&&soldiers.every(u=>saved[u.id]&&slots.every(slot=>state.weapons[saved[u.id][slot]]))){draft=saved;return;}
+  draft={};soldiers.forEach((u,i)=>draft[u.id]={primary:u.weapon,sidearm:'M9',utility1:i===2?'Smoke grenade':'Frag grenade',utility2:i===3?'Demolition charge':'RPG-7'});
+}
 function renderPreparation(){
   initializeDraft();
   $('loadout-content').innerHTML=`<div class="mission-options"><label>MISSION<select id="mission-type">${Object.entries(state.missions).map(([key,m])=>`<option value="${key}" ${configMission===key?'selected':''}>${m.label}</option>`).join('')}</select></label><label>THEATER<select id="mission-theme">${[['random','Random theater'],...Object.entries(state.themes).map(([key,t])=>[key,t.label])].map(([key,label])=>`<option value="${key}" ${configTheme===key?'selected':''}>${label}</option>`).join('')}</select></label><label>MAP SIZE<select id="mission-size">${[24,30,40].map((n,i)=>`<option value="${n}" ${configSize===n?'selected':''}>${['Compact','Standard','Large'][i]} · ${n} × ${n}</option>`).join('')}</select></label><div class="mission-summary">${state.mission.objective}<small>${state.size*state.size} ground tiles · randomized layout</small></div></div><p class="small-note">Click an equipment image to replace it. Four different items per fighter. Every slot accepts any weapon or item.</p><div class="loadout-grid">${state.units.filter(u=>u.team==='soldier').map((u,i)=>`<article class="loadout-card"><div class="loadout-person"><span class="portrait portrait-${i}"></span><div><b>${u.name}</b><small>${u.role}</small></div></div>${['primary','sidearm','utility1','utility2'].map((slot,j)=>`<div class="slot"><span class="eyebrow">${`SLOT ${j+1}`}</span><button class="equipment-slot" data-slot="${u.id}:${slot}" title="Choose equipment for ${u.name}">${itemArt(draft[u.id][slot])}<b>${draft[u.id][slot]}</b></button></div>`).join('')}</article>`).join('')}</div><div class="deploy-row"><div><b>Ready for insertion</b><p id="loadout-error" role="alert">Equipment is fixed after deployment.</p></div>${button('deploy','deploy','Deploy equipped squad')}</div>`;
@@ -135,6 +152,7 @@ function renderPreparation(){
     for(const select of document.querySelectorAll('.mission-options select'))select.disabled=true;
     document.querySelector('.mission-summary').insertAdjacentHTML('beforeend','<small>Campaign mission settings are fixed.</small>');
   }
+  const remember=document.createElement('label');remember.className='remember-loadout';remember.innerHTML=`<input id="save-loadout" type="checkbox" ${cookie('turn4turn_loadout')?'checked':''}> Use this equipment selection as my default loadout`;document.querySelector('.deploy-row>div').append(remember);
   const reloadMission=()=>request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});
   $('mission-type').onchange=()=>{configMission=$('mission-type').value;reloadMission();};
   $('mission-theme').onchange=()=>{configTheme=$('mission-theme').value;reloadMission();};
@@ -142,7 +160,7 @@ function renderPreparation(){
   $('mission-difficulty').onchange=()=>{configDifficulty=$('mission-difficulty').value;reloadMission();};
   $('mission-lighting').onchange=()=>{configLighting=$('mission-lighting').value;reloadMission();};
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{editSlot=b.dataset.slot.split(':');openEquipment();});
-  $('deploy').onclick=()=>request('/api/action',{action:'deploy',loadouts:draft});
+  $('deploy').onclick=()=>{if($('save-loadout').checked)setCookie('turn4turn_loadout',draft);else deleteCookie('turn4turn_loadout');request('/api/action',{action:'deploy',loadouts:draft});};
 }
 function openEquipment(){
   const choices=itemOrder;
@@ -152,8 +170,8 @@ function openEquipment(){
   if(!$('equipment').open)$('equipment').showModal();
 }
 function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';configLighting=state?.lighting||'day';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});}
-function campaignSave(){if(campaignProgress)localStorage.setItem('turn4turn-campaign',JSON.stringify(campaignProgress));}
-function loadCampaignSave(){try{const p=JSON.parse(localStorage.getItem('turn4turn-campaign'));if(p?.id===campaignData.id&&Number.isInteger(p.index)&&p.index>=0&&p.index<=campaignData.missions.length)return p;}catch{}return null;}
+function campaignSave(){if(campaignProgress)setCookie('turn4turn_campaign',campaignProgress);}
+function loadCampaignSave(){const p=cookieJSON('turn4turn_campaign');return p?.id===campaignData.id&&Number.isInteger(p.index)&&p.index>=0&&p.index<=campaignData.missions.length?p:null;}
 function closeDialogs(){for(const d of document.querySelectorAll('dialog[open]'))d.close();}
 function showLanding(){screen='landing';closeDialogs();$('campaign-screen').hidden=true;$('landing').hidden=false;}
 function showGame(){screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state)render();}
@@ -170,6 +188,7 @@ function recordCampaignVictory(){if(!campaignProgress||campaignProgress.activeSe
 function startSingle(){campaignRun=false;showGame();newMission();}
 hydrate();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
+$('welcome').addEventListener('cancel',e=>e.preventDefault());
 $('close-equipment').onclick=()=>$('equipment').close();$('close-help').onclick=()=>$('manual').close();
 $('armory').onclick=()=>{if(!state)return;editSlot=null;openEquipment();};$('help').onclick=()=>$('manual').showModal();
 $('home').onclick=showLanding;$('campaign-home').onclick=showLanding;$('campaign-mode').onclick=showCampaign;$('single-game').onclick=startSingle;$('new').onclick=()=>campaignRun?startCampaignMission():newMission();$('end').onclick=()=>act('end_turn');$('focus').onclick=()=>battlefield?.focus(soldier());$('reset-camera').onclick=()=>battlefield?.home();
@@ -179,7 +198,7 @@ document.addEventListener('pointerdown',()=>actionAudio.unlock(),{once:true});do
 document.addEventListener('click',e=>{if(e.target.closest('button'))actionAudio.play({type:'button'});});
 document.addEventListener('change',e=>{if(e.target.matches('select'))actionAudio.play({type:'button'});});
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
-try{
+if(await ensureSession())try{
   battlefield=new Battlefield($('map'),pick,hover);
   await battlefield.ready;
   minimap=new Minimap($('minimap'),p=>battlefield.focus(p));

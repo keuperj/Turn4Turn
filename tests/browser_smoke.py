@@ -43,7 +43,7 @@ try:
             point=page.evaluate('''async p=>{const {battlefield:b}=await import('/app.js');const T=await import('/rendering.js');b.camera.updateMatrixWorld();const r=b.canvas.getBoundingClientRect(),v=new T.Vector3(p.x,p.z*3+p.height,p.y).project(b.camera);return {x:r.left+(v.x+1)*r.width/2,y:r.top+(1-v.y)*r.height/2};}''',dict(x=x,y=y,z=z,height=height))
             (page.mouse.dblclick(point['x'],point['y'],delay=60) if double else page.mouse.click(point['x'],point['y']));ready()
         server.game=Game(83,'urban',deployed=False)
-        page.goto(base+'/?mode=single');page.wait_for_selector('#deploy');ready()
+        page.goto(base+'/?mode=single');page.wait_for_selector('#welcome[open]');page.locator('#welcome-name').fill('Smoke Tester');page.locator('#cookie-consent').check();page.locator('#welcome-form button').click();page.wait_for_selector('#deploy');ready()
         assert not any('/software.js' in r or 'three.module' in r or 'OrbitControls.js' in r for r in requests)
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.engine instanceof BABYLON.Engine && b.characters.instances.size>0}")
         page.locator('#mission-theme').select_option('airport');ready()
