@@ -255,3 +255,8 @@ capacity, real WebGL interaction, animation, and audio fallback behavior.
 
 There is no music and the game does not contact image or audio generation
 services during play.
+
+## License
+
+Turn4Turn is licensed under the [GNU General Public License version 2](LICENSE)
+(`GPL-2.0-only`).
