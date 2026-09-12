@@ -51,8 +51,8 @@ The battlefield currently uses WebGL through Babylon.js. WebGPU is not enabled.
 Clone the repository and start the server:
 
 ```sh
-git clone https://github.com/keuperj/RBS_Alien.git
-cd RBS_Alien
+git clone https://github.com/keuperj/Turn4Turn.git
+cd Turn4Turn
 python3 server.py
 ```
 
