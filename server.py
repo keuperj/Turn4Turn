@@ -123,8 +123,8 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError,TypeError,json.JSONDecodeError) as exc:self.send(400,json.dumps({'error':str(exc)}).encode())
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description='Turn4Turn tactical combat');parser.add_argument('--port',type=int,default=8000);parser.add_argument('--max-players',type=int,default=MAX_PLAYERS);args=parser.parse_args()
+    parser=argparse.ArgumentParser(description='Turn4Turn tactical combat');parser.add_argument('--host',default='127.0.0.1',metavar='ADDRESS',help='IP address or host name to bind to (default: 127.0.0.1)');parser.add_argument('--port',type=int,default=8000);parser.add_argument('--max-players',type=int,default=MAX_PLAYERS);args=parser.parse_args()
     if args.max_players<1:parser.error('--max-players must be at least 1')
-    MAX_PLAYERS=args.max_players;print(f'Turn4Turn ready at http://localhost:{args.port} (max {MAX_PLAYERS} active players)',flush=True)
-    try:ThreadingHTTPServer(('127.0.0.1',args.port),Handler).serve_forever()
+    MAX_PLAYERS=args.max_players;print(f'Turn4Turn ready at http://{args.host}:{args.port} (max {MAX_PLAYERS} active players)',flush=True)
+    try:ThreadingHTTPServer((args.host,args.port),Handler).serve_forever()
     except KeyboardInterrupt:print('\nServer stopped.')

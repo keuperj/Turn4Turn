@@ -68,19 +68,31 @@ python3 server.py --port 8002
 
 Then open [http://localhost:8002](http://localhost:8002).
 
+To make the game reachable from another computer, bind the server to the
+machine's network IP:
+
+```sh
+python3 server.py --host 192.168.1.50
+```
+
+Alternatively, listen on all network interfaces with `--host 0.0.0.0`. Remote
+players should open the server machine's actual IP address (for example,
+`http://192.168.1.50:8000`), not `0.0.0.0`.
+
 ## Server configuration
 
 Command-line options:
 
 | Option | Default | Description |
 | --- | ---: | --- |
-| `--port PORT` | `8000` | Local HTTP port. The server binds to `127.0.0.1`. |
+| `--host ADDRESS` | `127.0.0.1` | IP address or host name to bind to. Use `0.0.0.0` for all interfaces. |
+| `--port PORT` | `8000` | HTTP port. |
 | `--max-players COUNT` | `10` | Maximum number of active, isolated player sessions. Must be at least 1. |
 
 Example:
 
 ```sh
-python3 server.py --port 8080 --max-players 20
+python3 server.py --host 0.0.0.0 --port 8080 --max-players 20
 ```
 
 Additional constants are defined near the top of `server.py`:
