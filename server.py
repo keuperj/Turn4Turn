@@ -38,7 +38,6 @@ class SessionRegistry:
             return s
     def create(self,username,requested_id=None):
         """Create or reconnect a player unless server capacity is exhausted."""
-        global game
         with self.lock:
             self.prune()
             if requested_id in self.sessions:
