@@ -1,0 +1,12 @@
+name: turn4turn
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.10
+  - pip>=24
+  - pytest>=8
+  - flake8>=7
+  - pip:
+      - playwright==1.62.0

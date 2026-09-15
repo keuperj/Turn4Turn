@@ -68,6 +68,19 @@ python3 server.py --port 8002
 
 Then open [http://localhost:8002](http://localhost:8002).
 
+For development and CI, create the complete Conda environment with:
+
+```sh
+conda env create --file environment.yml
+conda activate turn4turn
+python -m playwright install chromium
+```
+
+The GitHub Actions Conda workflow uses the same `environment.yml` when running
+lint and tests. The separate Playwright install command downloads Chromium for
+local browser and WebGPU diagnostics; it is not needed for the Python unit
+tests.
+
 To make the game reachable from another computer, bind the server to the
 machine's network IP:
 
