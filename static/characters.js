@@ -1,8 +1,12 @@
+/** @fileoverview Load, instance, animate, and release Babylon character models. */
 import {B} from './rendering.js';
 
 // One local glTF source, independent skeletons and animation groups per fighter.
+/** Manage loaded character containers and animated instances. */
 export class CharacterAssets {
+  /** Initialize this instance. */
   constructor(view){this.view=view;this.instances=new Map();}
+  /** Load assets required by this component. */
   async load(){
     this.source=await B.SceneLoader.LoadAssetContainerAsync('/assets/models/','soldier.glb',this.view.nativeScene);
     this.source.animationGroups.forEach(g=>g.stop());
@@ -10,6 +14,7 @@ export class CharacterAssets {
     const {min,max}=root.getHierarchyBoundingVectors(true);
     this.scale=1.62/(max.y-min.y);this.bottom=min.y;
   }
+  /** Apply the supplied comparison state to renderer and camera controls. */
   apply(model,unit,weapon){
     if(!this.source)return;
     const rig=model.userData.rig,body=rig.body;
@@ -31,6 +36,7 @@ export class CharacterAssets {
     if(unit.team==='civilian')weapon.visible=false;
     model.userData.rig.legs=[];model.userData.rig.arms=[];
   }
+  /** Select and blend the requested character animation. */
   motion(model,action){
     const e=this.instances.get(model);if(!e||e.dead)return;
     let wanted=action==='walk'?'Walk_Carry':action==='climb'?'Walk':'Idle';
@@ -39,10 +45,12 @@ export class CharacterAssets {
     if(next!==e.current){e.previous?.stop();e.previous=e.current;e.current=next;e.blend=0;next.start(true,action==='climb'?.65:1);next.setWeightForAllAnimatables(0);}
     if(e.stance==='prone'){next.pause();next.goToFrame(next.from+(next.to-next.from)*.3);}
   }
+  /** Advance this component for the current animation frame. */
   update(dt){for(const e of this.instances.values()){
     if(e.dead)continue;
     e.blend=Math.min(1,e.blend+dt*5);e.current?.setWeightForAllAnimatables(e.blend);e.previous?.setWeightForAllAnimatables(1-e.blend);if(e.blend===1){e.previous?.stop();e.previous=null;}
   }}
+  /** Apply post-animation pose corrections to active characters. */
   afterAnimations(){for(const e of this.instances.values()){
     if(e.stance==='kneeling'&&!e.dead){
       for(const [name,angle] of [['UpperLegL',-.85],['LowerLegL',1.55],['UpperLegR',-.25],['LowerLegR',1.6]]){const n=e.bones.get(name);if(n){n.rotationQuaternion=B.Quaternion.RotationAxis(B.Axis.X,angle);}}
@@ -50,5 +58,6 @@ export class CharacterAssets {
     }
     if(e.hand&&e.weapon.visible){e.hand.computeWorldMatrix(true);const inverse=e.model.userData.rig.body.native.computeWorldMatrix(true).clone().invert();const p=B.Vector3.TransformCoordinates(e.hand.getAbsolutePosition(),inverse);e.weapon.position.set(p.x,p.y,p.z-.06);}
   }}
+  /** Dispose one character instance and its owned materials. */
   release(model){const e=this.instances.get(model);if(!e)return;for(const m of e.root.getChildMeshes())this.view.shadows.removeShadowCaster(m,false);e.instance.dispose();for(const m of e.materials)m.dispose(false,false);this.instances.delete(model);}
 }

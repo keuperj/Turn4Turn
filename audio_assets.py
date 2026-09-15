@@ -13,6 +13,7 @@ SOUND_DIR = Path(__file__).resolve().parent / 'static' / 'sounds'
 # One initial sample per audible action. Further numbered variants need no code changes.
 CATALOG = {}
 def entry(name, prompt, seconds=1.5, ambient=False):
+    """Build one normalized audio manifest entry."""
     CATALOG[name] = dict(text=prompt, duration_seconds=seconds, loop=ambient,
                          model_id='eleven_text_to_sound_v2', prompt_influence=.5)
 
@@ -66,15 +67,19 @@ for key, (description, seconds) in {
 PATTERN = re.compile(r'^([a-z][a-z0-9_]*?)_(\d+)\.(wav|mp3|ogg)$')
 
 def read_sources(directory=SOUND_DIR):
+    """Load the generated-audio source manifest from disk."""
     try:return json.loads((directory/'_sources.json').read_text())
     except (FileNotFoundError, ValueError):return {}
 
 def write_sources(sources, directory=SOUND_DIR):
+    """Persist generated-audio source metadata deterministically."""
     temporary=directory/'_sources.json.tmp'
     temporary.write_text(json.dumps(sources,indent=2)+'\n')
     temporary.replace(directory/'_sources.json')
 
-def digest(data):return hashlib.sha256(data).hexdigest()
+def digest(data):
+    """Return a stable digest for binary audio data."""
+    return hashlib.sha256(data).hexdigest()
 
 def discover(directory=SOUND_DIR):
     """Only numbered audio files; real variants replace rather than mix with fallbacks."""
@@ -110,6 +115,7 @@ def placeholder_bytes(action):
     return out.getvalue()
 
 def ensure_placeholders(directory=SOUND_DIR):
+    """Create local placeholder files for unavailable sound groups."""
     directory.mkdir(parents=True,exist_ok=True);groups=discover(directory);sources=read_sources(directory)
     for action in CATALOG:
         if groups.get(action):continue

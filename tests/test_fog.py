@@ -1,3 +1,5 @@
+"""Test fog behavior."""
+
 import json
 import unittest
 from game import Game
@@ -6,7 +8,9 @@ from world import THEMES, PROP_SIZE
 
 
 class FogTests(unittest.TestCase):
+    """Group automated checks for fog behavior."""
     def field(self):
+        """Build a deterministic battlefield fixture for this scenario."""
         g=Game(41,'urban')
         g.tiles=[['grass']*g.size for _ in range(g.size)]
         g.heights=[[0]*g.size for _ in range(g.size)]
@@ -18,6 +22,7 @@ class FogTests(unittest.TestCase):
         return g
 
     def test_hidden_units_absent_from_payload_shots_and_events(self):
+        """Verify that hidden units absent from payload shots and events."""
         g=self.field();enemy=g.alive('alien')[0];s=g.state()
         self.assertNotIn(enemy['id'],[u['id'] for u in s['units']])
         self.assertNotIn(enemy['id'],s['shots']['s0'])
@@ -28,6 +33,7 @@ class FogTests(unittest.TestCase):
         self.assertEqual(g.units[0]['ammo'],ammo)
 
     def test_stances_reduce_both_seeing_and_being_seen(self):
+        """Verify that stances reduce both seeing and being seen."""
         g=self.field();a=g.units[0];b=g.alive('alien')[0]
         b.update(x=a['x'],y=a['y']-12)
         self.assertTrue(g.sees(a,b))
@@ -39,6 +45,7 @@ class FogTests(unittest.TestCase):
         self.assertEqual(SIGHT['prone'],7)
 
     def test_exploration_remembered_but_live_enemy_not_remembered(self):
+        """Verify that exploration remembered but live enemy not remembered."""
         g=self.field();a=g.units[0];b=g.alive('alien')[0]
         b.update(x=14,y=22)
         first=g.state();self.assertIn(b['id'],[u['id'] for u in first['units']])
@@ -50,6 +57,7 @@ class FogTests(unittest.TestCase):
         self.assertEqual(second['tiles'][0][0],'unknown')
 
     def test_unseen_impact_does_not_include_shooter_origin(self):
+        """Verify that unseen impact does not include shooter origin."""
         g=self.field();enemy=g.alive('alien')[0];target=g.units[0]
         # Direct fire() isolates public event redaction from normal shot validation.
         g.fire(enemy,target)
@@ -60,6 +68,7 @@ class FogTests(unittest.TestCase):
         self.assertNotIn(enemy['name'],g.log[-1])
 
     def test_blast_preview_hides_concealed_enemy(self):
+        """Verify that blast preview hides concealed enemy."""
         g=self.field();u=g.units[0];e=g.alive('alien')[0]
         e.update(x=14,y=19,stance='prone')
         g.action(dict(action='equip',unit=u['id'],weapon='RPG-7'))
@@ -68,6 +77,7 @@ class FogTests(unittest.TestCase):
         self.assertNotIn(e['id'],json.dumps(state['blast_targets']))
 
     def test_ladder_reveals_previously_unseen_roof(self):
+        """Verify that ladder reveals previously unseen roof."""
         g=Game(51,'urban');a,b=g.ladders[0];u=g.units[0]
         u.update(x=a[0],y=a[1],z=a[2]);g.init_fog()
         self.assertTrue(g.state()['transitions'][u['id']])
@@ -75,6 +85,7 @@ class FogTests(unittest.TestCase):
         self.assertIn(tuple(b),g.visible)
 
     def test_map_size_scale_variation_and_connectivity(self):
+        """Verify that map size scale variation and connectivity."""
         signatures=set()
         for theme in THEMES:
             for seed in range(3):

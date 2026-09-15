@@ -1,3 +1,5 @@
+"""Test scenery variance behavior."""
+
 import unittest
 
 from game import Game
@@ -5,12 +7,15 @@ from world import THEMES
 
 
 class SceneryVarianceTests(unittest.TestCase):
+    """Group automated checks for sceneryvariance behavior."""
     def test_requested_city_building_types_are_available(self):
+        """Verify that requested city building types are available."""
         names=set(THEMES['urban']['names'])|set(THEMES['streets']['names'])
         for name in {'CORNER SHOP','LIVING QUARTERS','POST OFFICE','CAFE','RESTAURANT','HARDWARE STORE'}:
             self.assertIn(name,names)
 
     def test_buildings_vary_in_form_and_keep_an_entrance(self):
+        """Verify that buildings vary in form and keep an entrance."""
         buildings=[b for seed in range(8) for b in Game(seed,'urban').buildings]
         self.assertGreaterEqual(len({(b['width'],b['depth']) for b in buildings}),8)
         self.assertGreaterEqual(len({b['level'] for b in buildings}),3)
@@ -22,12 +27,14 @@ class SceneryVarianceTests(unittest.TestCase):
                 self.assertTrue(any(p['building']==building['id'] and p['kind']=='door' and p['side']!='interior' for p in game.portals))
 
     def test_vegetation_and_street_furniture_have_multiple_types(self):
+        """Verify that vegetation and street furniture have multiple types."""
         woods={p['kind'] for seed in range(4) for p in Game(seed,'woods').props}
         city={p['kind'] for seed in range(4) for p in Game(seed,'streets').props}
         self.assertTrue({'tree_oak','tree_pine','tree_birch','bush'}<=woods)
         self.assertTrue({'bench','sign','lamp','trash'}<=city)
 
     def test_visual_traits_are_public_for_the_renderer(self):
+        """Verify that visual traits are public for the renderer."""
         building=Game(19,'streets').state()['buildings'][0]
         self.assertTrue({'archetype','front','roof','facade','color','accent'}<=building.keys())
 

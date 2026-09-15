@@ -1,3 +1,4 @@
+/** @fileoverview Render the local icon system and accessible icon buttons. */
 const paths={
   face:'M12 3l8 17-8-5-8 5z',peek:'M3 3v18h6M10 9s3-4 6-4 6 4 6 4-3 4-6 4-6-4-6-4M17 9h.01M11 18h10M18 15l3 3-3 3',
   move:'M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4',
@@ -22,6 +23,9 @@ const paths={
   sound:'M3 9h4l5-5v16l-5-5H3zM16 8a6 6 0 0 1 0 8M19 5a10 10 0 0 1 0 14'
 };
 const generated={single:'fire-single.png',auto:'fire-auto.png',standing:'stance-standing.png',kneeling:'stance-kneeling.png',prone:'stance-prone.png'};
+/** Return accessible SVG or generated-image markup for an icon. */
 export function icon(name){return generated[name]?`<img src="/assets/${generated[name]}" alt="" aria-hidden="true" style="width:29px;height:29px;object-fit:contain;pointer-events:none;filter:drop-shadow(0 1px 2px #0008)">`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.attack}"/></svg>`;}
+/** Return accessible icon-button markup for a game action. */
 export function button(id,name,hint,disabled=false,active=false){return `<button ${id?`id="${id}"`:''} class="icon-button ${active?'active':''}" title="${hint}" aria-label="${hint}" ${disabled?'disabled':''}>${icon(name)}</button>`;}
+/** Replace declarative icon placeholders in the current document. */
 export function hydrate(){document.querySelectorAll('[data-icon]').forEach(b=>{b.innerHTML=icon(b.dataset.icon);b.classList.add('icon-button');b.setAttribute('aria-label',b.title);});}

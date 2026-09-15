@@ -44,9 +44,11 @@ MISSIONS = {
 
 
 class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
+    """Own authoritative mission state and enforce all tactical game rules."""
     size = 30
 
     def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium', mission='rescue', lighting='day', title=None, objective=None):
+        """Create a deterministic mission with the requested scenario settings."""
         if type(size) is not int or size not in (24,30,40):raise ValueError('Map size must be 24, 30, or 40.')
         if not isinstance(difficulty,str) or difficulty not in DIFFICULTIES:raise ValueError('Difficulty must be easy, medium, or hard.')
         if not isinstance(mission,str) or mission not in MISSIONS:raise ValueError('Unknown mission type.')
@@ -117,6 +119,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.init_fog()
 
     def make_unit(self, uid, name, team, x, y, weapon, role, z=0):
+        """Create a normalized unit record for a mission participant."""
         hp = 10 if team == 'soldier' else 7 if team == 'alien' else 5
         items = [weapon, 'M9', 'Frag grenade', 'RPG-7'] if team == 'soldier' else [weapon] if weapon else []
         inventory = {w: dict(ammo=WEAPONS[w]['capacity'], reserve=0 if w == 'Frag grenade' else 1 if w == 'RPG-7' else WEAPONS[w]['capacity']*3) for w in items}
@@ -126,23 +129,29 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
 
     @staticmethod
     def position(unit):
+        """Return a unit position as an immutable coordinate tuple."""
         return (unit['x'], unit['y'], unit['z'])
 
     def building_at(self, x, y, z=0):
+        """Return the building containing a world coordinate, if any."""
         return next((b for b in self.buildings if b['x'] <= x < b['x']+b['width']
                      and b['y'] <= y < b['y']+b['depth'] and z < b['level']), None)
 
     def alive(self, team=None):
+        """Return living, non-evacuated units, optionally filtered by team."""
         return [u for u in self.units if u['hp'] > 0 and not u.get('evacuated') and (team is None or u['team'] == team)]
 
     def speed(self, unit):
+        """Return the movement allowance for a unit in its current stance."""
         return STANCES[unit['stance']]['speed']
 
     def passable(self, a, b, ignore_doors=False):
+        """Return whether a unit may occupy the requested world position."""
         wall = self.walls.get(edge_key(a,b))
         return not wall or (wall['kind'] == 'door' and (wall['open'] or ignore_doors))
 
     def paths(self, unit, budget, ignore_units=False, ignore_doors=False, known_units=False):
+        """Compute reachable positions and predecessor paths within an AP budget."""
         start = self.position(unit)
         blocked = set() if ignore_units else {self.position(u) for u in self.alive() if u != unit and (not known_units or self.detected(u))}
         blocked |= self.blocked
@@ -171,6 +180,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return found
 
     def cover(self, shooter, target):
+        """Return directional cover between an attacker and target."""
         dx,dy = shooter['x']-target['x'],shooter['y']-target['y']
         adjacent = []
         if dx: adjacent.append((target['x']+(1 if dx>0 else -1),target['y']))
@@ -190,6 +200,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return max(values)
 
     def line_of_sight(self,a,b,include_cover=True):
+        """Return whether two world positions have an unobstructed sightline."""
         key=(self.geometry_revision,self.position(a),a.get('stance','standing'),self.position(b),b.get('stance','standing'),include_cover)
         if key not in self._los_cache:
             if len(self._los_cache)>40000:self._los_cache.clear()
@@ -197,6 +208,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return self._los_cache[key]
 
     def _trace_sight(self, a, b, include_cover=True, target_structure=None):
+        """Trace a sight ray and report the first blocking world element."""
         if include_cover and self.smoke_blocks(a,b):return False
         dx,dy=b['x']-a['x'],b['y']-a['y']
         za=a['z']*3+STANCES[a.get('stance','standing')]['eye']
@@ -236,10 +248,12 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return True
 
     def interactions(self, unit):
+        """Return doors and windows the selected unit can operate."""
         p=self.position(unit)
         return [dict(portal) for portal in self.portals if p in (tuple(portal['a']),tuple(portal['b']))]
 
     def toggle_portal(self, unit, portal):
+        """Open or close an adjacent door or window after validation."""
         portal['open']=not portal['open']
         unit['ap']-=1
         self.geometry_revision+=1
@@ -247,6 +261,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         if self.detected(unit):self.log.append(f"{unit['name']} {'opens' if portal['open'] else 'closes'} a {portal['kind']}.")
 
     def chance(self, shooter, target):
+        """Calculate hit probability from weapon, range, stance, and cover."""
         if not shooter.get('weapon'): return 0
         weapon = WEAPONS[shooter['weapon']]
         if weapon['kind'] in ('grenade', 'rocket', 'smoke', 'charge', 'medical'):
@@ -260,15 +275,18 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                                     - max(0, distance-4)*(1 if weapon['kind']=='sniper' else 4) - (20 if shooter.get('fire_mode')=='auto' and weapon.get('automatic') else 0))))
 
     def spend_ammo(self, unit, amount=1):
+        """Consume ammunition for a shot and normalize the active weapon state."""
         unit['ammo'] -= amount
         unit['inventory'][unit['weapon']]['ammo'] = unit['ammo']
 
     def fire(self, shooter, target, reaction=False):
+        """Resolve a weapon attack and emit its public combat events."""
         rounds=min(3,shooter["ammo"]) if not reaction and shooter.get("fire_mode")=="auto" and WEAPONS[shooter["weapon"]].get("automatic") else 1
         for _ in range(rounds):
             if target["hp"]>0:self.fire_round(shooter,target,reaction)
 
     def fire_round(self, shooter, target, reaction=False, hit_cap=None):
+        """Resolve one projectile against a unit, structure, or ground point."""
         chance = self.chance(dict(shooter,fire_mode='single') if reaction else shooter, target)
         shooter['facing']=math.atan2(shooter['x']-target['x'],shooter['y']-target['y'])
         self.spend_ammo(shooter)
@@ -291,6 +309,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if visible_shooter or self.detected(target):self.log.append(f"{prefix}{shooter_name} misses {target['name']}.")
 
     def move(self, unit, path):
+        """Move a unit along a validated path and spend action points."""
         for x, y, z in path:
             if any(self.position(u)==(x,y,z) for u in self.alive() if u!=unit):break
             was_visible=self.detected(unit)
@@ -310,6 +329,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                         return
 
     def blast_valid(self, unit, x, y, z=0):
+        """Validate an explosive target and any required corner trajectory."""
         w=WEAPONS[unit['weapon']]
         if w['kind'] not in ('grenade','rocket','smoke','charge') or (x,y,z) not in self.surfaces: return False
         if math.hypot(x-unit['x'],y-unit['y'])>w['range']: return False
@@ -322,12 +342,14 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return w['kind'] in ('grenade','smoke') or self.line_of_sight(dict(unit,stance='standing'),target,include_cover=False)
 
     def blast_victims(self, unit, x, y, z=0):
+        """Return units and structures affected by an explosion."""
         w=WEAPONS[unit['weapon']]
         source=dict(x=x,y=y,z=z,stance='standing')
         return [u for u in self.alive() if u['z']==z and math.hypot(u['x']-x,u['y']-y)<=w['radius']
                 and self.line_of_sight(source,dict(u,stance='standing'),include_cover=False)]
 
     def explode(self, unit, x, y, z=0):
+        """Resolve explosive damage, destruction, fire, smoke, and events."""
         w=WEAPONS[unit['weapon']]
         if w['kind'] in ('smoke','charge'):
             self.place_utility(unit,x,y,z)
@@ -354,6 +376,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.geometry_revision+=1
 
     def check_end(self):
+        """Update victory or defeat state after a potentially terminal action."""
         if not self.alive('soldier'):
             self.status = 'defeat'
         elif self.mission=='rescue' and any(u['team']=='civilian' and u['hp']<=0 for u in self.units):
@@ -368,6 +391,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.status = 'victory'
 
     def check_round_limit(self):
+        """Resolve objectives whose outcome depends on the round limit."""
         if self.status!='active' or self.round<30:return
         if self.mission=='capture_flag':
             self.status='defeat'
@@ -375,6 +399,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.status='victory'
 
     def action(self, data):
+        """Validate and execute one player-issued action."""
         if data.get('action')=='deploy':
             return self.deploy(data)
         if self.status != 'active':
@@ -472,6 +497,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.refresh_visibility()
 
     def enemy_turn(self):
+        """Run the authoritative hostile phase within its time budget."""
         self.log.append(f'— Hostile phase / round {self.round} —')
         for enemy in self.alive('alien'):
             if not self.alive('soldier'): break
@@ -492,6 +518,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if self.chance(enemy,best)<55 and enemy['ap']>1:
                 paths=self.paths(enemy,self.speed(enemy)*(enemy['ap']-1),ignore_doors=True)
                 def score(p):
+                    """Score a candidate enemy action against mission priorities."""
                     hypothetical=dict(enemy,x=p[0],y=p[1],z=p[2])
                     distance=min(abs(p[0]-t['x'])+abs(p[1]-t['y'])+abs(p[2]-t['z'])*3 for t in targets)
                     return max(self.chance(hypothetical,t) for t in targets)+self.cover(best,hypothetical)*.25-distance*4
@@ -532,9 +559,11 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.refresh_visibility()
 
     def civilian_turn(self):
+        """Move civilians toward safe evacuation positions."""
         for civilian in self.alive('civilian'):
             paths=self.paths(civilian,2)
             def safety(p):
+                """Score how safe a coordinate is for civilian movement."""
                 danger=min((abs(p[0]-e['x'])+abs(p[1]-e['y']) for e in self.alive('alien')),default=20)
                 return p[1]*3+min(danger,8)
             dest=max(paths,key=safety)
@@ -545,6 +574,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 self.log.append(f"{civilian['name']} reaches the evacuation boundary.")
 
     def patrol(self,enemy):
+        """Choose and perform movement for a non-player unit."""
         for portal in self.interactions(enemy):
             if portal['kind']=='door' and not portal['open'] and self.rng.random()<.4:
                 self.toggle_portal(enemy,next(p for p in self.portals if p['id']==portal['id']))
@@ -574,6 +604,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         if door and enemy['hp']>0 and enemy['ap']:self.toggle_portal(enemy,door)
 
     def state(self):
+        """Return the privacy-filtered game state sent to the browser."""
         self.refresh_visibility()
         movement,shots,blast_targets,interactions,transitions={},{},{},{},{}
         detected=[t for t in self.alive('alien') if self.detected(t)]

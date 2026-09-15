@@ -7,7 +7,10 @@ import server
 from game import Game
 from playwright.sync_api import sync_playwright
 class QuietHandler(server.Handler):
-    def log_message(self,*args):pass
+    """Group automated checks for quiethandler behavior."""
+    def log_message(self,*args):
+        """Suppress HTTP access logging during tests."""
+        pass
 g=Game(41,'urban');g.buildings=[];g.props=[];g.walls={};g.portals=[];g.ladders=[];g.stairs=[];g.blocked=set();g.surfaces={(x,y,0) for x in range(g.size) for y in range(g.size)};g.tiles=[['grass']*g.size for _ in range(g.size)];g.heights=[[0]*g.size for _ in range(g.size)]
 g.units=g.alive('soldier')
 for i,u in enumerate(g.units):u.update(x=13+i*2,y=25,z=0,stance=['standing','kneeling','prone','standing'][i])

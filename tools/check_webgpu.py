@@ -139,7 +139,10 @@ async () => {
 
 
 class PageHandler(BaseHTTPRequestHandler):
+    """Serve the secure-context test document without external dependencies."""
+
     def do_GET(self):
+        """Return the minimal page in which Playwright evaluates WebGPU."""
         body = b'<!doctype html><meta charset="utf-8"><title>WebGPU check</title>'
         self.send_response(200)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -148,10 +151,12 @@ class PageHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, *_args):
+        """Suppress HTTP access logging during the command-line probe."""
         pass
 
 
 def browser_path(requested):
+    """Return an explicit browser path or locate a supported Chromium binary."""
     if requested:
         return requested
     for candidate in ('chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'):
@@ -162,6 +167,7 @@ def browser_path(requested):
 
 
 def main():
+    """Run the browser probe, print its report, and return a shell status."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--browser', help='path to Chromium/Chrome (auto-detected by default)')
     parser.add_argument('--headed', action='store_true', help='show the browser window during the check')

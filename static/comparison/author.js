@@ -1,3 +1,4 @@
+/** @fileoverview Author the shared glTF scene used by renderer comparisons. */
 import * as T from 'three';
 import {RoundedBoxGeometry} from './vendor/geometries/RoundedBoxGeometry.js';
 import {GLTFExporter} from './vendor/exporters/GLTFExporter.js';
@@ -10,8 +11,11 @@ const metal=new T.MeshStandardMaterial({color:'#34474b',metalness:.7,roughness:.
 const plaster=new T.MeshStandardMaterial({map:concrete,color:'#e2d1ad',roughness:.85});
 const wood=new T.MeshStandardMaterial({color:'#795139',map:concrete,roughness:.65});
 const glass=new T.MeshStandardMaterial({color:'#80b7c6',metalness:.25,roughness:.15,transparent:true,opacity:.42});
+/** Create and attach a named scene group. */
 function group(name,parent=scene){const g=new T.Group();g.name=name;parent.add(g);return g;}
+/** Create and attach a box-shaped scene element. */
 function box(parent,name,size,pos,mat,r=.035){const m=new T.Mesh(new RoundedBoxGeometry(...size,2,Math.min(r,...size.map(v=>v/3))),mat);m.name=name;m.position.set(...pos);parent.add(m);return m;}
+/** Create and attach a cylindrical scene element. */
 function cylinder(parent,name,r,h,pos,mat){const m=new T.Mesh(new T.CylinderGeometry(r,r,h,24),mat);m.name=name;m.position.set(...pos);parent.add(m);return m;}
 const site=group('Site');box(site,'foundation',[23,.3,20],[0,-.25,0],dirt,.08);
 for(let x=-10;x<=10;x+=2)for(let z=-8;z<=8;z+=2)box(site,'paving',[1.97,.09,1.97],[x,-.065,z],paving,.018);

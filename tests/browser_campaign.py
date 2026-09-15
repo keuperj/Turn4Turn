@@ -10,7 +10,10 @@ from playwright.sync_api import sync_playwright
 
 
 class QuietHandler(server.Handler):
-    def log_message(self,*args):pass
+    """Group automated checks for quiethandler behavior."""
+    def log_message(self,*args):
+        """Suppress HTTP access logging during tests."""
+        pass
 
 
 httpd=HTTPServer(('127.0.0.1',0),QuietHandler);threading.Thread(target=httpd.serve_forever,daemon=True).start()

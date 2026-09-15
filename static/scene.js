@@ -1,3 +1,4 @@
+/** @fileoverview Build, synchronize, interact with, and animate the tactical battlefield. */
 import * as G from './rendering.js';
 import {B,OrbitControls} from './rendering.js';
 import {CharacterAssets} from './characters.js';
@@ -5,10 +6,49 @@ import {addProp,addBuilding} from './environment.js';
 import {actionAudio} from './audio.js';
 
 // Geometry is genuinely three-dimensional; Python supplies all walkable surfaces.
+/** Manage the Babylon battlefield and its WebGPU or WebGL engine. */
 export class Battlefield {
-  constructor(canvas, onPick, onHover) {
+  /**
+   * Create the best renderer authorized by the completed capability test.
+   *
+   * WebGL is the default. WebGPU is attempted only after the shared diagnostic
+   * has passed, and any Babylon initialization error returns to WebGL.
+   *
+   * @param {HTMLCanvasElement} canvas Battlefield output canvas.
+   * @param {Function} onPick Pointer selection callback.
+   * @param {Function} onHover Pointer hover callback.
+   * @param {Object} gpuTest Result returned by testWebGPU.
+   * @returns {Promise<Battlefield>} Initialized renderer facade.
+   */
+  static async create(canvas,onPick,onHover,gpuTest={ok:false,reason:'WebGPU test was not run.'}){
+    const forcedWebGL=new URLSearchParams(location.search).get('renderer')==='webgl';
+    let fallbackReason=forcedWebGL?'WebGL was explicitly selected.':'';
+    if(!forcedWebGL&&gpuTest.ok&&navigator.gpu&&B.WebGPUEngine){
+      for(let attempt=1;attempt<=3;attempt++){
+        let engine;
+        try{
+          engine=new B.WebGPUEngine(canvas,{antialiasing:true,adaptToDeviceRatio:false});
+          await engine.initAsync();
+          const field=new Battlefield(canvas,onPick,onHover,engine,'webgpu');
+          const info=engine._adapterInfo||engine._adapter?.info||{};
+          field.gpuInfo={vendor:info.vendor||'',architecture:info.architecture||'',device:info.device||'',description:info.description||'',fallback:Boolean(info.isFallbackAdapter??engine._adapter?.isFallbackAdapter)};
+          return field;
+        }catch(error){
+          engine?.dispose();fallbackReason=error?.message||(error?String(error):'WebGPU initialization failed.');
+          if(attempt<3)await new Promise(resolve=>setTimeout(resolve,500));
+        }
+      }
+    }else if(!forcedWebGL){
+      fallbackReason=gpuTest.ok?'Babylon WebGPU is unavailable.':gpuTest.reason||'WebGPU capability test did not pass.';
+    }
+    console.info(`Using WebGL fallback: ${fallbackReason}`);
+    return new Battlefield(canvas,onPick,onHover,new B.Engine(canvas,true,{preserveDrawingBuffer:true,stencil:true}),'webgl',fallbackReason);
+  }
+  /** Initialize this instance. */
+  constructor(canvas,onPick,onHover,engine=null,renderer='webgl',fallbackReason='') {
     this.canvas=canvas;this.onPick=onPick;this.onHover=onHover;
-    this.engine=new B.Engine(canvas,true,{preserveDrawingBuffer:true,stencil:true});
+    this.engine=engine||new B.Engine(canvas,true,{preserveDrawingBuffer:true,stencil:true});
+    this.renderer=renderer;this.fallbackReason=fallbackReason;
     // A tactical camera does not benefit much from supersampling every foliage
     // edge. Cap pixel density and leave headroom for input and animation work.
     this.engine.setHardwareScalingLevel(1/Math.min(devicePixelRatio,1.25));
@@ -47,17 +87,27 @@ export class Battlefield {
     this.engine.runRenderLoop(()=>{const dt=Math.min(this.engine.getDeltaTime()/1000,.1);this.elapsed+=dt;this.controls.update();this.characters.update(dt);for(const f of this.flames){const pulse=.8+Math.sin(this.elapsed*7+f.phase)*.22;f.mesh.scale.set(pulse,pulse*(1.15+Math.sin(this.elapsed*5+f.phase)*.18),pulse);f.mesh.position.y=f.base+Math.sin(this.elapsed*6+f.phase)*.08;}this.nativeScene.render();});
 
   }
+  /** Load and configure a repeating battlefield texture. */
   texture(url,repeat){const t=this.loader.load(url);t.colorSpace=G.SRGBColorSpace;t.wrapS=t.wrapT=G.RepeatWrapping;t.repeat.set(repeat,repeat);t.anisotropy=Math.min(8,this.engine.getCaps().maxAnisotropy);return t;}
+  /** Generate a deterministic procedural material texture. */
   surfaceTexture(kind){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),base={wood:'#b7a585',brick:'#b58f7e',metal:'#aab3b1',asphalt:'#777d7d',soil:'#9b865f',paint:'#c5c7c1'}[kind];ctx.fillStyle=base;ctx.fillRect(0,0,256,256);let seed=17+kind.length*997;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};for(let i=0;i<3200;i++){const v=Math.floor(80+random()*130),alpha=kind==='asphalt'?.16:.10;ctx.fillStyle=`rgba(${v},${v},${v},${alpha})`;const long=kind==='wood'||kind==='metal';ctx.fillRect(random()*256,random()*256,long?18+random()*28:1+random()*3,1+random()*1.5);}ctx.strokeStyle=kind==='metal'?'#e1e7e255':'#5e625b66';ctx.lineWidth=2;if(kind==='wood'){for(let x=0;x<256;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,256);ctx.stroke();}}else if(kind==='brick'){for(let y=0;y<256;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();for(let x=(y/24%2)*32;x<256;x+=64){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+24);ctx.stroke();}}}else if(kind==='metal'){for(let x=0;x<256;x+=42){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,256);ctx.stroke();}}else if(kind==='asphalt'){for(let i=0;i<90;i++){ctx.fillStyle=i%3?'#d6d4c918':'#252b2c20';ctx.beginPath();ctx.arc(random()*256,random()*256,random()*2.2+.3,0,Math.PI*2);ctx.fill();}}else if(kind==='soil'){ctx.strokeStyle='#5e533638';for(let y=8;y<256;y+=16){ctx.beginPath();ctx.moveTo(0,y);ctx.bezierCurveTo(64,y+5,190,y-4,256,y+2);ctx.stroke();}}else{for(let i=0;i<20;i++){ctx.fillStyle='#727e7840';ctx.fillRect(random()*256,random()*256,5+random()*16,1);}}const t=new G.CanvasTexture(c);t.colorSpace=G.SRGBColorSpace;t.wrapS=t.wrapT=G.RepeatWrapping;t.repeat.set(2,2);return t;}
+  /** Generate the procedural texture used by smoke effects. */
   cloudTexture(){const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d');for(let i=0;i<18;i++){const x=64+Math.sin(i*2.4)*27,y=64+Math.cos(i*2.4)*27,r=20+i%4*5,g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba(220,226,224,.25)');g.addColorStop(.45,'rgba(182,194,191,.14)');g.addColorStop(1,'rgba(170,184,180,0)');ctx.fillStyle=g;ctx.fillRect(0,0,128,128);}return new G.CanvasTexture(c);}
+  /** Resize rendering resources to their displayed dimensions. */
   resize(){const w=this.canvas.parentElement.clientWidth,h=this.canvas.parentElement.clientHeight;this.engine.setSize(w,h);this.camera.updateProjectionMatrix();}
+  /** Return a cached, finish-aware battlefield material. */
   material(color,finish='paint'){const key=String(color)+':'+finish;if(this.materialCache.has(key))return this.materialCache.get(key);const textured=!['skin','rubber','glass'].includes(finish);if(textured&&!this.surfaceMaps[finish]&&['metal','asphalt','soil'].includes(finish))this.surfaceMaps[finish]=this.surfaceTexture(finish);const map=textured?(this.surfaceMaps[finish]||this.concrete):null;const m=new G.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:finish==='wood'?.025:.008,roughness:finish==='skin'?.82:finish==='glass'?.16:finish==='paint'?.48:finish==='metal'?.36:.9,metalness:finish==='paint'?.18:finish==='metal'?.65:0,transparent:finish==='glass',opacity:finish==='glass'?.68:1});m.userData.shared=true;this.materialCache.set(key,m);return m;}
 
+  /** Create and attach a box-shaped scene element. */
   box(parent,w,h,d,x,y,z,mat){const m=new G.Mesh(new G.BoxGeometry(w,h,d),typeof mat==='object'?mat:this.material(mat));m.position.set(x,y,z);m.receiveShadow=true;if(Math.max(w,h,d)>=.48&&w*h*d>.018)m.castShadow=true;parent.add(m);return m;}
+  /** Create one batched mesh for a set of tactical tiles. */
   tiles(parent,points,mat,size=1,data=null){if(!points.length)return null;const m=new G.Mesh(new G.TileGeometry(points,size),mat);m.native.isPickable=!!data;if(data)m.userData=data;parent.add(m);return m;}
+  /** Queue hover. */
   queueHover(){if(this.hoverFrame)return;this.hoverFrame=requestAnimationFrame(()=>{this.hoverFrame=0;this.updateHover();});}
+  /** Dispose and remove every child of a scene group. */
   clear(group){for(const child of [...group.children]){this.characters?.release(child);const materials=new Set();child.traverse(o=>{if(o.material&&!o.material.userData?.shared&&!Object.values(this).includes(o.material))materials.add(o.material);});child.dispose();for(const m of materials){if(m.userData?.label)m.map?.dispose();m.dispose();}}}
 
+  /** Build ing level. */
   buildingLevel(b){
     if(this.viewMode==='exterior')return b.level;
     if(this.viewMode!=='auto')return Math.min(Number(this.viewMode),b.level);
@@ -67,15 +117,19 @@ export class Battlefield {
     if(this.state?.portals.some(p=>p.building===b.id&&p.kind==='door'&&p.open))return 0;
     return b.level;
   }
+  /** Return whether a floor surface is visible in the cutaway. */
   surfaceVisible(x,y,z){
     const b=this.state.buildings.find(b=>x>=b.x&&x<b.x+b.width&&y>=b.y&&y<b.y+b.depth);
     return b ? z===this.buildingLevel(b) : z===0;
   }
+  /** Return whether an actor belongs in the current cutaway view. */
   actorVisible(u){
     if(!this.surfaceVisible(u.x,u.y,u.z))return false;
     return !u.evacuated;
   }
+  /** Update view. */
   setView(mode){if(this.viewMode===mode)return;this.viewMode=mode;this.signature=null;this.terrainState=null;}
+  /** Rebuild battlefield geometry from authoritative world data. */
   build(state){
     this.clear(this.terrain);this.pickables=[];this.portalModels.clear();
     const theme=state.scenery;
@@ -138,9 +192,13 @@ export class Battlefield {
     this.terrain.updateMatrixWorld();this.terrain.traverse(o=>{if(o.isMesh&&!o.userData.portal&&!o.userData.hoverFor&&!o.userData.health)o.native.freezeWorldMatrix();});
     this.terrainHoverItems=[];this.terrain.traverse(o=>{if(o.userData.hoverFor||o.userData.health)this.terrainHoverItems.push(o);});
   }
+  /** Create a camera-facing text label. */
   label(text,color='#ffffff',width=1.3){const c=document.createElement('canvas');c.width=256;c.height=64;const ctx=c.getContext('2d');ctx.fillStyle='rgba(12,22,25,.8)';ctx.fillRect(0,0,256,64);ctx.fillStyle=color;ctx.font='bold 27px monospace';ctx.textAlign='center';ctx.fillText(text,128,43,244);const map=new G.CanvasTexture(c),mat=new G.SpriteMaterial({map,depthTest:false});mat.userData.label=true;const s=new G.Sprite(mat);s.scale.set(width,width/4,1);return s;}
+  /** Create a cylindrical limb between two joint positions. */
   limb(parent,a,b,r,mat){const m=new G.Mesh(new G.CylinderGeometry(r*.85,r,1,8),mat);m.castShadow=true;parent.add(m);this.placeLimb(m,a,b);return m;}
+  /** Position and orient a limb between two joints. */
   placeLimb(m,a,b){const av=new G.Vector3(...a),bv=new G.Vector3(...b),delta=bv.clone().sub(av);m.position.copy(av.add(bv).multiplyScalar(.5));m.scale.y=delta.length();m.quaternion.setFromUnitVectors(new G.Vector3(0,1,0),delta.normalize());}
+  /** Build the procedural fallback figure for a unit. */
   figure(u){const root=new G.Group(),body=new G.Group();root.add(body);const friendly=u.team==='soldier',civilian=u.team==='civilian',vest=this.material(friendly?0x53533c:0x3e494e),black=this.material(0x252c2a);
     const knee=u.stance==='kneeling',prone=u.stance==='prone',hip=knee?.52:.85,shoulder=hip+.43,legs=[],arms=[];
     const gun=new G.Group();gun.position.set(.10,shoulder-.15,-.36);body.add(gun);
@@ -162,6 +220,7 @@ export class Battlefield {
     this.characters.apply(root,u,gun);
     return root;
   }
+  /** Synchronize the 3D scene with authoritative game state. */
   sync(state,selected,target,mode,aim){
     this.mode=mode;
     const night=state.lighting==='night';this.nativeScene.clearColor=B.Color4.FromHexString(night?'#07101cff':'#26383fff');this.nativeScene.fogColor=B.Color3.FromHexString(night?'#07101c':'#26383f');this.nativeScene.fogStart=night?45:100;this.nativeScene.fogEnd=night?150:350;this.sky.intensity=night?.18:.85;this.sun.intensity=night?.32:2.6;this.sun.diffuse=B.Color3.FromHexString(night?'#7592bd':'#fff1db');
@@ -188,7 +247,9 @@ export class Battlefield {
     if(aim&&u&&mode==='attack'&&state.weapons[u.weapon].radius){const radius=state.weapons[u.weapon].radius;const m=new G.Mesh(new G.RingGeometry(radius-.04,radius+.04,64),new G.MeshBasicMaterial({color:0xffad68,side:G.DoubleSide,depthTest:false}));m.rotation.x=-Math.PI/2;m.position.set(aim.x,aim.z*3+.08,aim.y);this.overlay.add(m);}
     const t=state.units.find(u=>u.id===target&&u.hp>0);if(u&&t&&this.actorVisible(u)&&this.actorVisible(t)&&mode!=='attack'){const line=new G.Line(new G.BufferGeometry().setFromPoints([new G.Vector3(u.x,u.z*3+1,u.y),new G.Vector3(t.x,t.z*3+1,t.y)]),new G.LineDashedMaterial({color:0xf3bc87,dashSize:.15,gapSize:.12}));line.computeLineDistances();this.overlay.add(line);}
   }
+  /** Resolve a canvas pointer event to tactical scene data. */
   pick(e){this.scene.updateMatrixWorld(true);this.camera.updateMatrixWorld();const r=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.ray.setFromCamera(this.pointer,this.camera);const hits=this.ray.intersectObjects([...this.actors.children,...this.pickables],true).concat(this.ray.intersectTileLayers(this.pickSurfaceLevels||[],this.pickSurfaceSet||new Set())).sort((a,b)=>a.distance-b.distance);const hit=hits.find(h=>!h.object.userData.health&&h.object.visible&&h.object.parent?.visible&&(h.object.userData.transition||h.object.userData.memory||h.object.userData.portal||h.object.userData.unit||h.object.userData.structure||h.object.userData.x!==undefined));if(!hit)return null;const data={...hit.object.userData};if(data.unit||data.memory||data.transition)return data;let structure=this.state.buildings.concat(this.state.props).find(p=>p.id===data.structure);if(structure){data.x=Math.max(structure.x,Math.min(structure.x+structure.width-1,Math.round(hit.point.x)));data.y=Math.max(structure.y,Math.min(structure.y+structure.depth-1,Math.round(hit.point.z)));data.z=Math.max(0,Math.min(structure.level||0,Math.floor((hit.point.y+.05)/3)));}else if(this.mode==='attack'&&data.x!==undefined){structure=this.state.buildings.find(b=>!b.destroyed&&data.z===b.level&&data.x>=b.x&&data.x<b.x+b.width&&data.y>=b.y&&data.y<b.y+b.depth);if(structure)data.structure=structure.id;}return data;}
+  /** Update hover. */
   updateHover(force=false){
     if(!this.state||!this.ray)return;
     const hit=this.hoverPointer?this.pick(this.hoverPointer):null;
@@ -200,11 +261,17 @@ export class Battlefield {
     for(const o of this.terrainHoverItems||[])if(o.userData.hoverFor&&o.visible){o.userData.labelAnchor??=o.position.clone();const toward=this.camera.position.clone().sub(o.userData.labelAnchor).normalize();o.position.copy(o.userData.labelAnchor).addScaledVector(toward,.8);}
     this.onHover?.(hit);
   }
+  /** Create a reusable label shown for hover feedback. */
   hoverLabel(text,key,color,width){const s=this.label(text,color,width);s.material.depthTest=true;s.material.depthWrite=false;s.userData.hoverFor=key;s.visible=false;return s;}
+  /** Create a hover label containing name and health. */
   healthLabel(name,hp,max,color='#d9cfac',width=2.3){const c=document.createElement('canvas');c.width=384;c.height=96;const ctx=c.getContext('2d');ctx.fillStyle='#0b1b25de';ctx.fillRect(0,0,384,96);ctx.fillStyle=color;ctx.font='bold 23px system-ui';ctx.textAlign='center';ctx.fillText(name.toUpperCase(),192,29,370);ctx.font='19px monospace';ctx.fillText(`${hp} / ${max} HP`,192,55);ctx.fillStyle='#3b484b';ctx.fillRect(14,68,356,10);ctx.fillStyle=color;ctx.fillRect(14,68,356*Math.max(0,hp/max),10);const map=new G.CanvasTexture(c),mat=new G.SpriteMaterial({map,depthTest:false});mat.userData.label=true;const sprite=new G.Sprite(mat);sprite.scale.set(width,width/4,1);sprite.userData.health=true;sprite.visible=false;return sprite;}
+  /** Show preview. */
   showPreview(preview){if(!preview)return;const u=this.state.units.find(u=>u.id===this.selected);if(!u)return;const points=preview.via?[[u.x,u.y,u.z],[preview.via.x,preview.via.y,preview.via.z],[preview.x,preview.y,preview.z]]:preview.path?[[u.x,u.y,u.z],...preview.path]:preview.x!==undefined?[[u.x,u.y,u.z],[preview.x,preview.y,preview.z]]:[];if(!points.length)return;const color=preview.action==='move'?0x8fe9ee:0xffc28b;const line=new G.Line(new G.BufferGeometry().setFromPoints(points.map(p=>new G.Vector3(p[0],p[2]*3+.2,p[1]))),new G.LineDashedMaterial({color,dashSize:.2,gapSize:.12,depthTest:false}));line.computeLineDistances();this.overlay.add(line);const p=points.at(-1);const marker=new G.Mesh(new G.RingGeometry(.32,.40,40),new G.MeshBasicMaterial({color,side:G.DoubleSide,depthTest:false}));marker.rotation.x=-Math.PI/2;marker.position.set(p[0],p[2]*3+.1,p[1]);this.overlay.add(marker);}
+  /** Move the tactical camera focus to a unit. */
   focus(u){if(!u)return;const delta=new G.Vector3(u.x,u.z*3,u.y).sub(this.controls.target);this.controls.target.add(delta);this.camera.position.add(delta);this.controls.update();this.camera.updateMatrixWorld();this.updateHover();}
+  /** Reset the tactical camera to a full-map view. */
   home(){const c=((this.state?.size||30)-1)/2;this.camera.position.set(c+this.state.size*.85,this.state.size*1.1,c+this.state.size);this.controls.target.set(c,0,c);this.controls.update();}
+  /** Create a persistent visual marker for a fallen unit. */
   corpse(u){
     const model=this.figure({...u,stance:'standing',corpse:true}),body=model.children[0];
     model.traverse(o=>{delete o.userData.unit;Object.assign(o.userData,{x:u.x,y:u.y,z:u.z});});
@@ -212,7 +279,9 @@ export class Battlefield {
     body.rotation.set(-Math.PI/2,0,.2);body.position.set(0,.18,.60);model.rotation.y=(u.x+u.y)*.7;this.actors.add(model);
     for(let i=0;i<5;i++){const blood=new G.Mesh(new G.CircleGeometry(i? .12:.5,12),new G.MeshBasicMaterial({color:i?0x8d2526:0x591419,transparent:true,opacity:.85,depthWrite:false}));blood.rotation.x=-Math.PI/2;blood.scale.y=.7;blood.position.set(u.x+Math.sin(i*2.4)*.48,u.z*3+.055,u.y+Math.cos(i*2.4)*.48);this.actors.add(blood);}
   }
+  /** Create a short-lived particle burst at a world position. */
   async burst(point,color,radius,duration){const particles=[];for(let i=0;i<12;i++){const m=color===0x73766d?new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color,depthWrite:false})):new G.Mesh(new G.IcosahedronGeometry(.04,0),new G.MeshBasicMaterial({color,transparent:true}));m.position.copy(point);this.fx.add(m);particles.push({m,v:new G.Vector3(Math.sin(i*2.4)*radius,.25+(i%4)*.2,Math.cos(i*2.4)*radius)});}await this.tween(duration,t=>{for(const {m,v} of particles){m.position.copy(point).addScaledVector(v,t);m.position.y-=t*t*.3;m.material.opacity=1-t;if(color===0x73766d)m.scale.setScalar(1+t*4);}});}
+  /** Apply stance-aware limb motion for the current gait phase. */
   gait(model,phase,climbing=false){
     const r=model.userData.rig;if(!r)return;if(model.userData.animated){this.characters.motion(model,climbing?'climb':'walk');return;}
     const prone=r.stance==='prone',crouch=r.stance==='kneeling';
@@ -228,6 +297,7 @@ export class Battlefield {
     if(r.civilian){for(const arm of r.arms){const wave=Math.sin(phase+(arm.side>0?0:Math.PI));const elbow=[arm.side*.25,r.shoulder-.25,wave*.10],hand=[arm.side*.26,r.shoulder-.50,wave*.23];this.placeLimb(arm.upper,[arm.side*.23,r.shoulder,0],elbow);this.placeLimb(arm.lower,elbow,hand);}}
     if(prone||climbing)for(const arm of r.arms){const wave=Math.sin(phase+arm.side*Math.PI/2);const elbow=[arm.side*.28,r.shoulder-.1+wave*.12,-.22],hand=[arm.side*.18,r.shoulder+(climbing?.2:-.12),-.35+wave*.12];this.placeLimb(arm.upper,[arm.side*.23,r.shoulder,0],elbow);this.placeLimb(arm.lower,elbow,hand);}
   }
+  /** Animate authoritative events before applying their final state. */
   async animate(events,followEnemies=false){
     for(const e of events||[]){
       const actor=e.actor||this.state.units.find(u=>u.id===e.unit);
@@ -273,5 +343,6 @@ export class Battlefield {
       if(e.type==='evacuate'){const m=this.models.get(e.unit);if(m)m.visible=false;}
     }
   }
+  /** Animate a value over a duration using animation frames. */
   tween(ms,fn){return new Promise(resolve=>{const start=performance.now();const tick=now=>{const t=Math.max(0,Math.min(1,(now-start)/ms));fn(t);if(t<1)requestAnimationFrame(tick);else resolve();};requestAnimationFrame(tick);});}
 }

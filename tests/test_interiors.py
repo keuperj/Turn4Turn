@@ -1,10 +1,14 @@
+"""Test interiors behavior."""
+
 import unittest
 from game import Game
 from world import THEMES
 
 
 class InteriorTests(unittest.TestCase):
+    """Group automated checks for interior behavior."""
     def at_portal(self, kind='door'):
+        """Position a unit beside the selected portal for interaction tests."""
         g=Game(41,'urban')
         p=next(p for p in g.portals if p['building']=='b0' and p['kind']==kind)
         u=g.units[0]
@@ -15,6 +19,7 @@ class InteriorTests(unittest.TestCase):
         return g,u,p
 
     def test_door_entry_close_exit(self):
+        """Verify that door entry close exit."""
         g,u,p=self.at_portal()
         inside=tuple(p['a'])
         self.assertNotIn(inside,g.paths(u,1))
@@ -33,6 +38,7 @@ class InteriorTests(unittest.TestCase):
         self.assertEqual(g.position(u),tuple(p['b']))
 
     def test_remote_and_exhausted_interaction_rejected(self):
+        """Verify that remote and exhausted interaction rejected."""
         g,u,p=self.at_portal()
         u.update(x=8,y=16,z=0)
         with self.assertRaises(ValueError):
@@ -43,6 +49,7 @@ class InteriorTests(unittest.TestCase):
             g.action(dict(action='interact',unit=u['id'],portal=p['id']))
 
     def test_window_sightline_shutter_sill_and_no_walkthrough(self):
+        """Verify that window sightline shutter sill and no walkthrough."""
         g,u,p=self.at_portal('window')
         target=dict(u,x=p['a'][0],y=p['a'][1],z=0)
         self.assertFalse(g.line_of_sight(u,target))
@@ -56,6 +63,7 @@ class InteriorTests(unittest.TestCase):
         self.assertFalse(g.line_of_sight(u,target))
 
     def test_floor_overlap_stairs_and_slab(self):
+        """Verify that floor overlap stairs and slab."""
         g=Game(2,'urban')
         a,b=g.stairs[0]
         u=g.units[0]
@@ -70,6 +78,7 @@ class InteriorTests(unittest.TestCase):
         self.assertNotIn(tuple(a),g.paths(u,10))
 
     def test_grenade_arcs_over_closed_door_but_door_blocks_blast_damage(self):
+        """Verify that grenade arcs over closed door but door blocks blast damage."""
         g,u,p=self.at_portal()
         g.action(dict(action='equip',unit=u['id'],weapon='Frag grenade'))
         x,y,z=p['a']
@@ -82,6 +91,7 @@ class InteriorTests(unittest.TestCase):
         self.assertIn(target,g.blast_victims(u,u['x'],u['y'],0))
 
     def test_theme_determinism_and_all_spawns_connected(self):
+        """Verify that theme determinism and all spawns connected."""
         for theme in THEMES:
             for seed in range(8):
                 g=Game(seed,theme)
@@ -102,6 +112,7 @@ class InteriorTests(unittest.TestCase):
         with self.assertRaises(ValueError): Game(2,'not-a-theme')
 
     def test_civilian_evacuates_without_overwatch_fire(self):
+        """Verify that civilian evacuates without overwatch fire."""
         g=Game(5,'farm')
         c=g.alive('civilian')[0]
         c.update(x=1,y=g.size-2,z=0)
@@ -115,6 +126,7 @@ class InteriorTests(unittest.TestCase):
         self.assertEqual(g.state()['civilians']['evacuated'],1)
 
     def test_civilian_is_vulnerable_to_explosives(self):
+        """Verify that civilian is vulnerable to explosives."""
         g=Game(9,'farm')
         u=g.units[0]
         c=g.alive('civilian')[0]
@@ -126,6 +138,7 @@ class InteriorTests(unittest.TestCase):
         self.assertEqual(g.state()['civilians']['alive'],4)
 
     def test_enemy_cannot_spot_squad_through_closed_door(self):
+        """Verify that enemy cannot spot squad through closed door."""
         g,u,p=self.at_portal()
         enemy=g.alive('alien')[0]
         enemy.update(x=p['a'][0],y=p['a'][1],z=0,stance='standing')

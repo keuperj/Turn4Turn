@@ -1,3 +1,5 @@
+"""Test campaign behavior."""
+
 import json
 import unittest
 from pathlib import Path
@@ -7,7 +9,9 @@ from world import THEMES
 
 
 class CampaignTests(unittest.TestCase):
+    """Group automated checks for campaign behavior."""
     def test_campaign_defines_ten_valid_ordered_missions(self):
+        """Verify that campaign defines ten valid ordered missions."""
         path=Path(__file__).parents[1]/'campaigns'/'operation_turning_point.json'
         campaign=json.loads(path.read_text())
         self.assertEqual(len(campaign['missions']),10)
@@ -21,6 +25,7 @@ class CampaignTests(unittest.TestCase):
             self.assertTrue(mission['title'] and mission['objective'])
 
     def test_campaign_briefing_overrides_generic_mission_copy(self):
+        """Verify that campaign briefing overrides generic mission copy."""
         game=Game(7,title='Custom operation',objective='Custom objective')
         state=game.state()
         self.assertEqual(state['mission']['label'],'Custom operation')

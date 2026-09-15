@@ -1,70 +1,118 @@
+/** @fileoverview Adapt the game renderer API to locally bundled Babylon.js primitives. */
 /* Application scene primitives backed exclusively by Babylon.js.
  * Grid scenery and tactical overlays use this small API; native Babylon objects
  * remain available as .native for asset loading, animation and diagnostics.
  */
 export const B=window.BABYLON;
 let world,shadows;
+/** Set the active Babylon scene and shadow generator. */
 export function configure(scene,shadowGenerator){world=scene;shadows=shadowGenerator;}
+/** Export the double side value. */
 export const DoubleSide=2,RepeatWrapping=1,SRGBColorSpace='srgb';
+/** Provide Three-compatible vector helpers backed by Babylon.js. */
 export class Vector3 extends B.Vector3 {
+ /** Create a vector proxy linked to a Babylon vector. */
  static link(v){const out=new Vector3();for(const [field,key] of [['_x','x'],['_y','y'],['_z','z']])Object.defineProperty(out,field,{get:()=>v[key],set:value=>v[key]=value});return out;}
+ /** Copy vector components from another vector. */
  copy(v){return this.copyFrom(v);} clone(){return new Vector3(this.x,this.y,this.z);}
+ /** Attach child nodes to this scene-graph group. */
  add(v){return this.addInPlace(v);} sub(v){return this.subtractInPlace(v);}
+ /** Scale this vector in place. */
  multiplyScalar(s){return this.scaleInPlace(s);} setScalar(s){return this.set(s,s,s);}
+ /** Add scaled vector. */
  addScaledVector(v,s){this.x+=v.x*s;this.y+=v.y*s;this.z+=v.z*s;return this;}
+ /** Interpolate this vector toward another vector. */
  lerp(v,t){return this.lerpVectors(this.clone(),v,t);}
+ /** Set this vector to the interpolation between two vectors. */
  lerpVectors(a,b,t){return this.set(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,a.z+(b.z-a.z)*t);}
+ /** Return Euclidean distance to another vector. */
  distanceTo(v){return Math.hypot(this.x-v.x,this.y-v.y,this.z-v.z);}
+ /** Return vector components as a plain array. */
  toArray(){return [this.x,this.y,this.z];}
+ /** Project this world vector into normalized screen coordinates. */
  project(camera){const c=camera.native||camera,e=c.getScene().getEngine();const p=B.Vector3.Project(this,B.Matrix.Identity(),c.getViewMatrix().multiply(c.getProjectionMatrix()),new B.Viewport(0,0,e.getRenderWidth(),e.getRenderHeight()));return this.set(p.x/e.getRenderWidth()*2-1,1-p.y/e.getRenderHeight()*2,p.z);}
 }
+/** Provide a Three-compatible two-dimensional Babylon vector. */
 export class Vector2 extends B.Vector2 {}
+/** Provide the quaternion abstraction. */
 class Quaternion extends B.Quaternion {
+ /** Update from unit vectors. */
  setFromUnitVectors(a,b){B.Quaternion.FromUnitVectorsToRef(a,b,this);return this;}
 }
+/** Provide a numeric-color wrapper backed by Babylon.js. */
 export class Color {
+ /** Initialize this instance. */
  constructor(value=0xffffff){this.native=B.Color3.White();this.set(value);}
+ /** Update this wrapper from a numeric or wrapped color. */
  set(v){if(v instanceof Color)this.native.copyFrom(v.native);else this.native.copyFrom(B.Color3.FromHexString(typeof v==='number'?'#'+v.toString(16).padStart(6,'0'):v));this.changed?.();return this;}
 }
+/** Provide a lightweight scene-graph wrapper around Babylon nodes. */
 export class Group {
+ /** Initialize this instance. */
  constructor(native){this.native=native||new B.TransformNode('group',world);this.native.metadata={...(this.native.metadata||{}),owner:this};this.children=[];this.userData={};this.parent=null;this.native.position=new B.Vector3();this.native.rotation=new B.Vector3();this.native.scaling=new B.Vector3(1,1,1);this._position=Vector3.link(this.native.position);this._rotation=Vector3.link(this.native.rotation);this._scale=Vector3.link(this.native.scaling);}
  get position(){return this._position;} get rotation(){return this._rotation;} get scale(){return this._scale;}
  get quaternion(){if(!this.native.rotationQuaternion)this.native.rotationQuaternion=new Quaternion();return this.native.rotationQuaternion;}
  get visible(){return this.native.isEnabled();} set visible(v){this.native.setEnabled(v);}
+ /** Attach child nodes to this scene-graph group. */
  add(...nodes){for(const n of nodes){n.parent?.remove(n);n.parent=this;n.native.parent=this.native;if(n._detachedEnabled!==undefined){n.native.setEnabled(n._detachedEnabled);delete n._detachedEnabled;}this.children.push(n);}return this;}
+ /** Detach a child node from this scene-graph group. */
  remove(n){const i=this.children.indexOf(n);if(i>=0)this.children.splice(i,1);n._detachedEnabled=n.native.isEnabled(false);n.native.setEnabled(false);n.native.parent=null;n.parent=null;return this;}
+ /** Visit this node and every wrapped descendant. */
  traverse(fn){fn(this);for(const c of this.children)c.traverse(fn);}
+ /** Update matrix world. */
  updateMatrixWorld(){this.native.computeWorldMatrix(true);for(const n of this.native.getDescendants())n.computeWorldMatrix(true);}
+ /** Release owned rendering resources. */
  dispose(){this.parent?.remove(this);for(const n of [this.native,...this.native.getChildMeshes()])shadows?.removeShadowCaster(n,false);this.native.dispose(false,false);this.children=[];}
 }
+/** Represent the wrapped Babylon scene root. */
 export class Scene extends Group {
+ /** Initialize this instance. */
  constructor(native){super(new B.TransformNode('world',native));this.scene=native;}
 }
+/** Describe geometry before Babylon mesh construction. */
 class Geometry {constructor(kind,options){this.kind=kind;this.options=options;}dispose(){}}
+/** Provide the box geometry abstraction. */
 export class BoxGeometry extends Geometry{constructor(w,h,d){super('Box',{width:w,height:h,depth:d});}}
+/** Provide the plane geometry abstraction. */
 export class PlaneGeometry extends Geometry{constructor(w,h){super('Plane',{width:w,height:h,sideOrientation:B.Mesh.DOUBLESIDE});}}
 // One indexed mesh for tile-sized layers. This replaces hundreds of individual
 // planes for picking, movement ranges and fog while preserving exact tile edges.
+/** Provide the tile geometry abstraction. */
 export class TileGeometry extends Geometry{constructor(points,size=1){super('tiles',{points,size});}}
 // Low-poly beveled prism used by vehicles. The inset top produces readable
 // sloped panels without the cost of a dense imported model.
+/** Provide the beveled box geometry abstraction. */
 export class BeveledBoxGeometry extends Geometry{constructor(w,h,d,inset=.08,frontInset=inset,backInset=inset){super('beveledBox',{w,h,d,inset,frontInset,backInset});}}
+/** Provide the sphere geometry abstraction. */
 export class SphereGeometry extends Geometry{constructor(r,segments=16){super('Sphere',{diameter:r*2,segments:Math.max(8,segments)});}}
+/** Provide the icosahedron geometry abstraction. */
 export class IcosahedronGeometry extends Geometry{constructor(r,detail=1){super('IcoSphere',{radius:r,subdivisions:Math.max(1,detail+1),flat:false});}}
+/** Provide the cylinder geometry abstraction. */
 export class CylinderGeometry extends Geometry{constructor(top,bottom,h,segments=12){super('Cylinder',{diameterTop:top*2,diameterBottom:bottom*2,height:h,tessellation:segments});}}
+/** Provide the cone geometry abstraction. */
 export class ConeGeometry extends CylinderGeometry{constructor(r,h,segments=12){super(0,r,h,segments);}}
+/** Provide the capsule geometry abstraction. */
 export class CapsuleGeometry extends Geometry{constructor(r,h){super('Capsule',{radius:r,height:h+2*r,tessellation:12,subdivisions:2});}}
+/** Provide the circle geometry abstraction. */
 export class CircleGeometry extends Geometry{constructor(r,segments=24){super('Disc',{radius:r,tessellation:segments,sideOrientation:B.Mesh.DOUBLESIDE});}}
+/** Provide the ring geometry abstraction. */
 export class RingGeometry extends Geometry{constructor(inner,outer,segments=32){super('ring',{inner,outer,segments});}}
+/** Provide the buffer geometry abstraction. */
 export class BufferGeometry extends Geometry{constructor(){super('line',{});}setFromPoints(points){this.options.points=points;return this;}}
+/** Wrap Babylon textures with renderer-compatible properties. */
 export class Texture {
+ /** Initialize this instance. */
  constructor(native){this.native=native;this.repeat={set:(x,y)=>{native.uScale=x;native.vScale=y;}};}
  set wrapS(v){this.native.wrapU=B.Texture.WRAP_ADDRESSMODE;}set wrapT(v){this.native.wrapV=B.Texture.WRAP_ADDRESSMODE;}
  set anisotropy(v){this.native.anisotropicFilteringLevel=v;}
+ /** Release owned rendering resources. */
  dispose(){this.native.dispose();}
 }
+/** Load local textures into the active Babylon scene. */
 export class TextureLoader{load(url){return new Texture(new B.Texture(url,world,false,false));}}
+/** Create a Babylon dynamic texture from an HTML canvas. */
 export class CanvasTexture extends Texture{constructor(canvas){const t=new B.DynamicTexture('canvas',canvas,world,true);t.hasAlpha=true;t.update(false);super(t);this.canvas=canvas;}}
+/** Generate and cache a normal map for a canvas texture. */
 function normalTexture(texture){
  if(texture.normal)return texture.normal;
  const c=texture.canvas,w=c.width,h=c.height,src=c.getContext('2d').getImageData(0,0,w,h).data,out=document.createElement('canvas');out.width=w;out.height=h;const ctx=out.getContext('2d'),pixels=ctx.createImageData(w,h);
@@ -72,18 +120,25 @@ function normalTexture(texture){
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){let nx=(height(x-1,y)-height(x+1,y))*1.5,ny=(height(x,y-1)-height(x,y+1))*1.5;const length=Math.hypot(nx,ny,1),i=(y*w+x)*4;pixels.data[i]=(nx/length*.5+.5)*255;pixels.data[i+1]=(ny/length*.5+.5)*255;pixels.data[i+2]=(1/length*.5+.5)*255;pixels.data[i+3]=255;}
  ctx.putImageData(pixels,0,0);const n=new B.DynamicTexture('surface-normal',out,world,true);n.gammaSpace=false;n.update(false);texture.normal=n;return n;
 }
+/** Translate game material options to Babylon PBR materials. */
 export class MeshStandardMaterial {
+ /** Initialize this instance. */
  constructor(options={}){this.native=new B.PBRMaterial('surface',world);this.userData={};this.color=new Color(options.color??0xffffff);this.color.changed=()=>{this.native.albedoColor=this.color.native.toLinearSpace();};this.color.changed();this.native.metallic=options.metalness??0;this.native.roughness=options.roughness??.85;this.map=options.map;if(options.bumpMap?.canvas)this.native.bumpTexture=normalTexture(options.bumpMap);this.depthTest=options.depthTest!==false;this.depthWrite=options.depthWrite!==false;this.opacity=options.opacity??1;this.transparent=options.transparent||false;this.visible=options.visible!==false;this.native.backFaceCulling=options.side!==DoubleSide;}
  get map(){return this._map;}set map(t){this._map=t;this.native.albedoTexture=t?.native||null;}
  set opacity(v){this.native.alpha=v;}get opacity(){return this.native.alpha;}
  set transparent(v){this.native.transparencyMode=v?B.PBRMaterial.PBRMATERIAL_ALPHABLEND:B.PBRMaterial.PBRMATERIAL_OPAQUE;}
  set depthTest(v){this._depthTest=v;this.native.depthFunction=v?B.Constants.LEQUAL:B.Constants.ALWAYS;}get depthTest(){return this._depthTest;}
  set depthWrite(v){this.native.disableDepthWrite=!v;}get depthWrite(){return !this.native.disableDepthWrite;}
+ /** Release owned rendering resources. */
  dispose(){this.native.dispose(false,false);}
 }
+/** Provide an unlit material compatible with the renderer facade. */
 export class MeshBasicMaterial extends MeshStandardMaterial{constructor(o={}){super(o);this.native.unlit=true;}}
+/** Provide a transparent billboard material. */
 export class SpriteMaterial extends MeshBasicMaterial{constructor(o={}){super({...o,transparent:true,side:DoubleSide});this.native.useAlphaFromAlbedoTexture=true;}}
+/** Store dashed-line rendering parameters. */
 export class LineDashedMaterial extends MeshBasicMaterial{constructor(o={}){super(o);this.dashSize=o.dashSize;this.gapSize=o.gapSize;}}
+/** Build indexed Babylon geometry for custom facade shapes. */
 function customGeometry(g){
  const positions=[],indices=[],normals=[],uvs=[];
  if(g.kind==='ring'){
@@ -98,32 +153,48 @@ function customGeometry(g){
  }
  const m=new B.Mesh(g.kind,world),data=new B.VertexData();Object.assign(data,{positions,indices,normals,uvs});data.applyToMesh(m);return m;
 }
+/** Create geometry. */
 function makeGeometry(g){return ['ring','tiles','beveledBox'].includes(g.kind)?customGeometry(g):B.MeshBuilder['Create'+g.kind](g.kind,g.options,world);}
+/** Create a Babylon mesh from facade geometry and material objects. */
 export class Mesh extends Group {
+ /** Initialize this instance. */
  constructor(geometry,material){super(makeGeometry(geometry));this.geometry=geometry;this.isMesh=true;this.material=material;this.native.isPickable=true;}
  set material(m){this._material=m;this.native.material=m.native;if(m.visible===false){this.native.visibility=0;this.native.alwaysSelectAsActiveMesh=false;}}
  get material(){return this._material;}
  set castShadow(v){if(v)shadows?.addShadowCaster(this.native,false);else shadows?.removeShadowCaster(this.native,false);}
  set receiveShadow(v){this.native.receiveShadows=v;}
 }
+/** Create a camera-facing sprite mesh. */
 export class Sprite extends Mesh{constructor(mat){super(new PlaneGeometry(1,1),mat);this.native.bakeTransformIntoVertices(B.Matrix.Scaling(1,-1,1));this.native.billboardMode=B.Mesh.BILLBOARDMODE_ALL;this.native.isPickable=false;}}
+/** Create a dashed Babylon line from facade geometry. */
 export class Line extends Group{constructor(geometry,material){super(B.MeshBuilder.CreateDashedLines('path',{points:geometry.options.points,dashSize:material.dashSize||.2,gapSize:material.gapSize||.1,dashNb:100},world));this.native.color=material.color.native;this.native.isPickable=false;this.geometry=geometry;this.material=material;}computeLineDistances(){}}
+/** Create a tactical reference grid. */
 export class GridHelper extends Group{constructor(n,divisions,color){const lines=[];for(let i=0;i<=divisions;i++){const p=-n/2+i*n/divisions;lines.push([new B.Vector3(p,0,-n/2),new B.Vector3(p,0,n/2)],[new B.Vector3(-n/2,0,p),new B.Vector3(n/2,0,p)]);}super(B.MeshBuilder.CreateLineSystem('grid',{lines},world));this.native.color=new Color(color).native.scale(.22);this.native.isPickable=false;this.material={set transparent(v){},set opacity(v){},dispose(){}};this.native.alpha=.16;}}
+/** Wrap a Babylon universal camera with perspective helpers. */
 export class PerspectiveCamera {
+ /** Initialize this instance. */
  constructor(fov,aspect,near,far){this.native=new B.FreeCamera('tactical-camera',new B.Vector3(),world);this._position=Vector3.link(this.native.position);this.native.fov=fov*Math.PI/180;this.native.minZ=near;this.native.maxZ=far;this.native.inputs.clear();}
  get position(){return this._position;}get matrixWorld(){return {elements:this.native.getWorldMatrix().asArray()};}
+ /** Update matrix world. */
  updateMatrixWorld(){this.native.getViewMatrix(true);}
+ /** Update projection matrix. */
  updateProjectionMatrix(){this.native.getProjectionMatrix(true);}
 }
+/** Resolve Babylon mesh and tile-layer intersections. */
 export class Raycaster {
+ /** Update from camera. */
  setFromCamera(pointer,camera){const e=world.getEngine();this.ray=world.createPickingRay((pointer.x+1)*e.getRenderWidth()/2,(1-pointer.y)*e.getRenderHeight()/2,B.Matrix.Identity(),camera.native,false);}
+ /** Return sorted Babylon ray intersections for scene objects. */
  intersectObjects(objects,recursive){const allowed=new Set();for(const o of objects){allowed.add(o);if(recursive)o.traverse(n=>allowed.add(n));}
  const owner=m=>{for(let n=m;n;n=n.parent){if(n.metadata?.pickOwner)return n.metadata.pickOwner;if(n.metadata?.owner&&allowed.has(n.metadata.owner))return n.metadata.owner;}return null;};
  return (world.multiPickWithRay(this.ray,m=>{const o=owner(m);return !!o&&m.isEnabled()&&m.isPickable&&!o.userData.health;})||[]).map(hit=>({object:owner(hit.pickedMesh),point:hit.pickedPoint,distance:hit.distance})).sort((a,b)=>a.distance-b.distance);
  }
+ /** Return ray intersections with batched tactical tile layers. */
  intersectTileLayers(levels,tiles){const hits=[],origin=this.ray.origin,direction=this.ray.direction;if(Math.abs(direction.y)<1e-6)return hits;for(const z of levels){const height=z*3+.04,t=(height-origin.y)/direction.y;if(t<0)continue;const point=new B.Vector3(origin.x+direction.x*t,height,origin.z+direction.z*t),x=Math.round(point.x),y=Math.round(point.z);if(Math.abs(point.x-x)>.49||Math.abs(point.z-y)>.49||!tiles.has(`${x},${y},${z}`))continue;hits.push({object:{userData:{x,y,z},visible:true,parent:{visible:true}},point,distance:t});}return hits;}
 }
+/** Implement orbit, pan, and zoom interaction for the tactical camera. */
 export class OrbitControls {
+ /** Initialize this instance. */
  constructor(camera,canvas){this.camera=camera;this.canvas=canvas;this.target=new Vector3();this.minDistance=2;this.maxDistance=220;this.maxPolarAngle=Math.PI*.46;this.listeners=[];this.last='';let drag;
  canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,button:e.button};canvas.setPointerCapture(e.pointerId);});
  canvas.addEventListener('pointerup',()=>drag=null);canvas.addEventListener('pointercancel',()=>drag=null);
@@ -132,7 +203,10 @@ export class OrbitControls {
  else if(drag.button===1)this.zoom(dy*.012);
  else{const scale=r*.0016,delta=new Vector3(-Math.cos(yaw)*dx+Math.sin(yaw)*dy,0,Math.sin(yaw)*dx+Math.cos(yaw)*dy).multiplyScalar(scale);camera.position.add(delta);this.target.add(delta);}this.update();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();this.zoom(e.deltaY*.001);this.update();},{passive:false});}
+ /** Change orbit distance while respecting camera bounds. */
  zoom(amount){const delta=this.camera.position.clone().sub(this.target),r=Math.max(this.minDistance,Math.min(this.maxDistance,delta.length()*Math.exp(amount)));delta.normalize().multiplyScalar(r);this.camera.position.copy(this.target).add(delta);}
+ /** Add event listener. */
  addEventListener(type,fn){if(type==='change')this.listeners.push(fn);}
+ /** Advance this component for the current animation frame. */
  update(){this.camera.native.setTarget(this.target);const key=[...this.target.toArray(),...this.camera.position.toArray()].join(',');if(key!==this.last){this.last=key;this.listeners.forEach(fn=>fn());}}
 }

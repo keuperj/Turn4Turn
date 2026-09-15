@@ -10,6 +10,7 @@ THEMES = {
 }
 
 def edge_key(a, b):
+    """Return a canonical key for an undirected edge between two tiles."""
     return tuple(sorted((tuple(a), tuple(b))))
 
 
@@ -22,6 +23,7 @@ PROP_SIZE={'car':(2,5),'truck':(2,6),'tractor':(2,3),'aircraft':(10,10),
 
 
 def generate(game):
+    """Generate a deterministic, connected battlefield for a theme and size."""
     r,n,theme=game.rng,game.size,THEMES[game.theme]
     road_x=n//2+r.choice([-2,0,2]);cross_y=r.randrange(9,n-9)
     road_width=11 if game.theme=='airport' else 5

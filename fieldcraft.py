@@ -5,7 +5,9 @@ from world import edge_key
 
 
 class Fieldcraft:
+    """Implement facing, corner peeking, throws, and medical support."""
     def face(self,u,data):
+        """Turn a unit toward a target point without spending action points."""
         x,y=data.get('x'),data.get('y')
         if any(type(v) is not int for v in (x,y)) or not (0<=x<self.size and 0<=y<self.size) or (x,y)==(u['x'],u['y']):
             raise ValueError('Choose another map point to face.')
@@ -13,12 +15,14 @@ class Fieldcraft:
         self.events.append(dict(type='face',unit=u['id'],facing=u['facing']))
 
     def covered_edge(self,p,normal):
+        """Return the cover edge protecting a unit from a direction."""
         q=(p[0]+normal[0],p[1]+normal[1],p[2])
         wall=self.walls.get(edge_key(p,q))
         if wall and (wall['kind']=='wall' or not wall['open']):return True
         return q in self.blocked or (q in self.surfaces and q[2]==0 and self.tiles[q[1]][q[0]] in ('low','high'))
 
     def corner_options(self,u,known_units=True):
+        """Return legal peek positions around adjacent cover corners."""
         if u['stance']=='prone':return []
         p=self.position(u);options=set()
         occupied={self.position(v) for v in self.alive() if v!=u and (not known_units or self.detected(v))}
@@ -33,6 +37,7 @@ class Fieldcraft:
         return [dict(x=x,y=y,z=z) for x,y,z in sorted(options)]
 
     def corner_throw(self,u,point):
+        """Find a legal two-segment grenade path around nearby cover."""
         from game import WEAPONS
         w=WEAPONS[u['weapon']]
         if w['kind'] not in ('grenade','smoke') or point['z']!=u['z']:return None
@@ -42,6 +47,7 @@ class Fieldcraft:
         return None
 
     def peek(self,u,data):
+        """Temporarily expose a unit at a corner and resolve enemy reactions."""
         point=next((p for p in self.corner_options(u,False) if all(p[k]==data.get(k,u['z'] if k=='z' else None) for k in ('x','y','z'))),None)
         if not point:raise ValueError('Stand or kneel directly beside a cover corner with a free side step.')
         origin=self.position(u);u['ap']-=1
@@ -61,6 +67,7 @@ class Fieldcraft:
             self.refresh_visibility()
 
     def heal_solution(self,u,data):
+        """Validate a medical action and return its participants and cost."""
         from game import WEAPONS
         if WEAPONS[u['weapon']]['kind']!='medical' or not u['ammo']:raise ValueError('Equip a medikit with supplies remaining.')
         target=next((v for v in self.alive('soldier') if v['id']==data.get('target')),None)
@@ -77,6 +84,7 @@ class Fieldcraft:
         return dict(action='heal',target=target['id'],x=target['x'],y=target['y'],z=target['z'],name=target['name'],cost=1,heal=amount,hp=target['hp'],max_hp=target['max_hp'])
 
     def heal(self,u,data):
+        """Apply a validated medikit treatment to an adjacent teammate."""
         solution=self.heal_solution(u,data)
         target=next(v for v in self.units if v['id']==solution['target'])
         self.spend_ammo(u);u['ap']-=1;target['hp']+=solution['heal']

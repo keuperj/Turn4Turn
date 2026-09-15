@@ -1,7 +1,9 @@
+/** @fileoverview Coordinate sessions, UI state, rendering, input, and campaign navigation. */
 import {Battlefield} from './scene.js';
 import {actionAudio} from './audio.js';
 import {icon,button,hydrate} from './icons.js';
 import {Minimap} from './minimap.js';
+import {testWebGPU} from './webgpu-check.js';
 const $=id=>document.getElementById(id);
 const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','M24 sniper','Smoke grenade','Demolition charge','Shotgun','Medikit'];
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
@@ -14,7 +16,51 @@ const cookie=name=>document.cookie.split('; ').find(v=>v.startsWith(name+'='))?.
 const cookieJSON=name=>{try{return JSON.parse(decodeURIComponent(cookie(name)||''));}catch{return null;}};
 const setCookie=(name,value)=>document.cookie=`${name}=${encodeURIComponent(JSON.stringify(value))}; Path=/; Max-Age=31536000; SameSite=Lax`;
 const deleteCookie=name=>document.cookie=`${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+/** Show server full. */
 function showServerFull(){closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=true;$('server-full').hidden=false;}
+/**
+ * Settle the landing card as soon as the independent capability probe finishes.
+ *
+ * @param {Object} result Serializable result returned by testWebGPU.
+ */
+function showGPUCheckStatus(result){
+  const card=$('gpu-status'),info=result.info||{};
+  document.documentElement.dataset.gpuTest=result.ok?'pass':'fail';
+  card.className=`gpu-status ${result.ok?'available':'fallback'}`;
+  if(result.ok){
+    const name=[info.vendor,info.architecture||info.device].filter(Boolean).join(' ');
+    $('gpu-status-title').textContent=result.fallback?'WEBGPU · FALLBACK ADAPTER READY':'WEBGPU · READY';
+    $('gpu-status-detail').textContent=name||'Compute and canvas rendering passed';
+  }else{
+    $('gpu-status-title').textContent='WEBGL · DEFAULT';
+    $('gpu-status-detail').textContent=result.reason||'WebGPU test did not pass';
+  }
+}
+/**
+ * Replace capability status with the renderer that actually started.
+ *
+ * This preserves a WebGL fallback reason when WebGPU was not selected.
+ */
+function showRendererStatus(){
+  const card=$('gpu-status'),detail=$('gpu-status-detail'),webgpu=battlefield.renderer==='webgpu';
+  document.documentElement.dataset.renderer=battlefield.renderer;
+  card.className=`gpu-status ${webgpu?'available':'fallback'}`;
+  $('render-label').textContent=`BABYLON.JS · ${battlefield.renderer.toUpperCase()}`;
+  $('renderer-brand').textContent=`TACTICAL OPERATIONS / ${battlefield.renderer.toUpperCase()}`;
+  if(webgpu){
+    const info=battlefield.gpuInfo||{},name=[info.vendor,info.architecture||info.device].filter(Boolean).join(' ');
+    $('gpu-status-title').textContent=info.fallback?'WEBGPU · FALLBACK ADAPTER':'WEBGPU · HARDWARE ACCELERATED';
+    detail.textContent=name||'WebGPU adapter ready';
+  }else{
+    $('gpu-status-title').textContent='WEBGL · COMPATIBILITY MODE';detail.textContent=battlefield.fallbackReason||'WebGPU unavailable';
+  }
+}
+/** @type {Promise<Object>} Shared gate for landing status and engine choice. */
+const gpuTestPromise=testWebGPU({timeoutMs:8000})
+  .catch(error=>({ok:false,stage:'unknown',reason:error?.message||String(error)}))
+  .then(result=>{showGPUCheckStatus(result);return result});
+
+/** Require consent and establish the current player session. */
 async function ensureSession(){
   const current=await fetch('/api/session').then(r=>r.json());if(current.accepted)return true;
   const dialog=$('welcome'),form=$('welcome-form'),error=$('welcome-error');$('welcome-name').value=decodeURIComponent(cookie('turn4turn_name')||'');dialog.showModal();
@@ -23,11 +69,17 @@ async function ensureSession(){
     catch(reason){error.textContent=reason.message;}
   });
 }
+/** Return local image or generated artwork markup for equipment. */
 function itemArt(name){return photographs[name]?`<img class="item-photo" src="/assets/${photographs[name]}" alt="${name}">`:`<span class="item-art art-${itemOrder.indexOf(name)}" role="img" aria-label="${name}"></span>`;}
+/** Return the currently selected squad member. */
 function soldier(){return state?.units.find(u=>u.id===selected);}
+/** Update the tactical status message. */
 function message(text){$('message').textContent=text;}
+/** Return a concise equipment-statistics label. */
 function stats(name){const w=state.weapons[name];return `${w.kind==='medical'?w.heal+' HEAL':w.damage+' DMG'} · ${w.range} tiles · ${w.capacity} ${w.kind==='medical'?'uses':'loaded'}${w.automatic?' · AUTO':''}${w.kind==='sniper'?' · 2 AP':''}`;}
+/** Update busy. */
 function setBusy(value){busy=value;document.body.classList.toggle('busy',value);$('preparation').inert=value;$('equipment').inert=value;}
+/** Send one state request and reconcile its authoritative response. */
 async function request(path,data){
   if(busy)return;activeRequest=path;setBusy(true);
   try{
@@ -44,8 +96,11 @@ async function request(path,data){
   }catch(error){pending=null;message(error.message);if($('loadout-error'))$('loadout-error').textContent=error.message;}
   finally{activeRequest=null;setBusy(false);if(state)render();}
 }
+/** Submit an authoritative action for the selected unit. */
 function act(action,extra={}){goalVersion++;goalKey=null;pending=null;return request('/api/action',{action,unit:selected,...extra});}
+/** Request a non-mutating tactical action preview. */
 function preview(action,extra={}){return request('/api/preview',{action,unit:selected,...extra});}
+/** Change order mode and clear stale previews. */
 function refreshMode(next,note=''){
   mode=next;goalVersion++;goalKey=null;pending=null;
   for(const [id,value] of [['move-mode','move'],['attack-mode','attack'],['face-mode','face']])$(id)?.classList.toggle('active',value===mode);
@@ -53,8 +108,11 @@ function refreshMode(next,note=''){
   minimap.draw(state,selected,battlefield.controls.target);
   message(note||'Single-click a goal to preview; double-click it to execute.');
 }
+/** Cancel the current tactical preview. */
 function cancel(){refreshMode(mode,'Preview cancelled. Choose another point.');}
+/** Select a squad member and focus the tactical camera. */
 function select(id){if(busy)return;selected=id;goalVersion++;goalKey=null;pending=null;mode='move';battlefield.setView('auto');$('view-level').value='auto';render();battlefield.focus(soldier());}
+/** Render all game UI from the current authoritative state. */
 function render(){
   $('theme-label').textContent=`${state.scenery.label.toUpperCase()} / ${state.size} × ${state.size}`;
   document.querySelector('.mission h1').textContent=state.mission.label;
@@ -80,6 +138,7 @@ function render(){
   actionAudio.setListener(state,battlefield.camera);
   minimap.draw(state,selected,battlefield.controls.target);
 }
+/** Render controls and equipment for the selected fighter. */
 function renderDetails(){
   const u=soldier();if(!u){$('details').textContent='No surviving operatives.';return;}
   const w=state.weapons[u.weapon],item=u.inventory[u.weapon],enabled=u.hp>0&&u.ap>0&&state.status==='active';
@@ -96,7 +155,9 @@ function renderDetails(){
   document.querySelectorAll('[data-portal]').forEach(b=>{const data={action:'interact',unit:selected,portal:b.dataset.portal};b.onclick=()=>chooseGoal(data);b.ondblclick=()=>chooseGoal(data,true);});
   document.querySelectorAll('[data-climb]').forEach(b=>{const [x,y,z]=b.dataset.climb.split(',').map(Number),data={action:'move',unit:selected,x,y,z};b.onclick=()=>chooseGoal(data);b.ondblclick=()=>chooseGoal(data,true);});
 }
+/** Return controls for nearby doors, windows, and fieldcraft. */
 function interactionPanel(u,enabled){const portals=state.interactions[u.id]||[],transitions=state.transitions[u.id]||[],corners=state.corners?.[u.id]||[];if(!portals.length&&!transitions.length&&!corners.length)return '';return `<div class="interactions"><div class="eyebrow">NEARBY INTERACTIONS</div><div class="interaction-icons">${corners.map(p=>`<button class="icon-button" data-peek="${p.x},${p.y},${p.z}" title="Peek ${p.x<u.x?'west':p.x>u.x?'east':p.y<u.y?'north':'south'} and retreat · 1 AP · enemy hit chance ≤10%" aria-label="Peek around cover" ${!enabled?'disabled':''}>${icon('peek')}</button>`).join('')}${portals.map(p=>`<button class="icon-button" data-portal="${p.id}" title="Double-click to ${p.open?'close':'open'} ${p.side} ${p.kind} · 1 AP" aria-label="${p.open?'Close':'Open'} ${p.kind}" ${!enabled?'disabled':''}>${icon(p.kind)}</button>`).join('')}${transitions.map(p=>`<button class="icon-button" data-climb="${p.x},${p.y},${p.z}" title="Double-click to climb to level ${p.z}" aria-label="Climb to level ${p.z}" ${!enabled?'disabled':''}>${icon(p.z>u.z?'up':'down')}</button>`).join('')}</div></div>`;}
+/** Render the currently previewed tactical order. */
 function renderOrderInfo(){
   if(!pending)return;
   let detail=`${pending.action.toUpperCase()} PREVIEW · ${pending.name} · ${pending.cost} AP`;
@@ -109,6 +170,7 @@ function renderOrderInfo(){
   if(pending.action==='heal')detail+=` · +${pending.heal} HP`;
   message(detail+' · Double-click goal to execute; Esc cancels.');
 }
+/** Validate a clicked goal and preview or execute its action. */
 async function chooseGoal(data,execute=false){
   if(busy&&activeRequest!=='/api/preview')return;
   const key=JSON.stringify(data);
@@ -121,6 +183,7 @@ async function chooseGoal(data,execute=false){
     executedVersion=version;await request('/api/action',pending.payload);goalKey=null;
   }
 }
+/** Resolve a canvas pointer event to tactical scene data. */
 function pick(hit,execute=false){
   if(!state||(busy&&activeRequest!=='/api/preview')||state.status!=='active')return;
   const u=state.units.find(u=>u.id===hit.unit),memory=state.last_seen?.find(m=>m.id===hit.memory);
@@ -132,12 +195,15 @@ function pick(hit,execute=false){
   const data=mode==='attack'?(state.weapons[soldier().weapon].kind==='medical'?{action:'heal',unit:selected,target:u?.id}:{action:'attack',unit:selected,x:p.x,y:p.y,z:p.z,...(hit.structure?{structure:hit.structure}:{})}):{action:'move',unit:selected,x:p.x,y:p.y,z:p.z};
   chooseGoal(data,execute);
 }
+/** Update UI messaging for the currently hovered scene target. */
 function hover(hit){if(!state)return;if(!hit){$('tile-info').textContent='RECON VIEW';return;}if(hit.transition){$('tile-info').textContent=`${hit.transition.startsWith('ladder:')?'LADDER':'STAIRS'} · L${hit.ends[0][2]} ↔ L${hit.ends[1][2]} · Double-click to approach or climb`;return;}if(hit.portal){const p=state.portals.find(p=>p.id===hit.portal);if(p){$('tile-info').textContent=`${p.open?'OPEN':'CLOSED'} ${p.kind.toUpperCase()} · L${p.a[2]}`;return;}}if(hit.memory){const m=state.last_seen.find(m=>m.id===hit.memory);$('tile-info').textContent=`${m.name} · LAST SEEN ROUND ${m.round} · UNCONFIRMED`;return;}const u=state.units.find(u=>u.id===hit.unit),p=[...state.props,...state.buildings].find(p=>p.id===hit.structure);$('tile-info').textContent=u?`${u.name} · ${u.hp}/${u.max_hp} HP · L${u.z}`:p?`${p.name||p.kind} · ${p.hp}/${p.max_hp} HP`:`TILE ${hit.x+1}, ${hit.y+1} · L${hit.z}`;}
+/** Create or restore the editable squad loadout. */
 function initializeDraft(){
   if(draft)return;const saved=cookieJSON('turn4turn_loadout'),soldiers=state.units.filter(u=>u.team==='soldier'),slots=['primary','sidearm','utility1','utility2'];
   if(saved&&soldiers.every(u=>saved[u.id]&&slots.every(slot=>state.weapons[saved[u.id][slot]]))){draft=saved;return;}
   draft={};soldiers.forEach((u,i)=>draft[u.id]={primary:u.weapon,sidearm:'M9',utility1:i===2?'Smoke grenade':'Frag grenade',utility2:i===3?'Demolition charge':'RPG-7'});
 }
+/** Render mission configuration and squad loadouts. */
 function renderPreparation(){
   initializeDraft();
   $('loadout-content').innerHTML=`<div class="mission-options"><label>MISSION<select id="mission-type">${Object.entries(state.missions).map(([key,m])=>`<option value="${key}" ${configMission===key?'selected':''}>${m.label}</option>`).join('')}</select></label><label>THEATER<select id="mission-theme">${[['random','Random theater'],...Object.entries(state.themes).map(([key,t])=>[key,t.label])].map(([key,label])=>`<option value="${key}" ${configTheme===key?'selected':''}>${label}</option>`).join('')}</select></label><label>MAP SIZE<select id="mission-size">${[24,30,40].map((n,i)=>`<option value="${n}" ${configSize===n?'selected':''}>${['Compact','Standard','Large'][i]} · ${n} × ${n}</option>`).join('')}</select></label><div class="mission-summary">${state.mission.objective}<small>${state.size*state.size} ground tiles · randomized layout</small></div></div><p class="small-note">Click an equipment image to replace it. Four different items per fighter. Every slot accepts any weapon or item.</p><div class="loadout-grid">${state.units.filter(u=>u.team==='soldier').map((u,i)=>`<article class="loadout-card"><div class="loadout-person"><span class="portrait portrait-${i}"></span><div><b>${u.name}</b><small>${u.role}</small></div></div>${['primary','sidearm','utility1','utility2'].map((slot,j)=>`<div class="slot"><span class="eyebrow">${`SLOT ${j+1}`}</span><button class="equipment-slot" data-slot="${u.id}:${slot}" title="Choose equipment for ${u.name}">${itemArt(draft[u.id][slot])}<b>${draft[u.id][slot]}</b></button></div>`).join('')}</article>`).join('')}</div><div class="deploy-row"><div><b>Ready for insertion</b><p id="loadout-error" role="alert">Equipment is fixed after deployment.</p></div>${button('deploy','deploy','Deploy equipped squad')}</div>`;
@@ -162,6 +228,7 @@ function renderPreparation(){
   document.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{editSlot=b.dataset.slot.split(':');openEquipment();});
   $('deploy').onclick=()=>{if($('save-loadout').checked)setCookie('turn4turn_loadout',draft);else deleteCookie('turn4turn_loadout');request('/api/action',{action:'deploy',loadouts:draft});};
 }
+/** Open equipment. */
 function openEquipment(){
   const choices=itemOrder;
   $('equipment-title').textContent=editSlot?'Choose equipment for this slot':'Equipment catalog';
@@ -169,12 +236,19 @@ function openEquipment(){
   document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{draft[editSlot[0]][editSlot[1]]=b.dataset.choice;$('equipment').close();renderPreparation();});
   if(!$('equipment').open)$('equipment').showModal();
 }
+/** Request a new configurable standalone mission. */
 function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';configLighting=state?.lighting||'day';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});}
+/** Persist current campaign progress in the browser. */
 function campaignSave(){if(campaignProgress)setCookie('turn4turn_campaign',campaignProgress);}
+/** Load campaign save. */
 function loadCampaignSave(){const p=cookieJSON('turn4turn_campaign');return p?.id===campaignData.id&&Number.isInteger(p.index)&&p.index>=0&&p.index<=campaignData.missions.length?p:null;}
+/** Close dialogs. */
 function closeDialogs(){for(const d of document.querySelectorAll('dialog[open]'))d.close();}
+/** Show landing. */
 function showLanding(){screen='landing';closeDialogs();$('campaign-screen').hidden=true;$('landing').hidden=false;}
+/** Show game. */
 function showGame(){screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state)render();}
+/** Render campaign progress and available actions. */
 function renderCampaign(){
   const p=campaignProgress||{id:campaignData.id,index:0};$('campaign-title').textContent=campaignData.title;$('campaign-description').textContent=campaignData.description;
   $('campaign-progress').innerHTML=campaignData.missions.map((m,i)=>`<button class="campaign-node ${i<p.index?'complete':i===p.index?'current':'locked'}" data-campaign-mission="${i}" ${i!==p.index?'disabled':''}><small>${String(i+1).padStart(2,'0')} · ${i<p.index?'COMPLETE':i===p.index?'CURRENT':'LOCKED'}</small><b>${escape(m.title)}</b><span>${escape(m.objective)}</span></button>`).join('');
@@ -182,9 +256,13 @@ function renderCampaign(){
   document.querySelector('[data-campaign-mission]:not([disabled])')?.addEventListener('click',startCampaignMission);$('new-campaign').onclick=()=>{campaignProgress={id:campaignData.id,index:0,activeSeed:null};campaignSave();renderCampaign();};
   $('resume-campaign')?.addEventListener('click',startCampaignMission);$('replay-campaign')?.addEventListener('click',()=>{campaignProgress={id:campaignData.id,index:0,activeSeed:null};campaignSave();startCampaignMission();});
 }
+/** Show campaign. */
 function showCampaign(){screen='campaign';campaignRun=true;closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=false;campaignProgress=loadCampaignSave()||{id:campaignData.id,index:0,activeSeed:null};renderCampaign();}
+/** Start campaign mission. */
 function startCampaignMission(){if(busy||campaignProgress.index>=campaignData.missions.length)return;const m=campaignData.missions[campaignProgress.index];campaignRun=true;campaignProgress.activeSeed=m.seed;campaignSave();draft=null;selected='s0';mode='move';configTheme=m.theme;configSize=m.size;configDifficulty=m.difficulty;configMission=m.mission;configLighting=m.lighting;showGame();request('/api/new',m);}
+/** Advance and persist campaign progress after victory. */
 function recordCampaignVictory(){if(!campaignProgress||campaignProgress.activeSeed!==state.seed)return;campaignProgress.index=Math.min(campaignData.missions.length,campaignProgress.index+1);campaignProgress.activeSeed=null;campaignSave();}
+/** Start single. */
 function startSingle(){campaignRun=false;showGame();newMission();}
 hydrate();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
@@ -199,12 +277,14 @@ document.addEventListener('click',e=>{if(e.target.closest('button'))actionAudio.
 document.addEventListener('change',e=>{if(e.target.matches('select'))actionAudio.play({type:'button'});});
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
 if(await ensureSession())try{
-  battlefield=new Battlefield($('map'),pick,hover);
+  const gpuTest=await gpuTestPromise;
+  battlefield=await Battlefield.create($('map'),pick,hover,gpuTest);
+  showRendererStatus();
   await battlefield.ready;
   minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
   battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
   campaignData=await fetch('/api/campaign').then(r=>r.json());
   request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;configDifficulty=state.difficulty;configMission=state.mission.key;configLighting=state.lighting;if(new URLSearchParams(location.search).get('mode')==='single'){campaignRun=false;showGame();}else showLanding();}});
-}catch(error){message('WebGL could not start. Enable WebGL in your browser and reload. '+error.message);$('phase').textContent='WEBGL REQUIRED';}
+}catch(error){message('Neither WebGPU nor WebGL could start. Enable hardware acceleration and reload. '+error.message);$('phase').textContent='GRAPHICS REQUIRED';}
 // Expose the renderer instance for integration tests and local development tools.
 export {battlefield};

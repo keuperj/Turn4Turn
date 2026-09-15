@@ -1,6 +1,8 @@
+/** @fileoverview Build visual props, buildings, portals, and architectural details. */
 import * as G from './rendering.js';
 
 // Theme props share the footprints used by Python collision/pathfinding.
+/** Add one scenery prop and its visual details to the battlefield. */
 export function addProp(view, p, parent=view.terrain) {
   if(p.destroyed){view.box(parent,p.width*.8,.12,p.depth*.8,p.x+(p.width-1)/2,.06,p.y+(p.depth-1)/2,0x45443e);return;}
   const group=new G.Group();parent.add(group);
@@ -98,6 +100,7 @@ export function addProp(view, p, parent=view.terrain) {
   return group;
 }
 
+/** Add one building, its floors, portals, and details to the battlefield. */
 export function addBuilding(view,b,state){
   const parent=view.terrain,start=parent.children.length;
   if(b.destroyed){view.box(parent,b.width,.14,b.depth,b.x+(b.width-1)/2,.07,b.y+(b.depth-1)/2,0x66625b);return;}

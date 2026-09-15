@@ -3,7 +3,7 @@
 Turn-based tactical operations in the browser. Command a four-person fireteam,
 manage limited action points and equipment, clear multi-storey environments, and
 keep civilians alive. Python runs the authoritative simulation while Babylon.js
-renders the battlefield locally with WebGL 2.
+renders the battlefield locally with WebGPU and an automatic WebGL 2 fallback.
 
 > A vibe coding project by [Janis Keuper](https://github.com/keuperj), built with GPT-6 Astra.
 
@@ -41,10 +41,13 @@ renders the battlefield locally with WebGL 2.
 ## Requirements
 
 - Python 3.10 or newer
-- A modern browser with WebGL 2 enabled
+- A modern browser with WebGPU or WebGL 2 enabled
 - No Python packages for normal play
 
-The battlefield currently uses WebGL through Babylon.js. WebGPU is not enabled.
+The landing page runs a bounded capability check. Babylon.js selects WebGPU only
+after adapter, device, compute, and canvas stages pass; WebGL 2 remains the
+default when the check is unavailable, fails, or times out. WebGPU initialization
+failures also fall back to WebGL 2.
 
 ## Setup
 
@@ -238,6 +241,10 @@ order is executed.
 The Python state is authoritative. The renderer handles presentation and input,
 but it cannot decide whether an action is legal or alter hidden simulation state.
 
+Maintained Python modules, classes, and functions use docstrings. Maintained
+browser modules and named APIs use JSDoc. Bundled third-party libraries under
+`static/vendor/` and `static/comparison/vendor/` retain their upstream comments.
+
 ## Engine comparison
 
 Start the game and visit [http://localhost:8000/comparison/](http://localhost:8000/comparison/)
@@ -257,6 +264,7 @@ Optional browser checks require Playwright and Chromium:
 
 ```sh
 python3 tests/browser_smoke.py --browser /snap/bin/chromium
+python3 tests/browser_webgpu.py
 python3 tests/browser_campaign.py
 python3 tests/browser_interiors.py
 python3 tests/browser_babylon.py
@@ -285,8 +293,8 @@ For experimental Firefox testing, open `about:config`, set
 `dom.webgpu.enabled` to `true`, restart Firefox, and inspect the Graphics
 section of `about:support` if the adapter is still unavailable.
 
-Before enabling the WebGPU renderer, check that Chromium can acquire a GPU
-adapter and complete both compute and canvas-rendering work:
+To validate WebGPU independently of the game, check that Chromium can acquire a
+GPU adapter and complete both compute and canvas-rendering work:
 
 ```sh
 python3 tools/check_webgpu.py
@@ -302,7 +310,7 @@ Chromium's full headless implementation with its Vulkan WebGPU backend enabled.
 
 The suite covers game rules, all themes and map sizes, fog-of-war privacy,
 interiors, loadout validation, campaign persistence, session isolation, player
-capacity, real WebGL interaction, animation, and audio fallback behavior.
+capacity, WebGPU and WebGL rendering, animation, and audio fallback behavior.
 
 ## Assets and credits
 

@@ -4,7 +4,9 @@ import math
 
 
 class Arsenal:
+    """Manage equipment, deployable utilities, and destructible structures."""
     def deploy(self, data):
+        """Validate all requested loadouts and equip the squad atomically."""
         from game import WEAPONS
         if self.status != 'loadout':raise ValueError('Equipment can only be assigned before deployment.')
         selections=data.get('loadouts')
@@ -26,11 +28,13 @@ class Arsenal:
         self.log.append('Squad equipped and deployed. Timed charges detonate after two hostile phases; smoke lasts three.')
 
     def init_structures(self):
+        """Initialize health and identifiers for destructible world objects."""
         for p in self.props+self.buildings:
             hp=140 if 'level' in p else {'aircraft':100,'train':90,'car':35,'truck':50,'tractor':45}.get(p.get('kind'),30)
             p.update(hp=hp,max_hp=hp,destroyed=False)
 
     def smoke_blocks(self,a,b):
+        """Return whether active smoke blocks the line between two points."""
         dx=b['x']-a['x'];dy=b['y']-a['y'];length=dx*dx+dy*dy
         if not length:return False
         for s in self.smoke+self.fires:
@@ -40,6 +44,7 @@ class Arsenal:
         return False
 
     def place_utility(self,u,x,y,z):
+        """Place a smoke grenade or demolition charge in the world."""
         kind='smoke' if u['weapon']=='Smoke grenade' else 'charge'
         self.spend_ammo(u);u['ap']=0
         effect=dict(x=x,y=y,z=z,radius=3 if kind=='smoke' else 4,turns=3 if kind=='smoke' else 2)
@@ -49,6 +54,7 @@ class Arsenal:
         self.geometry_revision+=1
 
     def tick_utilities(self):
+        """Advance timed utilities and resolve expirations or detonations."""
         for smoke in self.smoke:smoke['turns']-=1
         self.smoke=[s for s in self.smoke if s['turns']>0]
         for fire in self.fires:fire['turns']-=1
@@ -71,9 +77,11 @@ class Arsenal:
 
     @staticmethod
     def footprint(p):
+        """Return every ground coordinate occupied by a structure."""
         return [(x,y,0) for x in range(p['x'],p['x']+p['width']) for y in range(p['y'],p['y']+p['depth'])]
 
     def structure_targets(self,u):
+        """Return damageable structures intersecting a blast area."""
         from game import WEAPONS
         w=WEAPONS[u['weapon']]
         if w['kind'] in ('smoke','charge','grenade','rocket','medical') or not u['ap']:return []
@@ -90,6 +98,7 @@ class Arsenal:
         return targets
 
     def fire_structure(self,u,uid):
+        """Resolve a direct weapon attack against a structure."""
         from game import WEAPONS
         t=next((t for t in self.structure_targets(u) if t['id']==uid),None)
         w=WEAPONS[u['weapon']]
@@ -106,12 +115,14 @@ class Arsenal:
         self.geometry_revision+=1
 
     def damage_area(self,x,y,z,radius,power):
+        """Apply blast damage to units and structures around a point."""
         for p in self.props+self.buildings:
             distance=min(math.hypot(a-x,b-y) for a,b,_ in self.footprint(p))
             if not p.get('destroyed') and distance<=radius and (z==0 or 'level' in p):
                 self.damage_structure(p,max(1,round(power*(1-distance/(radius+1)))))
 
     def ignite(self,x,y,z,radius=1):
+        """Create a temporary fire hazard at an impact position."""
         candidates=[(a,b,z) for a,b,c in self.surfaces if c==z and math.hypot(a-x,b-y)<=radius]
         self.rng.shuffle(candidates)
         occupied={(f['x'],f['y'],f['z']) for f in self.fires}
@@ -120,6 +131,7 @@ class Arsenal:
         self.geometry_revision+=1
 
     def damage_structure(self,p,damage):
+        """Apply damage and collapse a structure when health is exhausted."""
         if p.get('destroyed'):return
         p['hp']=max(0,p['hp']-damage)
         if p['hp']:return

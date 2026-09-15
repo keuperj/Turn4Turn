@@ -4,11 +4,14 @@ from visibility import SIGHT
 
 
 class Targeting:
+    """Validate previews and attacks against units, terrain, and structures."""
     def target_structure(self, data):
+        """Return the damageable structure at a targeted world position."""
         uid=data.get('structure')
         return next((p for p in self.props+self.buildings if p['id']==uid and not p.get('destroyed')),None)
 
     def attack_solution(self,u,data):
+        """Validate an attack and return its resolved targeting data."""
         from game import WEAPONS
         w=WEAPONS[u['weapon']]
         if w['kind']=='medical':raise ValueError('Medikits treat teammates; select a wounded teammate.')
@@ -48,6 +51,7 @@ class Targeting:
                     friendly=bool(target and target['team']!='alien'),weapon=u['weapon'])
 
     def preview(self,data):
+        """Return a non-mutating movement or attack preview for the client."""
         if self.status!='active':raise ValueError('Deploy the squad first.')
         self.refresh_visibility()
         u=next((u for u in self.alive('soldier') if u['id']==data.get('unit')),None)
@@ -70,6 +74,7 @@ class Targeting:
         raise ValueError('Unknown preview action.')
 
     def attack_point(self,u,data):
+        """Resolve an attack against a visible point in the world."""
         from game import WEAPONS
         solution=self.attack_solution(u,data)
         x,y,z=solution['x'],solution['y'],solution['z'];w=WEAPONS[u['weapon']]

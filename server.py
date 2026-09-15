@@ -15,22 +15,29 @@ game=Game(deployed=False)  # Compatibility alias for local development tools.
 
 @dataclass
 class PlayerSession:
+    """Store one player identity, game instance, activity time, and lock."""
     user_id:str;username:str;game:Game
     last_seen:float=field(default_factory=time.monotonic)
     lock:threading.RLock=field(default_factory=threading.RLock)
 
 class SessionRegistry:
-    def __init__(self):self.sessions={};self.lock=threading.RLock()
+    """Create, retrieve, and expire isolated player sessions safely."""
+    def __init__(self):
+        """Initialize an empty thread-safe session registry."""
+        self.sessions={};self.lock=threading.RLock()
     def prune(self,now=None):
+        """Remove sessions that have exceeded the inactivity timeout."""
         now=time.monotonic() if now is None else now
         for uid,s in list(self.sessions.items()):
             if now-s.last_seen>SESSION_TIMEOUT:del self.sessions[uid]
     def get(self,uid):
+        """Return an active session and refresh its last-seen timestamp."""
         with self.lock:
             self.prune();s=self.sessions.get(uid)
             if s:s.last_seen=time.monotonic()
             return s
     def create(self,username,requested_id=None):
+        """Create or reconnect a player unless server capacity is exhausted."""
         global game
         with self.lock:
             self.prune()
@@ -43,33 +50,41 @@ class SessionRegistry:
 registry=SessionRegistry()
 
 class Handler(BaseHTTPRequestHandler):
+    """Serve static assets and the authoritative JSON game API."""
     def send(self,status,body,content_type='application/json',cookies=()):
+        """Write an HTTP response with cache, content, and cookie headers."""
         self.send_response(status);self.send_header('Content-Type',content_type);self.send_header('Cache-Control','no-store')
         for cookie in cookies:self.send_header('Set-Cookie',cookie)
         self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
     def cookies(self):
+        """Parse request cookies into a plain string dictionary."""
         parsed=SimpleCookie()
         try:parsed.load(self.headers.get('Cookie',''))
         except Exception:return {}
         return {key:value.value for key,value in parsed.items()}
     def player(self):
+        """Return the player session identified by the request cookie."""
         uid=self.cookies().get(USER_COOKIE,'');return registry.get(uid) if USER_ID.fullmatch(uid) else None
     def require_player(self):
+        """Return the current session or send an authorization error."""
         s=self.player()
         if s and len(registry.sessions)==1 and s.game is not game:s.game=game
         if not s:self.send(401,json.dumps({'error':'Cookie consent and a user name are required.','needs_consent':True}).encode())
         return s
     def read_json(self):
+        """Read and validate a size-limited JSON object request body."""
         length=int(self.headers.get('Content-Length','0'))
         if not 0<length<=16384:raise ValueError('Invalid request size.')
         data=json.loads(self.rfile.read(length))
         if not isinstance(data,dict):raise ValueError('Expected a JSON object.')
         return data
     def serve_file(self,file,root=ROOT):
+        """Serve a regular file only when it remains under the allowed root."""
         file=file.resolve()
         if file.is_relative_to(root.resolve()) and file.is_file():self.send(200,file.read_bytes(),mimetypes.guess_type(str(file))[0] or 'application/octet-stream')
         else:self.send(404,b'Not found','text/plain')
     def do_GET(self):
+        """Route read-only API, diagnostic, and static-asset requests."""
         path=self.path.split('?')[0]
         if path=='/api/session':
             s=self.player()
@@ -90,7 +105,7 @@ class Handler(BaseHTTPRequestHandler):
             if PATTERN.fullmatch(name) and file.is_file() and not file.is_symlink():self.serve_file(file)
             else:self.send(404,b'Not found','text/plain')
             return
-        if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/audio.js'):
+        if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/audio.js','/webgpu-check.js'):
             self.serve_file(ROOT/path.lstrip('/'));return
         if path in ('/gpu-test','/gpu-test/'):path='/gpu-test.html'
         files={'/':('index.html','text/html; charset=utf-8'),'/style.css':('style.css','text/css'),'/campaign.css':('campaign.css','text/css'),'/app.js':('app.js','text/javascript'),
@@ -98,6 +113,7 @@ class Handler(BaseHTTPRequestHandler):
         if path not in files:self.send(404,b'Not found','text/plain');return
         filename,mime=files[path];self.send(200,(ROOT/filename).read_bytes(),mime)
     def do_POST(self):
+        """Route consent and state-changing game API requests."""
         global game
         path=self.path.split('?')[0]
         try:

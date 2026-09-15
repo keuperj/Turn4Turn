@@ -7,7 +7,9 @@ PROFILE={'standing':1.0,'kneeling':.8,'prone':.55}
 
 
 class FogOfWar:
+    """Track exploration, current visibility, and privacy-safe enemy memory."""
     def init_fog(self):
+        """Initialize explored tiles and last-seen contact state."""
         self.explored=set()
         self.visible=set()
         self.known_tiles={};self.known_walls={};self.known_buildings={};self.known_props={};self.known_corpses={};self.known_enemies={}
@@ -15,15 +17,18 @@ class FogOfWar:
         self.refresh_visibility()
 
     def sees(self, observer, target):
+        """Return whether one unit currently has line of sight to another."""
         if observer['hp']<=0 or target.get('evacuated'):return False
         distance=math.sqrt((observer['x']-target['x'])**2+(observer['y']-target['y'])**2+((observer['z']-target['z'])*2)**2)
         light=.58 if self.lighting=='night' else 1
         return distance<=(20 if observer.get('weapon')=='M24 sniper' and observer['stance']=='standing' else SIGHT[observer['stance']])*light*PROFILE[target.get('stance','standing')] and self.line_of_sight(observer,target)
 
     def detected(self, unit):
+        """Return whether a unit is currently detected by the opposing team."""
         return unit['team']=='soldier' or any(self.sees(s,unit) for s in self.alive('soldier'))
 
     def refresh_visibility(self):
+        """Recompute visible tiles and remembered contacts for both teams."""
         if not hasattr(self,'explored'):return
         key=(self.geometry_revision,self.lighting,tuple((self.position(s),s['stance'],s['hp'],s.get('weapon')) for s in self.alive('soldier')))
         if key!=self._fog_key:
@@ -70,10 +75,12 @@ class FogOfWar:
                 self.known_enemies.pop(u['id'],None)
 
     def remember_enemy(self,u):
+        """Store the last public observation of a newly hidden enemy."""
         self.known_enemies[u['id']]={k:u[k] for k in ('id','name','x','y','z','stance')}
         self.known_enemies[u['id']]['round']=self.round
 
     def public_last_seen(self):
+        """Return last-seen contacts safe to expose to the player."""
         detected={u['id'] for u in self.alive('alien') if self.detected(u)}
         markers=[]
         for uid,m in list(self.known_enemies.items()):
@@ -85,17 +92,20 @@ class FogOfWar:
         return markers
 
     def public_units(self):
+        """Return units filtered to prevent hidden-state disclosure."""
         units=[copy.deepcopy(u) for u in self.units if u['team']=='soldier' or (u['hp']>0 and not u['evacuated'] and self.detected(u))]
         ids={u['id'] for u in units}
         units.extend(copy.deepcopy(u) for uid,u in self.known_corpses.items() if uid not in ids)
         return units
 
     def emit(self, event, actor=None):
+        """Append an event after removing information hidden by fog of war."""
         if actor is None or self.detected(actor):
             if actor is not None:event['actor']=copy.deepcopy(actor)
             self.events.append(event)
 
     def public_world(self):
+        """Return terrain and structures visible or remembered by the player."""
         tiles=[[self.known_tiles.get((x,y),'unknown') for x in range(self.size)] for y in range(self.size)]
         heights=[[0]*self.size for _ in range(self.size)]
         for b in self.known_buildings.values():
