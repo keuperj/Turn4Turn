@@ -250,6 +250,43 @@ python3 tests/browser_babylon.py
 python3 tests/browser_audio.py
 ```
 
+### Browser WebGPU readiness test
+
+With the server running, open [http://localhost:8000/gpu-test](http://localhost:8000/gpu-test).
+The page tests the visiting browser's GPU—not the server's—and reports:
+
+- secure-context and WebGPU API availability;
+- hardware or fallback adapter identity;
+- GPU features and capacity limits;
+- device creation, WGSL compute, and canvas rendering; and
+- browser-specific recovery hints when a stage fails.
+
+Remote visitors must use HTTPS. A network URL such as
+`http://192.168.1.50:8000/gpu-test` is not a secure context and browsers will
+not expose WebGPU there. The test does not send detected hardware information
+back to the server.
+
+Firefox enables WebGPU by default on supported Windows releases and Apple
+silicon Macs. On Linux and Intel Macs, use the current Firefox Nightly build.
+For experimental Firefox testing, open `about:config`, set
+`dom.webgpu.enabled` to `true`, restart Firefox, and inspect the Graphics
+section of `about:support` if the adapter is still unavailable.
+
+Before enabling the WebGPU renderer, check that Chromium can acquire a GPU
+adapter and complete both compute and canvas-rendering work:
+
+```sh
+python3 tools/check_webgpu.py
+# Or select a browser explicitly:
+python3 tools/check_webgpu.py --browser /snap/bin/chromium
+```
+
+The check exits with status 0 when WebGPU works and status 1 when the API,
+adapter, device, compute shader, or canvas render is unavailable. Use `--json`
+for machine-readable output and `--headed` to diagnose differences between
+headless and interactive browser sessions. On Linux, the checker starts
+Chromium's full headless implementation with its Vulkan WebGPU backend enabled.
+
 The suite covers game rules, all themes and map sizes, fog-of-war privacy,
 interiors, loadout validation, campaign persistence, session isolation, player
 capacity, real WebGL interaction, animation, and audio fallback behavior.

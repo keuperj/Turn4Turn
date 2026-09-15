@@ -92,7 +92,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/audio.js'):
             self.serve_file(ROOT/path.lstrip('/'));return
-        files={'/':('index.html','text/html; charset=utf-8'),'/style.css':('style.css','text/css'),'/campaign.css':('campaign.css','text/css'),'/app.js':('app.js','text/javascript')}
+        if path in ('/gpu-test','/gpu-test/'):path='/gpu-test.html'
+        files={'/':('index.html','text/html; charset=utf-8'),'/style.css':('style.css','text/css'),'/campaign.css':('campaign.css','text/css'),'/app.js':('app.js','text/javascript'),
+               '/gpu-test.html':('gpu-test.html','text/html; charset=utf-8'),'/gpu-test.css':('gpu-test.css','text/css'),'/gpu-test.js':('gpu-test.js','text/javascript')}
         if path not in files:self.send(404,b'Not found','text/plain');return
         filename,mime=files[path];self.send(200,(ROOT/filename).read_bytes(),mime)
     def do_POST(self):
