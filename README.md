@@ -95,6 +95,21 @@ Alternatively, listen on all network interfaces with `--host 0.0.0.0`. Remote
 players should open the server machine's actual IP address (for example,
 `http://192.168.1.50:8000`), not `0.0.0.0`.
 
+To enable HTTPS, pass `--https` and preferably bind to the exact name or IP that
+players will open:
+
+```sh
+python3 server.py --host 192.168.1.50 --https
+```
+
+The server uses the `openssl` command to create a one-year self-signed
+certificate in `.certs/`, then reuses it on later starts. Open
+`https://192.168.1.50:8000` and accept the browser's warning for this local
+certificate. In Firefox, choose **Advanced…** and **Accept the Risk and
+Continue**. For repeated use, import the generated `.crt` file into the client
+system or browser trust store. A public server should use a certificate from a
+trusted certificate authority instead.
+
 ## Server configuration
 
 Command-line options:
@@ -104,11 +119,12 @@ Command-line options:
 | `--host ADDRESS` | `127.0.0.1` | IP address or host name to bind to. Use `0.0.0.0` for all interfaces. |
 | `--port PORT` | `8000` | HTTP port. |
 | `--max-players COUNT` | `10` | Maximum number of active, isolated player sessions. Must be at least 1. |
+| `--https` | off | Generate or reuse a local self-signed certificate and serve HTTPS. |
 
 Example:
 
 ```sh
-python3 server.py --host 0.0.0.0 --port 8080 --max-players 20
+python3 server.py --host 0.0.0.0 --port 8080 --max-players 20 --https
 ```
 
 Additional constants are defined near the top of `server.py`:
@@ -282,7 +298,7 @@ The page tests the visiting browser's GPU—not the server's—and reports:
 - device creation, WGSL compute, and canvas rendering; and
 - browser-specific recovery hints when a stage fails.
 
-Remote visitors must use HTTPS. A network URL such as
+Remote visitors must use HTTPS (start the server with `--https`). A network URL such as
 `http://192.168.1.50:8000/gpu-test` is not a secure context and browsers will
 not expose WebGPU there. The test does not send detected hardware information
 back to the server.

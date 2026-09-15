@@ -1,5 +1,5 @@
-"""Multi-player HTTP server. Run with: python3 server.py"""
-import argparse, json, mimetypes, re, threading, time, uuid
+"""Multi-player HTTP/HTTPS server. Run with: python3 server.py"""
+import argparse, ipaddress, json, mimetypes, re, socket, ssl, subprocess, tempfile, threading, time, uuid
 from dataclasses import dataclass, field
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -8,7 +8,7 @@ from urllib.parse import quote
 from game import Game
 from audio_assets import discover, PATTERN
 
-ROOT=Path(__file__).parent/'static';CAMPAIGN_FILE=Path(__file__).parent/'campaigns'/'operation_turning_point.json'
+ROOT=Path(__file__).parent/'static';CAMPAIGN_FILE=Path(__file__).parent/'campaigns'/'operation_turning_point.json';CERTIFICATE_DIR=Path(__file__).parent/'.certs'
 MAX_PLAYERS=10;SESSION_TIMEOUT=30*60;COOKIE_AGE=365*24*60*60
 USER_COOKIE='turn4turn_user';NAME_COOKIE='turn4turn_name';USER_ID=re.compile(r'^[0-9a-f]{32}$')
 game=Game(deployed=False)  # Compatibility alias for local development tools.
@@ -123,7 +123,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not 2<=len(username)<=30 or any(ord(c)<32 for c in username):raise ValueError('User name must contain 2 to 30 visible characters.')
                 s=registry.create(username,self.cookies().get(USER_COOKIE,''))
                 if not s:self.send(503,json.dumps({'error':'The server is full. Please try again later.','full':True}).encode());return
-                secure='; Secure' if self.headers.get('X-Forwarded-Proto')=='https' else '';attrs=f'; Path=/; Max-Age={COOKIE_AGE}; SameSite=Lax{secure}'
+                native_tls=isinstance(self.connection,ssl.SSLSocket)
+                secure='; Secure' if native_tls or self.headers.get('X-Forwarded-Proto')=='https' else '';attrs=f'; Path=/; Max-Age={COOKIE_AGE}; SameSite=Lax{secure}'
                 self.send(200,json.dumps({'accepted':True,'username':username}).encode(),cookies=[f'{USER_COOKIE}={s.user_id}{attrs}; HttpOnly',f'{NAME_COOKIE}={quote(username)}{attrs}']);return
             if path not in ('/api/action','/api/new','/api/preview'):self.send(404,b'{}');return
             s=self.require_player()
@@ -140,9 +141,72 @@ class Handler(BaseHTTPRequestHandler):
                 self.send(200,json.dumps(s.game.state()).encode())
         except (ValueError,TypeError,json.JSONDecodeError) as exc:self.send(400,json.dumps({'error':str(exc)}).encode())
 
-if __name__=='__main__':
-    parser=argparse.ArgumentParser(description='Turn4Turn tactical combat');parser.add_argument('--host',default='127.0.0.1',metavar='ADDRESS',help='IP address or host name to bind to (default: 127.0.0.1)');parser.add_argument('--port',type=int,default=8000);parser.add_argument('--max-players',type=int,default=MAX_PLAYERS);args=parser.parse_args()
+def _certificate_names(host):
+    """Return a common name and SAN entries suitable for the bind address."""
+    host=host.strip().removeprefix('[').removesuffix(']')
+    dns_names={'localhost'};ip_addresses={'127.0.0.1','::1'}
+    try:
+        address=ipaddress.ip_address(host)
+        if not address.is_unspecified:ip_addresses.add(str(address))
+    except ValueError:
+        if not re.fullmatch(r'[A-Za-z0-9.-]+',host):raise ValueError(f'Invalid HTTPS host name: {host!r}')
+        dns_names.add(host)
+    local_name=socket.gethostname()
+    if re.fullmatch(r'[A-Za-z0-9.-]+',local_name):dns_names.add(local_name)
+    if host in ('0.0.0.0','::'):
+        try:
+            for info in socket.getaddrinfo(local_name,None):
+                candidate=info[4][0].split('%')[0]
+                try:ip_addresses.add(str(ipaddress.ip_address(candidate)))
+                except ValueError:pass
+        except socket.gaierror:pass
+    common_name=host if host not in ('0.0.0.0','::') else local_name
+    sans=[*(f'DNS:{name}' for name in sorted(dns_names)),*(f'IP:{address}' for address in sorted(ip_addresses))]
+    return common_name,','.join(sans)
+
+def ensure_self_signed_certificate(host,directory=CERTIFICATE_DIR):
+    """Create or reuse a one-year self-signed TLS certificate for ``host``."""
+    directory=Path(directory);directory.mkdir(mode=0o700,parents=True,exist_ok=True)
+    safe_host=re.sub(r'[^A-Za-z0-9_.-]+','_',host.strip('[]')) or 'localhost'
+    certificate=directory/f'turn4turn-{safe_host}.crt';private_key=directory/f'turn4turn-{safe_host}.key'
+    if certificate.is_file() and private_key.is_file():
+        try:valid=subprocess.run(['openssl','x509','-checkend','86400','-noout','-in',str(certificate)],capture_output=True).returncode==0
+        except FileNotFoundError:valid=True
+        if valid:return certificate,private_key,False
+    common_name,sans=_certificate_names(host)
+    try:
+        with tempfile.TemporaryDirectory(dir=directory) as temporary:
+            temporary=Path(temporary);new_certificate=temporary/'certificate.crt';new_key=temporary/'private.key'
+            result=subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-sha256','-days','365','-nodes','-keyout',str(new_key),'-out',str(new_certificate),'-subj',f'/CN={common_name}','-addext',f'subjectAltName={sans}','-addext','keyUsage=digitalSignature,keyEncipherment','-addext','extendedKeyUsage=serverAuth'],capture_output=True,text=True)
+            if result.returncode:raise RuntimeError(f'OpenSSL could not create the certificate: {result.stderr.strip()}')
+            new_key.chmod(0o600);new_certificate.chmod(0o644)
+            new_key.replace(private_key);new_certificate.replace(certificate)
+    except FileNotFoundError as exc:raise RuntimeError('The openssl command is required to generate an HTTPS certificate.') from exc
+    return certificate,private_key,True
+
+def create_server(host,port,use_https=False,certificate_directory=CERTIFICATE_DIR,handler_class=Handler):
+    """Build the threaded server and optionally wrap its socket with TLS."""
+    certificate=private_key=None;created=False
+    if use_https:certificate,private_key,created=ensure_self_signed_certificate(host,certificate_directory)
+    httpd=ThreadingHTTPServer((host,port),handler_class)
+    if use_https:
+        context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(certificate,private_key)
+        httpd.socket=context.wrap_socket(httpd.socket,server_side=True)
+    return httpd,certificate,created
+
+def main(argv=None):
+    """Parse command-line options and serve requests until interrupted."""
+    global MAX_PLAYERS
+    parser=argparse.ArgumentParser(description='Turn4Turn tactical combat');parser.add_argument('--host',default='127.0.0.1',metavar='ADDRESS',help='IP address or host name to bind to (default: 127.0.0.1)');parser.add_argument('--port',type=int,default=8000);parser.add_argument('--max-players',type=int,default=MAX_PLAYERS);parser.add_argument('--https',action='store_true',help='generate/reuse a self-signed certificate and serve HTTPS');args=parser.parse_args(argv)
     if args.max_players<1:parser.error('--max-players must be at least 1')
-    MAX_PLAYERS=args.max_players;print(f'Turn4Turn ready at http://{args.host}:{args.port} (max {MAX_PLAYERS} active players)',flush=True)
-    try:ThreadingHTTPServer((args.host,args.port),Handler).serve_forever()
+    MAX_PLAYERS=args.max_players
+    try:httpd,certificate,created=create_server(args.host,args.port,args.https)
+    except (OSError,RuntimeError,ValueError) as exc:parser.error(str(exc))
+    scheme='https' if args.https else 'http';url_host=f'[{args.host}]' if ':' in args.host and not args.host.startswith('[') else args.host
+    print(f'Turn4Turn ready at {scheme}://{url_host}:{args.port} (max {MAX_PLAYERS} active players)',flush=True)
+    if certificate:print(f"Self-signed certificate {'created' if created else 'reused'}: {certificate}",flush=True)
+    try:httpd.serve_forever()
     except KeyboardInterrupt:print('\nServer stopped.')
+    finally:httpd.server_close()
+
+if __name__=='__main__':main()

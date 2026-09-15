@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.certs/
 
 # Local API credentials
 .env

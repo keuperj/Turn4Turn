@@ -5,6 +5,7 @@ channels:
 
 dependencies:
   - python=3.10
+  - openssl>=3
   - pip>=24
   - pytest>=8
   - flake8>=7
