@@ -104,7 +104,7 @@ class Handler(BaseHTTPRequestHandler):
             if PATTERN.fullmatch(name) and file.is_file() and not file.is_symlink():self.serve_file(file)
             else:self.send(404,b'Not found','text/plain')
             return
-        if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/audio.js','/webgpu-check.js'):
+        if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/audio.js','/webgpu-check.js','/webgpu-quality.js','/webgpu-nature.js'):
             self.serve_file(ROOT/path.lstrip('/'));return
         if path in ('/gpu-test','/gpu-test/'):path='/gpu-test.html'
         files={'/':('index.html','text/html; charset=utf-8'),'/style.css':('style.css','text/css'),'/campaign.css':('campaign.css','text/css'),'/app.js':('app.js','text/javascript'),

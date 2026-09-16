@@ -76,6 +76,8 @@ try:
                 gpuTest: document.documentElement.dataset.gpuTest,
                 webgpu: battlefield.engine instanceof BABYLON.WebGPUEngine,
                 meshes: battlefield.nativeScene.meshes.length,
+                quality: Boolean(battlefield.qualityPipeline),
+                generatedStone: battlefield.concreteMat.native.albedoTexture.url,
                 status: document.querySelector('#gpu-status').className,
                 target: document.querySelector('#gpu-status').getAttribute('href'),
             };
@@ -83,8 +85,21 @@ try:
         assert result['renderer'] == 'webgpu', result
         assert result['gpuTest'] == 'pass', result
         assert result['webgpu'] and result['meshes'] > 100, result
+        assert result['quality'], result
+        assert result['generatedStone'].endswith('/assets/limestone-webgpu-v1.png'), result
         assert result['status'] == 'gpu-status available', result
         assert result['target'] == '/gpu-test', result
+        tree = page.evaluate('''async () => {
+            const {battlefield}=await import('/app.js');
+            const {addProp}=await import('/environment.js');
+            const group=addProp(battlefield,{id:'detail-tree-test',kind:'tree_oak',x:-5,y:-5,width:1,depth:1,hp:100,max_hp:100,variant:2});
+            const branch=group.native.getChildMeshes().find(m=>m.name==='tree-branches');
+            const owner=branch?.metadata?.pickOwner;
+            return {pickable:branch?.isPickable,structure:owner?.userData.structure,
+                registered:battlefield.pickables.includes(owner),
+                healthLabel:battlefield.pickables.some(o=>o!==owner&&o.userData.structure==='detail-tree-test')};
+        }''')
+        assert tree == {'pickable':True,'structure':'detail-tree-test','registered':True,'healthLabel':True}, tree
         assert not errors, errors
         page.close()
         diagnostic = webgpu.new_page()
@@ -116,6 +131,8 @@ try:
                 renderer: battlefield.renderer,
                 gpuTest: document.documentElement.dataset.gpuTest,
                 webgl: battlefield.engine instanceof BABYLON.Engine,
+                quality: Boolean(battlefield.qualityPipeline),
+                generatedStone: battlefield.concreteMat.native.albedoTexture.url,
                 status: document.querySelector('#gpu-status').className,
             };
         }""")
@@ -123,6 +140,8 @@ try:
             'renderer': 'webgl',
             'gpuTest': 'fail',
             'webgl': True,
+            'quality': False,
+            'generatedStone': '/assets/concrete-weathered-v2.webp',
             'status': 'gpu-status fallback',
         }, result
         assert not errors, errors

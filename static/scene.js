@@ -4,6 +4,8 @@ import {B,OrbitControls} from './rendering.js';
 import {CharacterAssets} from './characters.js';
 import {addProp,addBuilding} from './environment.js';
 import {actionAudio} from './audio.js';
+import {qualityLighting,qualityMaterials} from './webgpu-quality.js';
+import {smokeCanvas,detailedEffects,detailedTree} from './webgpu-nature.js';
 
 // Geometry is genuinely three-dimensional; Python supplies all walkable surfaces.
 /** Manage the Babylon battlefield and its WebGPU or WebGL engine. */
@@ -75,6 +77,12 @@ export class Battlefield {
     this.groundAccentMat=new G.MeshStandardMaterial({map:this.ground,roughness:1});
     this.uniform=new G.MeshStandardMaterial({map:this.camo,bumpMap:this.camo,bumpScale:.025,color:0xc8c8b7,roughness:1});
     this.pickMaterial=new G.MeshBasicMaterial({visible:false});this.fogMaterials={explored:new G.MeshBasicMaterial({color:0x071016,transparent:true,opacity:.72,depthWrite:false}),unseen:new G.MeshBasicMaterial({color:0x000000})};this.moveMaterials=[1,2].map(cost=>new G.MeshBasicMaterial({color:cost===1?0x68d1e5:0xe9c677,transparent:true,opacity:.23,side:G.DoubleSide,depthWrite:false}));for(const m of [...Object.values(this.fogMaterials),...this.moveMaterials])m.userData.shared=true;
+    if(this.renderer==='webgpu'){
+      this.qualityPipeline=qualityLighting(this.nativeScene,this.camera.native,this.sun,this.shadows);
+      this.qualityMaps=qualityMaterials(this.nativeScene);
+      this.concreteMat.native.albedoTexture=this.qualityMaps.stone;
+      for(const m of [this.concreteMat,this.groundMat,this.pavedGroundMat])m.native.bumpTexture=this.qualityMaps.normal;
+    }
     this.ray=new G.Raycaster();this.pointer=new G.Vector2();
     canvas.addEventListener('contextmenu',e=>e.preventDefault());
     canvas.addEventListener('pointerdown',e=>{this.down={x:e.clientX,y:e.clientY,button:e.button};});
@@ -92,11 +100,11 @@ export class Battlefield {
   /** Generate a deterministic procedural material texture. */
   surfaceTexture(kind){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),base={wood:'#b7a585',brick:'#b58f7e',metal:'#aab3b1',asphalt:'#777d7d',soil:'#9b865f',paint:'#c5c7c1'}[kind];ctx.fillStyle=base;ctx.fillRect(0,0,256,256);let seed=17+kind.length*997;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};for(let i=0;i<3200;i++){const v=Math.floor(80+random()*130),alpha=kind==='asphalt'?.16:.10;ctx.fillStyle=`rgba(${v},${v},${v},${alpha})`;const long=kind==='wood'||kind==='metal';ctx.fillRect(random()*256,random()*256,long?18+random()*28:1+random()*3,1+random()*1.5);}ctx.strokeStyle=kind==='metal'?'#e1e7e255':'#5e625b66';ctx.lineWidth=2;if(kind==='wood'){for(let x=0;x<256;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,256);ctx.stroke();}}else if(kind==='brick'){for(let y=0;y<256;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(256,y);ctx.stroke();for(let x=(y/24%2)*32;x<256;x+=64){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+24);ctx.stroke();}}}else if(kind==='metal'){for(let x=0;x<256;x+=42){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,256);ctx.stroke();}}else if(kind==='asphalt'){for(let i=0;i<90;i++){ctx.fillStyle=i%3?'#d6d4c918':'#252b2c20';ctx.beginPath();ctx.arc(random()*256,random()*256,random()*2.2+.3,0,Math.PI*2);ctx.fill();}}else if(kind==='soil'){ctx.strokeStyle='#5e533638';for(let y=8;y<256;y+=16){ctx.beginPath();ctx.moveTo(0,y);ctx.bezierCurveTo(64,y+5,190,y-4,256,y+2);ctx.stroke();}}else{for(let i=0;i<20;i++){ctx.fillStyle='#727e7840';ctx.fillRect(random()*256,random()*256,5+random()*16,1);}}const t=new G.CanvasTexture(c);t.colorSpace=G.SRGBColorSpace;t.wrapS=t.wrapT=G.RepeatWrapping;t.repeat.set(2,2);return t;}
   /** Generate the procedural texture used by smoke effects. */
-  cloudTexture(){const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d');for(let i=0;i<18;i++){const x=64+Math.sin(i*2.4)*27,y=64+Math.cos(i*2.4)*27,r=20+i%4*5,g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba(220,226,224,.25)');g.addColorStop(.45,'rgba(182,194,191,.14)');g.addColorStop(1,'rgba(170,184,180,0)');ctx.fillStyle=g;ctx.fillRect(0,0,128,128);}return new G.CanvasTexture(c);}
+  cloudTexture(){if(this.renderer==='webgpu')return new G.CanvasTexture(smokeCanvas());const c=document.createElement('canvas');c.width=c.height=128;const ctx=c.getContext('2d');for(let i=0;i<18;i++){const x=64+Math.sin(i*2.4)*27,y=64+Math.cos(i*2.4)*27,r=20+i%4*5,g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba(220,226,224,.25)');g.addColorStop(.45,'rgba(182,194,191,.14)');g.addColorStop(1,'rgba(170,184,180,0)');ctx.fillStyle=g;ctx.fillRect(0,0,128,128);}return new G.CanvasTexture(c);}
   /** Resize rendering resources to their displayed dimensions. */
   resize(){const w=this.canvas.parentElement.clientWidth,h=this.canvas.parentElement.clientHeight;this.engine.setSize(w,h);this.camera.updateProjectionMatrix();}
   /** Return a cached, finish-aware battlefield material. */
-  material(color,finish='paint'){const key=String(color)+':'+finish;if(this.materialCache.has(key))return this.materialCache.get(key);const textured=!['skin','rubber','glass'].includes(finish);if(textured&&!this.surfaceMaps[finish]&&['metal','asphalt','soil'].includes(finish))this.surfaceMaps[finish]=this.surfaceTexture(finish);const map=textured?(this.surfaceMaps[finish]||this.concrete):null;const m=new G.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:finish==='wood'?.025:.008,roughness:finish==='skin'?.82:finish==='glass'?.16:finish==='paint'?.48:finish==='metal'?.36:.9,metalness:finish==='paint'?.18:finish==='metal'?.65:0,transparent:finish==='glass',opacity:finish==='glass'?.68:1});m.userData.shared=true;this.materialCache.set(key,m);return m;}
+  material(color,finish='paint'){const key=String(color)+':'+finish;if(this.materialCache.has(key))return this.materialCache.get(key);const textured=!['skin','rubber','glass'].includes(finish);if(textured&&!this.surfaceMaps[finish]&&['metal','asphalt','soil'].includes(finish))this.surfaceMaps[finish]=this.surfaceTexture(finish);const map=textured?(this.surfaceMaps[finish]||this.concrete):null;const m=new G.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:finish==='wood'?.025:.008,roughness:finish==='skin'?.82:finish==='glass'?.16:finish==='paint'?.48:finish==='metal'?.36:.9,metalness:finish==='paint'?.18:finish==='metal'?.65:0,transparent:finish==='glass',opacity:finish==='glass'?.68:1});if(this.renderer==='webgpu'&&this.qualityMaps&&textured){m.native.bumpTexture=this.qualityMaps.normal;if(finish==='concrete')m.native.albedoTexture=this.qualityMaps.stone;if(finish==='brick')m.native.albedoTexture=this.qualityMaps.brick;if(finish==='wood')m.native.albedoTexture=this.qualityMaps.timber;}m.userData.shared=true;this.materialCache.set(key,m);return m;}
 
   /** Create and attach a box-shaped scene element. */
   box(parent,w,h,d,x,y,z,mat){const m=new G.Mesh(new G.BoxGeometry(w,h,d),typeof mat==='object'?mat:this.material(mat));m.position.set(x,y,z);m.receiveShadow=true;if(Math.max(w,h,d)>=.48&&w*h*d>.018)m.castShadow=true;parent.add(m);return m;}
@@ -136,6 +144,15 @@ export class Battlefield {
     const natural=['woods','farm'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
     this.groundMat.color.set(natural?theme.ground:0xffffff);this.pavedGroundMat.color.set(natural?0xc6c0b4:theme.ground);this.groundAccentMat.color.set(0xffffff);
     const n=state.size,c=(n-1)/2;
+    if(this.renderer==='webgpu'){
+      // Context is outside the playable grid and contains no tactical information.
+      this.box(this.terrain,n+70,.25,n+70,c,-.72,c,groundMaterial);
+      for(let i=0;i<12;i++){
+        const x=-12+i*(n+24)/11,z=-10-(i%3)*3;
+        if(natural){const backdrop=new G.Group();this.terrain.add(backdrop);detailedTree(this.nativeScene,backdrop.native,[x,0,z],this.shadows,.8,i);}
+        else{const h=3+(i*7%5);this.box(this.terrain,3.8,h,4,x,h/2-.5,z,this.material(0xc1b4a0,i%3===0?'brick':'concrete'));for(let y=1;y<h-.5;y+=1.5)for(const dx of [-1,0,1])this.box(this.terrain,.45,.70,.025,x+dx,y,z+2.02,this.material(0x344d56,'glass'));}
+      }
+    }
     this.box(this.terrain,n+2,.4,n+2,c,-.4,c,0x18282b);
     const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
     const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
@@ -239,7 +256,7 @@ export class Battlefield {
     this.clear(this.overlay);this.flames=[];
     const points=mode==='attack'?[]:state.movement[selected]||[];
     if(state.status==='active')for(const cost of [1,2])this.tiles(this.overlay,points.filter(p=>p.cost===cost&&this.surfaceVisible(p.x,p.y,p.z)).map(p=>({x:p.x,y:p.z*3+.05,z:p.y})),this.moveMaterials[cost-1],.91);
-    for(const smoke of state.smoke||[]){for(let i=0;i<9;i++){const m=new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color:0xaab0ad,opacity:.6,depthWrite:false}));m.position.set(smoke.x+Math.sin(i*2.4)*smoke.radius*.6,smoke.z*3+.6+(i%3)*.4,smoke.y+Math.cos(i*2.4)*smoke.radius*.6);m.scale.set(smoke.radius*1.7,smoke.radius*1.7,1);this.overlay.add(m);}const label=this.label(`SMOKE ${smoke.turns}`,'#e2e5e2',1.5);label.position.set(smoke.x,smoke.z*3+2.3,smoke.y);this.overlay.add(label);}
+    for(const smoke of state.smoke||[]){for(let i=0;i<(this.renderer==='webgpu'?18:9);i++){const m=new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color:0xaab0ad,opacity:.6,depthWrite:false}));m.position.set(smoke.x+Math.sin(i*2.4)*smoke.radius*.6,smoke.z*3+.6+(i%3)*.4,smoke.y+Math.cos(i*2.4)*smoke.radius*.6);m.scale.set(smoke.radius*1.7,smoke.radius*1.7,1);this.overlay.add(m);}const label=this.label(`SMOKE ${smoke.turns}`,'#e2e5e2',1.5);label.position.set(smoke.x,smoke.z*3+2.3,smoke.y);this.overlay.add(label);}
     for(const fire of state.fires||[]){for(let i=0;i<4;i++){const flame=new G.Mesh(new G.IcosahedronGeometry(.25+i*.035,1),new G.MeshBasicMaterial({color:i%2?0xffb12b:0xf04a19,transparent:true,opacity:.82,depthWrite:false}));flame.position.set(fire.x+(i%2-.5)*.28,fire.z*3+.28+(i%3)*.14,fire.y+(Math.floor(i/2)-.5)*.25);this.overlay.add(flame);this.flames.push({mesh:flame,base:flame.position.y,phase:i*1.7+fire.x});}for(let i=0;i<5;i++){const smoke=new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color:0x4f5655,opacity:.52,depthWrite:false}));smoke.position.set(fire.x+Math.sin(i*2.3)*.38,fire.z*3+.9+(i%3)*.42,fire.y+Math.cos(i*2.3)*.38);smoke.scale.set(1.4+i*.16,1.4+i*.16,1);this.overlay.add(smoke);}const label=this.label(`FIRE · ${fire.turns}`,'#ffb16e',1.35);label.position.set(fire.x,fire.z*3+2.7,fire.y);this.overlay.add(label);}
     for(const charge of state.charges||[]){this.box(this.overlay,.35,.18,.28,charge.x,charge.z*3+.1,charge.y,0x605746);const label=this.label(`CHARGE · ${charge.turns} PHASES`,'#ffb27d',1.7);label.position.set(charge.x,charge.z*3+.6,charge.y);this.overlay.add(label);}
     const u=state.units.find(u=>u.id===selected&&u.hp>0);
@@ -333,7 +350,11 @@ export class Battlefield {
         if(e.origin){const model=this.models.get(e.unit);if(model){const yaw=Math.atan2(e.origin[0]-e.point[0],e.origin[1]-e.point[1]),from=model.rotation.y,delta=Math.atan2(Math.sin(yaw-from),Math.cos(yaw-from));await this.tween(120,t=>model.rotation.y=from+delta*t);}const origin=new G.Vector3(e.origin[0],e.origin[2]*3+1.1,e.origin[1]);const bullet=new G.Mesh(new G.SphereGeometry(.07,6,4),new G.MeshBasicMaterial({color:0xffe8b2}));this.fx.add(bullet);await this.tween(e.burst?35:100,t=>bullet.position.lerpVectors(origin,point,t));this.clear(this.fx);}
         actionAudio.play({type:'impact',point:e.point});await this.burst(point,e.hit&&!e.structure?0xb52a2c:0xffd18a,.7,e.burst?65:240);this.clear(this.fx);
       }
-      if(e.type==='blast'){
+      if(e.type==='blast'&&this.renderer==='webgpu'){
+        const effect=detailedEffects(this.nativeScene),origin=[e.x,e.z*3+.2,e.y];
+        try{await this.tween(1700,t=>effect.update({kind:'explosion',age:t*4},origin,Math.max(.5,e.radius*.55)));}finally{effect.dispose();}
+      }
+      if(e.type==='blast'&&this.renderer!=='webgpu'){
         const point=new G.Vector3(e.x,e.z*3+.35,e.y);
         const fireballs=[];for(let i=0;i<7;i++){const fire=new G.Mesh(new G.IcosahedronGeometry(.3+(i%3)*.12,1),new G.MeshBasicMaterial({color:i%2?0xffd05a:0xff5a20,transparent:true,opacity:.95}));fire.position.copy(point);this.fx.add(fire);fireballs.push({fire,offset:new G.Vector3(Math.sin(i*2.4),.25+(i%3)*.28,Math.cos(i*2.4))});}
         const ring=new G.Mesh(new G.RingGeometry(.8,1,32),new G.MeshBasicMaterial({color:0xfac881,transparent:true,side:G.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.copy(point);ring.position.y=e.z*3+.20;this.fx.add(ring);

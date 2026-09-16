@@ -1,5 +1,6 @@
 /** @fileoverview Load, instance, animate, and release Babylon character models. */
 import {B} from './rendering.js';
+import {dressCharacter} from './webgpu-quality.js';
 
 // One local glTF source, independent skeletons and animation groups per fighter.
 /** Manage loaded character containers and animated instances. */
@@ -22,6 +23,7 @@ export class CharacterAssets {
     for(const part of [...body.children])if(part!==weapon){part.dispose();}
     const instance=this.source.instantiateModelsToScene(name=>`${unit.id}:${name}`,true,{doNotInstantiate:true});
     const root=instance.rootNodes[0];root.parent=body.native;root.scaling.scaleInPlace(this.scale);root.position.y=-this.bottom*this.scale;root.rotationQuaternion=B.Quaternion.RotationAxis(B.Axis.Y,Math.PI);
+    if(this.view.renderer==='webgpu'&&unit.team!=='civilian')dressCharacter(this.view.nativeScene,root,this.view.shadows);
     const meshes=root.getChildMeshes(),tinted=new Set();for(const m of meshes){m.metadata={pickOwner:model};m.isPickable=!unit.corpse;m.receiveShadows=true;this.view.shadows.addShadowCaster(m,false);
       if(unit.team!=='soldier'&&m.material?.albedoColor&&!tinted.has(m.material)){tinted.add(m.material);const c=m.material.albedoColor;if(c.g>c.r*1.1&&c.g>c.b*1.1)m.material.albedoColor=unit.team==='alien'?new B.Color3(.25,.07,.045):new B.Color3(.045,.13,.28);}
     }
