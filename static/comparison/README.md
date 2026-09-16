@@ -60,3 +60,21 @@ Background facades now use generated limestone/brick materials, window sills, mu
 Trees use generated bark, tapered branching geometry and alpha-tested leaf sprays with veins, merged into two meshes per tree. The WebGPU effect pool contains 148 smoke/fire/spark/debris/dust elements plus a brief local light. Effects are deterministic functions of simulation time and obey pause/reset. They are layered raster particles, not volumetric fluid simulation. Shared generated timber, brick, tree and smoke improvements also apply to the game's WebGPU path, along with the enhanced blast effect; WebGL keeps the original implementation.
 
 Five new albedo textures are in `/assets/{brick,timber,bark,car-red,car-blue}-webgpu-v2.png`. Exact built-in image generation prompts and provenance are in `../assets/PROMPTS.md`. Runtime leaf masks and smoke opacity textures are procedural.
+
+## Main-game scenario details
+
+The WebGPU game now shares the comparison's corrected hatchback/estate geometry in
+`/webgpu-vehicles.js`. `/webgpu-scenery.js` dresses all seven scenario types with
+textured surroundings, furniture, vehicle fittings and architecture. Oak, birch,
+pine and bushes use merged branches and alpha-tested foliage. Persistent smoke
+and fire use smaller continuously animated particle pools; explosions retain the
+full comparison effect. Emitters are reused across UI updates and disposed when
+removed from authoritative state. Decorative backgrounds stay outside the board;
+prop picking, collision footprints, fog and floor cutaways remain game-controlled.
+All additions are gated on WebGPU; WebGL retains its previous rendering path.
+
+Run `python3 tests/browser_webgpu_scenery.py` to exercise all seven scenarios,
+opaque cars, picking, vehicle bounds, cutaways and emitter cleanup. It writes GPU
+readback images to `/tmp/game-*-webgpu.png`. Existing generated texture assets are
+reused, with scenario-specific finishes and palettes; no runtime generation or
+external texture service is required.
