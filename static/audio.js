@@ -22,7 +22,7 @@ export class ActionAudio {
   }
   /** Reload the server-provided local audio catalog. */
   async refreshCatalog(){
-    try{const response=await fetch('/api/audio');if(!response.ok)throw Error('Audio catalog unavailable');this.manifest=await response.json();this.buffers.clear();}
+    try{const response=await fetch('/api/audio');if(!response.ok)throw Error('Audio catalog unavailable');this.manifest=await response.json();}
     catch{this.manifest={};}
   }
   /** Create or resume the Web Audio context after user interaction. */
@@ -36,7 +36,7 @@ export class ActionAudio {
         this.master.connect(limiter).connect(this.context.destination);
       }
       await this.context.resume();await this.catalogReady;
-      this.preload();this.startAmbience();
+      if(this.sceneKey)await this.preload();this.startAmbience();
     }catch{this.enabled=false;}
   }
   /** Update enabled. */
@@ -53,19 +53,29 @@ export class ActionAudio {
     return this.buffers.get(url);
   }
   /** Fetch and decode every variant for an audio action. */
-  async preload(){
-    if(!this.context)return;
-    const urls=[...new Set(Object.entries(this.manifest).filter(([a])=>!a.startsWith('ambient_')||a==='ambient_'+this.theme).flatMap(([,samples])=>samples.map(s=>s.url)))];
-    // Limit simultaneous fetches; the Python localhost server is deliberately small.
-    await Promise.all(Array.from({length:4},async()=>{while(urls.length)await this.buffer(urls.shift());}));
+  async preload(onProgress=()=>{}){
+    if(!this.context||!this.enabled){onProgress(1,1);return;}
+    await this.catalogReady;
+    this.progressListeners??=new Set();this.progressListeners.add(onProgress);
+    const report=()=>{for(const listener of this.progressListeners)listener(this.preloadDone||0,this.preloadTotal||0);};
+    if(!this.preloadTask){
+      // Cache every theme as well as action variants for subsequent missions.
+      const urls=[...new Set(Object.values(this.manifest).flatMap(samples=>samples.map(s=>s.url)))];
+      this.preloadDone=0;this.preloadTotal=urls.length;
+      this.preloadTask=Promise.all(Array.from({length:4},async()=>{
+        while(urls.length){await this.buffer(urls.shift());this.preloadDone++;report();}
+      })).finally(()=>{this.preloadTask=null;});
+    }
+    report();
+    try{await this.preloadTask;}finally{this.progressListeners.delete(onProgress);}
   }
   /** Load the sound catalog and current theme ambience. */
-  async prepare(state){
+  async prepare(state,onProgress=()=>{}){
     const key=`${state.seed}:${state.theme}:${state.status}`;
     if(key===this.sceneKey)return;
     const sameMission=this.sceneSeed===state.seed&&this.sceneTheme===state.theme;this.sceneKey=key;this.sceneSeed=state.seed;this.sceneTheme=state.theme;if(!sameMission||state.status==='loadout')this.stopEffects();this.stopAmbience();this.theme=state.status==='active'?state.theme:null;
-    this.catalogReady=this.refreshCatalog();await this.catalogReady;
-    if(this.context){await this.preload();this.startAmbience();}
+    await this.catalogReady;
+    if(this.context&&this.enabled){await this.preload(onProgress);this.startAmbience();}else onProgress(1,1);
   }
   /** Choose a playable sample for an audio action. */
   choose(action){

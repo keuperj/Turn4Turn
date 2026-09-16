@@ -77,11 +77,36 @@ function soldier(){return state?.units.find(u=>u.id===selected);}
 function message(text){$('message').textContent=text;}
 /** Return a concise equipment-statistics label. */
 function stats(name){const w=state.weapons[name];return `${w.kind==='medical'?w.heal+' HEAL':w.damage+' DMG'} · ${w.range} tiles · ${w.capacity} ${w.kind==='medical'?'uses':'loaded'}${w.automatic?' · AUTO':''}${w.kind==='sniper'?' · 2 AP':''}`;}
+/** Keep loading visible above both the battlefield and preparation dialogs. */
+function loading(label,value){
+  const panel=$('mission-loading');
+  if(!panel.open)panel.showModal();
+  $('loading-detail').textContent=label;
+  if(value===undefined)$('loading-progress').removeAttribute('value');
+  else $('loading-progress').value=value;
+}
+$('mission-loading').addEventListener('cancel',e=>e.preventDefault());
+const paintLoading=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+/** Track texture readiness, then wait for shaders and the complete scene. */
+async function finishLoading(){
+  const panel=$('mission-loading');panel.close();loading('Loading textures…',60);
+  const update=()=>{
+    const textures=battlefield.nativeScene.textures.filter(t=>!t.isRenderTarget),done=textures.filter(t=>t.isReady()).length;
+    loading(done===textures.length?'Preparing scene…':`Loading textures · ${done} / ${textures.length}`,60+35*done/Math.max(1,textures.length));
+  };
+  update();const timer=setInterval(update,100);let timeout;
+  try{
+    await Promise.race([battlefield.nativeScene.whenReadyAsync(),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Mission resources took too long to load. Please reload to retry.')),120000);})]);
+    loading('Ready',100);await paintLoading();
+  }finally{clearInterval(timer);clearTimeout(timeout);}
+}
 /** Update busy. */
 function setBusy(value){busy=value;document.body.classList.toggle('busy',value);$('preparation').inert=value;$('equipment').inert=value;}
 /** Send one state request and reconcile its authoritative response. */
 async function request(path,data){
   if(busy)return;activeRequest=path;setBusy(true);
+  const missionLoad=(['/api/state','/api/new'].includes(path)||path==='/api/action'&&data?.action==='deploy');
+  if(missionLoad){loading('Preparing mission…',5);await paintLoading();}
   try{
     const response=await fetch(path,data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     const result=await response.json();if(!response.ok)throw Error(result.error||'Request failed');
@@ -89,12 +114,13 @@ async function request(path,data){
     else{
       pending=null;
       if(state&&path==='/api/action')try{await battlefield.animate(result.events,data?.action==='end_turn');}catch(error){console.warn('Animation failed; applying authoritative state.',error);}
-      state=result;await actionAudio.prepare(state);
+      state=result;await actionAudio.prepare(state,missionLoad?(done,total)=>loading(`Loading sounds · ${done} / ${total}`,10+50*done/Math.max(1,total)):undefined);
       if(!state.units.some(u=>u.id===selected&&u.hp>0))selected=state.units.find(u=>u.team==='soldier'&&u.hp>0)?.id;
       message(state.status==='loadout'?'Choose the mission and equip your squad.':state.status==='active'?'Single-click a goal to preview; double-click it to execute.':'Mission complete. Prepare another operation.');
     }
+    if(missionLoad&&state){render();await finishLoading();}
   }catch(error){pending=null;message(error.message);if($('loadout-error'))$('loadout-error').textContent=error.message;}
-  finally{activeRequest=null;setBusy(false);if(state)render();}
+  finally{activeRequest=null;setBusy(false);if(state)render();if(missionLoad)$('mission-loading').close();}
 }
 /** Submit an authoritative action for the selected unit. */
 function act(action,extra={}){goalVersion++;goalKey=null;pending=null;return request('/api/action',{action,unit:selected,...extra});}
@@ -277,14 +303,16 @@ document.addEventListener('click',e=>{if(e.target.closest('button'))actionAudio.
 document.addEventListener('change',e=>{if(e.target.matches('select'))actionAudio.play({type:'button'});});
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
 if(await ensureSession())try{
+  loading('Starting renderer…');await paintLoading();
   const gpuTest=await gpuTestPromise;
   battlefield=await Battlefield.create($('map'),pick,hover,gpuTest);
   showRendererStatus();
+  loading('Loading character models and textures…');
   await battlefield.ready;
   minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
   battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
   campaignData=await fetch('/api/campaign').then(r=>r.json());
-  request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;configDifficulty=state.difficulty;configMission=state.mission.key;configLighting=state.lighting;if(new URLSearchParams(location.search).get('mode')==='single'){campaignRun=false;showGame();}else showLanding();}});
-}catch(error){message('Neither WebGPU nor WebGL could start. Enable hardware acceleration and reload. '+error.message);$('phase').textContent='GRAPHICS REQUIRED';}
+  await request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;configDifficulty=state.difficulty;configMission=state.mission.key;configLighting=state.lighting;if(new URLSearchParams(location.search).get('mode')==='single'){campaignRun=false;showGame();}else showLanding();}});
+}catch(error){$('mission-loading').close();message('Neither WebGPU nor WebGL could start. Enable hardware acceleration and reload. '+error.message);$('phase').textContent='GRAPHICS REQUIRED';}
 // Expose the renderer instance for integration tests and local development tools.
 export {battlefield};

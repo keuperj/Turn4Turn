@@ -20,12 +20,57 @@ threading.Thread(target=httpd.serve_forever,daemon=True).start()
 server.game=Game(41,'woods')
 try:
     with sync_playwright() as p:
-        browser=p.chromium.launch(headless=True,executable_path='/snap/bin/chromium',args=['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
+        browser=p.chromium.launch(headless=True,channel='chromium',args=['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
         page=browser.new_page(viewport={'width':1280,'height':900});page.set_default_timeout(60000)
+        requests=[];page.on('request',lambda r:requests.append(r.url) if '/sounds/' in r.url or r.url.endswith('/api/audio') else None)
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+        held=[];hold={'sounds':True}
+        textures=[]
+        page.route('**/assets/concrete-weathered-v2.webp',lambda route:textures.append(route))
+        page.route('**/sounds/**',lambda route:held.append(route) if hold['sounds'] else route.continue_())
         base=f'http://127.0.0.1:{httpd.server_port}'
-        page.goto(base+'/?mode=single');page.wait_for_selector('#welcome[open]');page.locator('#welcome-name').fill('Audio Tester');page.locator('#cookie-consent').check();page.locator('#welcome-form button').click();page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
+        page.goto(base+'/?mode=single');page.wait_for_selector('#welcome[open]');page.locator('#welcome-name').fill('Audio Tester');page.locator('#cookie-consent').check();page.locator('#welcome-form button').click()
+        page.wait_for_function("document.querySelector('#loading-detail').textContent.startsWith('Loading sounds')")
+        assert page.locator('#mission-loading').is_visible()
+        assert float(page.locator('#loading-progress').get_attribute('value'))<60
+        hold['sounds']=False
+        for route in held:route.continue_()
+        page.wait_for_function("document.querySelector('#loading-detail').textContent.startsWith('Loading textures ·')")
+        assert page.locator('#mission-loading').is_visible()
+        assert 60<=float(page.locator('#loading-progress').get_attribute('value'))<95
+        page.unroute('**/assets/concrete-weathered-v2.webp')
+        for route in textures:route.continue_()
+        page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
+        page.wait_for_selector('#mission-loading',state='hidden')
         page.keyboard.press('Shift')
+        page.evaluate("async()=>{const {actionAudio:a}=await import('/audio.js');await a.unlock();await a.preload();}")
+        initial_requests=list(requests)
+        cache=page.evaluate('''async()=>{
+          const {actionAudio:a}=await import('/audio.js'),saved=new Map(a.buffers),progress=[];
+          for(const [seed,theme,status] of [[41,'woods','active'],[41,'woods','victory'],[42,'airport','loadout'],[42,'airport','active'],[42,'airport','defeat']])await a.prepare({seed,theme,status},(done,total)=>progress.push([done,total]));
+          return {same:[...saved].every(([url,promise])=>a.buffers.get(url)===promise),complete:progress.at(-1)[0]===progress.at(-1)[1]};
+        }''')
+        assert cache=={'same':True,'complete':True},cache
+        assert requests==initial_requests, 'Mission transitions must not refetch audio or its catalog'
+        # Deployment displays progress, and a failed mission request releases the modal.
+        page.locator('#new').click()
+        page.wait_for_selector('#preparation[open]')
+        page.wait_for_function("!document.body.classList.contains('busy')")
+        deployment=[]
+        page.route('**/api/action',lambda route:deployment.append(route))
+        page.locator('#deploy').click()
+        page.wait_for_selector('#mission-loading[open]')
+        page.wait_for_timeout(100)
+        page.unroute('**/api/action')
+        for route in deployment:route.continue_()
+        page.wait_for_function("!document.body.classList.contains('busy')")
+        page.wait_for_selector('#mission-loading',state='hidden')
+        page.route('**/api/new',lambda route:route.fulfill(status=500,content_type='application/json',body='{"error":"Test mission failure"}'))
+        page.locator('#new').click()
+        page.wait_for_function("!document.body.classList.contains('busy')")
+        page.wait_for_selector('#mission-loading',state='hidden')
+        page.unroute('**/api/new')
+
         result=page.evaluate('''async()=>{
           const {actionAudio:a,soundAction}=await import('/audio.js');await a.unlock();await a.preload();
           const {battlefield:b}=await import('/app.js');await b.animate([{type:'rocket_launch',point:[14,20,0],target:[14,16,0]}]);
