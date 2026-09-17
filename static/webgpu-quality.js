@@ -32,7 +32,7 @@ export function qualityMaterials(scene){
 export function dressCharacter(scene,root,shadows){
  const cloth=new B.PBRMaterial('webgpu-woven-gear',scene);cloth.albedoColor=B.Color3.FromHexString('#6e7654').toLinearSpace();cloth.roughness=.96;cloth.metallic=0;
  cloth.bumpTexture=qualityMaterials(scene).normal;
- for(const mesh of root.getChildMeshes()){const m=mesh.material;if(m?.albedoColor&&m.albedoColor.g>m.albedoColor.r*1.1)m.bumpTexture=cloth.bumpTexture;}
+ for(const mesh of root.getChildMeshes()){const m=mesh.material;if(m?.albedoColor&&(m.albedoColor.g>m.albedoColor.r*1.1||m.albedoTexture?.url?.endsWith('/camouflage.png')))m.bumpTexture=cloth.bumpTexture;}
  const dark=new B.PBRMaterial('webgpu-straps',scene);dark.albedoColor=B.Color3.FromHexString('#303932').toLinearSpace();dark.roughness=.82;dark.metallic=.12;
  const nodes=[root,...root.getDescendants()];
  const bone=name=>nodes.find(n=>n.name.split(':').at(-1).split('|').at(-1)===name||n.name.endsWith(name));

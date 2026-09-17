@@ -1,0 +1,55 @@
+{
+  "pack": "https://quaternius.com/packs/ultimatedanimatedcharacter.html",
+  "license": "CC0-1.0",
+  "models": [
+    {
+      "id": "Casual_Female",
+      "file": "Casual_Female.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1AYI79-CtvncVV0DW0Mg6_9hRKpX8Y1Pe",
+      "sourceSha256": "b1e5cb8e152bf30fa23956f47698b8f93c9532f416b29539e1297781fe12184f",
+      "sha256": "5715a01fad1574296737483a64dee2f07480223798235fcd7ef994bb95af0d9a"
+    },
+    {
+      "id": "Casual_Male",
+      "file": "Casual_Male.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1Ls3XUkHqIcz3HL9JaW-dNWNnLiQLdkrs",
+      "sourceSha256": "00489f0f7825ec0226c6f9097fdc6db8b25c5639bd6828f354c6d7c10c89c777",
+      "sha256": "39c4ef3001057495c81bd439e047e3feab58170f47325dbc6b3698282355028a"
+    },
+    {
+      "id": "Casual2_Female",
+      "file": "Casual2_Female.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1DUtvr5CikreEvU0ZzR_wHXLW-zuY1bSt",
+      "sourceSha256": "a4bc8d9db8178562db9357d8e2c951a2430c1f4f6871dbd22739c03ce633286f",
+      "sha256": "7035823ffe02083358f97dcac1ca9a949e27875c5592e232ac0d4886252416c7"
+    },
+    {
+      "id": "Casual2_Male",
+      "file": "Casual2_Male.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1vyP4gifMxSfuARNeT7L98pzWOot1GQFD",
+      "sourceSha256": "64ee3dff2eb56de489f09437cf95e255398846537b2ecc35141b8a4ec79e9962",
+      "sha256": "c2da0b6f797932e16ee3306795ae9e56df7ac8402d1cfb41b0ca98f4a0f80ca6"
+    },
+    {
+      "id": "Ninja_Male",
+      "file": "Ninja_Male.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1_7yBlHqHVvwDsxY67r-_Tdrask14R6iC",
+      "sourceSha256": "30435b2fe13c954c440b3496cbfb2fa3c55d911f57e4a731c52fe2ad112dfa61",
+      "sha256": "b3950e0277081a01e34d1febb067f2c71d519fe85d1385b11be4b8c611f1d4b6"
+    },
+    {
+      "id": "OldClassy_Female",
+      "file": "OldClassy_Female.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1wpN8sQIyAHo9DNVB3h3u5STbOvMo6049",
+      "sourceSha256": "f996c724869c8a74ae48314d9dc8e610cfbd8f8191696d7f177e9aac6442794d",
+      "sha256": "1ebd50bf434a5f332685451c64b42236b53e2c231a80b77c81a9a411fd52d9ad"
+    },
+    {
+      "id": "Worker_Male",
+      "file": "Worker_Male.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1rS4HxTBJKur-T_BZRDsvv68J2zr278wn",
+      "sourceSha256": "66319ebf1151ffada21b43f59896b962133f823bb9f4dff647dbd1a644db6a34",
+      "sha256": "95dff5c20e6d876c33cad494eda60c8070e14b45cca2d6f8ae9544bda1fe1509"
+    }
+  ]
+}

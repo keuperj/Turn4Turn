@@ -11,7 +11,23 @@ weights limited to four per vertex. Source and authoring utility remain under
 
 The soldier is stylized. Idle/walk clips are authored skeletal animations;
 kneeling and prone are adapted poses, not bespoke motion-captured animations.
-Team tints and separately modeled equipped weapons are applied at runtime.
+Enemies use `Ninja_Male.glb`. Civilians select deterministically from six male and
+female casual, older, and worker characters using the mission seed and unit ID.
+Original civilian and ninja colors are preserved. Soldiers keep `soldier.glb`;
+rest-pose planar UVs apply the existing camouflage fabric only to green uniform
+materials. Skin, boots and other accessories retain their original materials.
+All variants retain independent skeletons, animations and equipped weapons;
+civilians hide weapons. Each source is independently normalized to 1.62 units.
+
+`characters.json` records the original pack download URLs and source/output hashes.
+Rebuild the seven additional GLBs using the existing Python/Playwright environment:
+
+```sh
+.venv/bin/python tools/import_characters.py /tmp/character-fbx --download
+.venv/bin/python tests/browser_babylon.py
+```
+
+The character assets are **CC0 1.0**, independent of the game's license.
 
 # Transport assets
 
