@@ -1,9 +1,9 @@
 /** @fileoverview Coordinate sessions, UI state, rendering, input, and campaign navigation. */
-import {Battlefield} from './scene.js';
 import {actionAudio} from './audio.js';
 import {icon,button,hydrate} from './icons.js';
 import {Minimap} from './minimap.js';
 import {testWebGPU} from './webgpu-check.js';
+import {LoadingGuide} from './loading-guide.js';
 const $=id=>document.getElementById(id);
 const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','M24 sniper','Smoke grenade','Demolition charge','Shotgun','Medikit'];
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
@@ -77,22 +77,25 @@ function soldier(){return state?.units.find(u=>u.id===selected);}
 function message(text){$('message').textContent=text;}
 /** Return a concise equipment-statistics label. */
 function stats(name){const w=state.weapons[name];return `${w.kind==='medical'?w.heal+' HEAL':w.damage+' DMG'} · ${w.range} tiles · ${w.capacity} ${w.kind==='medical'?'uses':'loaded'}${w.automatic?' · AUTO':''}${w.kind==='sniper'?' · 2 AP':''}`;}
+const previewImages=Object.fromEntries(itemOrder.map(name=>[name,'/assets/'+(photographs[name]||'items.png')]));
+const loadingGuide=new LoadingGuide($('loading-feature'),itemArt,previewImages);
 /** Keep loading visible above both the battlefield and preparation dialogs. */
 function loading(label,value){
   const panel=$('mission-loading');
-  if(!panel.open)panel.showModal();
+  if(!panel.open){panel.showModal();loadingGuide.start(state?.weapons);}
   $('loading-detail').textContent=label;
   if(value===undefined)$('loading-progress').removeAttribute('value');
   else $('loading-progress').value=value;
 }
 $('mission-loading').addEventListener('cancel',e=>e.preventDefault());
+$('mission-loading').addEventListener('close',()=>{if(!$('mission-loading').open)loadingGuide.stop();});
 const paintLoading=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 /** Track texture readiness, then wait for shaders and the complete scene. */
 async function finishLoading(){
-  const panel=$('mission-loading');panel.close();loading('Loading textures…',60);
+  const panel=$('mission-loading');panel.close();loading('Loading textures…',80);
   const update=()=>{
     const textures=battlefield.nativeScene.textures.filter(t=>!t.isRenderTarget),done=textures.filter(t=>t.isReady()).length;
-    loading(done===textures.length?'Preparing scene…':`Loading textures · ${done} / ${textures.length}`,60+35*done/Math.max(1,textures.length));
+    loading(done===textures.length?'Preparing scene…':`Loading textures · ${done} / ${textures.length}`,80+15*done/Math.max(1,textures.length));
   };
   update();const timer=setInterval(update,100);let timeout;
   try{
@@ -102,25 +105,64 @@ async function finishLoading(){
 }
 /** Update busy. */
 function setBusy(value){busy=value;document.body.classList.toggle('busy',value);$('preparation').inert=value;$('equipment').inert=value;}
+/** Fetch heavy renderer code only when a mission is opened. */
+let rendererTask;
+const scripts=new Map();
+function loadScript(url){
+  if(!scripts.has(url))scripts.set(url,new Promise((resolve,reject)=>{
+    const script=document.createElement('script');script.src=url;
+    script.onload=resolve;script.onerror=()=>{scripts.delete(url);script.remove();reject(Error('Could not load game resources. Please try starting the mission again.'));};
+    document.head.append(script);
+  }));
+  return scripts.get(url);
+}
+async function ensureBattlefield(){
+  if(rendererTask)return rendererTask;
+  rendererTask=(async()=>{
+    loading('Loading game engine…',10);await paintLoading();
+    await loadScript('/vendor/babylon.js');await loadScript('/vendor/babylonjs.loaders.min.js');
+    const {Battlefield}=await import('./scene.js');
+    loading('Starting renderer…',20);
+    battlefield=await Battlefield.create($('map'),pick,hover,await gpuTestPromise);
+    showRendererStatus();loading('Loading characters, vehicles, textures and sounds…',30);
+    await battlefield.ready;
+    minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
+    battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
+  })();
+  try{await rendererTask;}catch(error){
+    battlefield?.engine.stopRenderLoop();battlefield?.nativeScene.dispose();battlefield?.engine.dispose();
+    battlefield=null;minimap=null;rendererTask=null;throw error;
+  }
+}
 /** Send one state request and reconcile its authoritative response. */
 async function request(path,data){
   if(busy)return;activeRequest=path;setBusy(true);
   const missionLoad=(['/api/state','/api/new'].includes(path)||path==='/api/action'&&data?.action==='deploy');
-  if(missionLoad){loading('Preparing mission…',5);await paintLoading();}
   try{
+    if(missionLoad){
+      if(!await ensureSession())return;
+      if(campaignRun)campaignSave();
+      loading('Preparing mission…',5);await paintLoading();
+    }
     const response=await fetch(path,data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     const result=await response.json();if(!response.ok)throw Error(result.error||'Request failed');
     if(path==='/api/preview'){pending={...result,payload:data};message('Goal selected. Double-click the same point to execute; Escape cancels.');}
     else{
       pending=null;
+      if(missionLoad){
+        loading('Loading equipment previews…',7);loadingGuide.start(result.weapons);
+        await loadingGuide.preload();loadingGuide.start(result.weapons);await paintLoading();
+        // Artwork is ready before the engine, models, or audio compete for bandwidth.
+        await Promise.all([ensureBattlefield(),actionAudio.prepare(result)]);
+      }
       if(state&&path==='/api/action')try{await battlefield.animate(result.events,data?.action==='end_turn');}catch(error){console.warn('Animation failed; applying authoritative state.',error);}
-      state=result;await actionAudio.prepare(state,missionLoad?(done,total)=>loading(`Loading sounds · ${done} / ${total}`,10+50*done/Math.max(1,total)):undefined);
+      state=result;await actionAudio.prepare(state,missionLoad?(done,total)=>loading(`Loading sounds · ${done} / ${total}`,50+30*done/Math.max(1,total)):undefined);
       if(!state.units.some(u=>u.id===selected&&u.hp>0))selected=state.units.find(u=>u.team==='soldier'&&u.hp>0)?.id;
       message(state.status==='loadout'?'Choose the mission and equip your squad.':state.status==='active'?'Single-click a goal to preview; double-click it to execute.':'Mission complete. Prepare another operation.');
     }
     if(missionLoad&&state){render();await finishLoading();}
-  }catch(error){pending=null;message(error.message);if($('loadout-error'))$('loadout-error').textContent=error.message;}
-  finally{activeRequest=null;setBusy(false);if(state)render();if(missionLoad)$('mission-loading').close();}
+  }catch(error){pending=null;message(error.message);if($('loadout-error'))$('loadout-error').textContent=error.message;if(!battlefield){showLanding();$('startup-error').hidden=false;$('startup-error').textContent=error.message;}}
+  finally{activeRequest=null;setBusy(false);if(state&&battlefield&&minimap)render();if(missionLoad)$('mission-loading').close();}
 }
 /** Submit an authoritative action for the selected unit. */
 function act(action,extra={}){goalVersion++;goalKey=null;pending=null;return request('/api/action',{action,unit:selected,...extra});}
@@ -265,7 +307,7 @@ function openEquipment(){
 /** Request a new configurable standalone mission. */
 function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';configLighting=state?.lighting||'day';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});}
 /** Persist current campaign progress in the browser. */
-function campaignSave(){if(campaignProgress)setCookie('turn4turn_campaign',campaignProgress);}
+function campaignSave(){if(campaignProgress&&cookie('turn4turn_name'))setCookie('turn4turn_campaign',campaignProgress);}
 /** Load campaign save. */
 function loadCampaignSave(){const p=cookieJSON('turn4turn_campaign');return p?.id===campaignData.id&&Number.isInteger(p.index)&&p.index>=0&&p.index<=campaignData.missions.length?p:null;}
 /** Close dialogs. */
@@ -273,7 +315,7 @@ function closeDialogs(){for(const d of document.querySelectorAll('dialog[open]')
 /** Show landing. */
 function showLanding(){screen='landing';closeDialogs();$('campaign-screen').hidden=true;$('landing').hidden=false;}
 /** Show game. */
-function showGame(){screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state)render();}
+function showGame(){$('startup-error').hidden=true;screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state)render();}
 /** Render campaign progress and available actions. */
 function renderCampaign(){
   const p=campaignProgress||{id:campaignData.id,index:0};$('campaign-title').textContent=campaignData.title;$('campaign-description').textContent=campaignData.description;
@@ -283,13 +325,13 @@ function renderCampaign(){
   $('resume-campaign')?.addEventListener('click',startCampaignMission);$('replay-campaign')?.addEventListener('click',()=>{campaignProgress={id:campaignData.id,index:0,activeSeed:null};campaignSave();startCampaignMission();});
 }
 /** Show campaign. */
-function showCampaign(){screen='campaign';campaignRun=true;closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=false;campaignProgress=loadCampaignSave()||{id:campaignData.id,index:0,activeSeed:null};renderCampaign();}
+async function showCampaign(){if(busy)return;try{campaignData??=await fetch('/api/campaign').then(r=>{if(!r.ok)throw Error('Could not load campaign. Please try again.');return r.json();});}catch(error){$('startup-error').hidden=false;$('startup-error').textContent=error.message;return;}screen='campaign';campaignRun=true;closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=false;campaignProgress=loadCampaignSave()||{id:campaignData.id,index:0,activeSeed:null};renderCampaign();}
 /** Start campaign mission. */
 function startCampaignMission(){if(busy||campaignProgress.index>=campaignData.missions.length)return;const m=campaignData.missions[campaignProgress.index];campaignRun=true;campaignProgress.activeSeed=m.seed;campaignSave();draft=null;selected='s0';mode='move';configTheme=m.theme;configSize=m.size;configDifficulty=m.difficulty;configMission=m.mission;configLighting=m.lighting;showGame();request('/api/new',m);}
 /** Advance and persist campaign progress after victory. */
 function recordCampaignVictory(){if(!campaignProgress||campaignProgress.activeSeed!==state.seed)return;campaignProgress.index=Math.min(campaignData.missions.length,campaignProgress.index+1);campaignProgress.activeSeed=null;campaignSave();}
 /** Start single. */
-function startSingle(){campaignRun=false;showGame();newMission();}
+function startSingle(){if(busy)return;campaignRun=false;showGame();newMission();}
 hydrate();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
 $('welcome').addEventListener('cancel',e=>e.preventDefault());
@@ -302,17 +344,10 @@ document.addEventListener('pointerdown',()=>actionAudio.unlock(),{once:true});do
 document.addEventListener('click',e=>{if(e.target.closest('button'))actionAudio.play({type:'button'});});
 document.addEventListener('change',e=>{if(e.target.matches('select'))actionAudio.play({type:'button'});});
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
-if(await ensureSession())try{
-  loading('Starting renderer…');await paintLoading();
-  const gpuTest=await gpuTestPromise;
-  battlefield=await Battlefield.create($('map'),pick,hover,gpuTest);
-  showRendererStatus();
-  loading('Loading character models and textures…');
-  await battlefield.ready;
-  minimap=new Minimap($('minimap'),p=>battlefield.focus(p));
-  battlefield.controls.addEventListener('change',()=>{if(state){minimap.draw(state,selected,battlefield.controls.target);actionAudio.setListener(state,battlefield.camera);}});
-  campaignData=await fetch('/api/campaign').then(r=>r.json());
-  await request('/api/state').then(()=>{if(state){configTheme=state.theme;configSize=state.size;configDifficulty=state.difficulty;configMission=state.mission.key;configLighting=state.lighting;if(new URLSearchParams(location.search).get('mode')==='single'){campaignRun=false;showGame();}else showLanding();}});
-}catch(error){$('mission-loading').close();message('Neither WebGPU nor WebGL could start. Enable hardware acceleration and reload. '+error.message);$('phase').textContent='GRAPHICS REQUIRED';}
+// The landing page needs no mission state, renderer, models, textures or audio.
+showLanding();
+if(new URLSearchParams(location.search).get('mode')==='single'){
+  showGame();request('/api/state');
+}
 // Expose the renderer instance for integration tests and local development tools.
 export {battlefield};

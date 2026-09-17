@@ -1,6 +1,7 @@
 """Multi-player HTTP/HTTPS server. Run with: python3 server.py"""
-import argparse, ipaddress, json, mimetypes, re, socket, ssl, subprocess, tempfile, threading, time, uuid
+import argparse, gzip, ipaddress, json, mimetypes, re, socket, ssl, subprocess, tempfile, threading, time, uuid
 from dataclasses import dataclass, field
+from functools import lru_cache
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,6 +13,28 @@ ROOT=Path(__file__).parent/'static';CAMPAIGN_FILE=Path(__file__).parent/'campaig
 MAX_PLAYERS=10;SESSION_TIMEOUT=30*60;COOKIE_AGE=365*24*60*60
 USER_COOKIE='turn4turn_user';NAME_COOKIE='turn4turn_name';USER_ID=re.compile(r'^[0-9a-f]{32}$')
 game=Game(deployed=False)  # Compatibility alias for local development tools.
+
+# Compress reusable static resources once per file version, not per player.
+# PNG/WebP and compressed audio already have efficient encodings.
+COMPRESSIBLE={'.js','.css','.html','.json','.svg','.glb','.wav'}
+
+@lru_cache(maxsize=32)
+def compressed_asset(path,modified,size):
+    """Cache a gzip representation; stat arguments invalidate edited assets."""
+    return gzip.compress(Path(path).read_bytes(),compresslevel=6,mtime=0)
+
+
+def accepts_gzip(header):
+    """Respect explicit gzip quality values, including an opt-out."""
+    encodings={}
+    for part in header.lower().split(','):
+        fields=part.strip().split(';');quality=1.0
+        for field in fields[1:]:
+            if field.strip().startswith('q='):
+                try:quality=float(field.strip()[2:])
+                except ValueError:quality=0
+        encodings[fields[0].strip()]=quality
+    return encodings.get('gzip',encodings.get('*',0))>0
 
 @dataclass
 class PlayerSession:
@@ -80,8 +103,22 @@ class Handler(BaseHTTPRequestHandler):
     def serve_file(self,file,root=ROOT):
         """Serve a regular file only when it remains under the allowed root."""
         file=file.resolve()
-        if file.is_relative_to(root.resolve()) and file.is_file():self.send(200,file.read_bytes(),mimetypes.guess_type(str(file))[0] or 'application/octet-stream')
-        else:self.send(404,b'Not found','text/plain')
+        if not file.is_relative_to(root.resolve()) or not file.is_file():
+            self.send(404,b'Not found','text/plain');return
+        stat=file.stat();compressed=file.suffix.lower() in COMPRESSIBLE and stat.st_size>=1024 and accepts_gzip(self.headers.get('Accept-Encoding',''))
+        etag=f'"{stat.st_mtime_ns:x}-{stat.st_size:x}-{"gzip" if compressed else "identity"}"'
+        matches=self.headers.get('If-None-Match','').split(',')
+        unchanged=any(value.strip().removeprefix('W/') in (etag,'*') for value in matches)
+        body=b'' if unchanged else compressed_asset(str(file),stat.st_mtime_ns,stat.st_size) if compressed else file.read_bytes()
+        self.send_response(304 if unchanged else 200)
+        self.send_header('Cache-Control','public, max-age=0, must-revalidate')
+        self.send_header('ETag',etag);self.send_header('Vary','Accept-Encoding')
+        if not unchanged:
+            self.send_header('Content-Type',mimetypes.guess_type(str(file))[0] or 'application/octet-stream')
+            if compressed:self.send_header('Content-Encoding','gzip')
+            self.send_header('Content-Length',str(len(body)))
+        self.end_headers()
+        if not unchanged:self.wfile.write(body)
     def do_GET(self):
         """Route read-only API, diagnostic, and static-asset requests."""
         path=self.path.split('?')[0]
@@ -104,13 +141,13 @@ class Handler(BaseHTTPRequestHandler):
             if PATTERN.fullmatch(name) and file.is_file() and not file.is_symlink():self.serve_file(file)
             else:self.send(404,b'Not found','text/plain')
             return
-        if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/transport.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/audio.js','/webgpu-check.js','/webgpu-quality.js','/webgpu-nature.js','/webgpu-vehicles.js','/webgpu-scenery.js'):
+        if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/transport.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/loading-guide.js','/audio.js','/webgpu-check.js','/webgpu-quality.js','/webgpu-nature.js','/webgpu-vehicles.js','/webgpu-scenery.js'):
             self.serve_file(ROOT/path.lstrip('/'));return
         if path in ('/gpu-test','/gpu-test/'):path='/gpu-test.html'
         files={'/':('index.html','text/html; charset=utf-8'),'/style.css':('style.css','text/css'),'/campaign.css':('campaign.css','text/css'),'/app.js':('app.js','text/javascript'),
                '/gpu-test.html':('gpu-test.html','text/html; charset=utf-8'),'/gpu-test.css':('gpu-test.css','text/css'),'/gpu-test.js':('gpu-test.js','text/javascript')}
         if path not in files:self.send(404,b'Not found','text/plain');return
-        filename,mime=files[path];self.send(200,(ROOT/filename).read_bytes(),mime)
+        filename,_mime=files[path];self.serve_file(ROOT/filename)
     def do_POST(self):
         """Route consent and state-changing game API requests."""
         global game

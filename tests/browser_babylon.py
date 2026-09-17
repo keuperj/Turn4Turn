@@ -39,7 +39,7 @@ try:
   before=page.evaluate(entry+".bones.get('UpperLegL').rotationQuaternion.asArray()")
   page.wait_for_timeout(550)
   assert before!=page.evaluate(entry+".bones.get('UpperLegL').rotationQuaternion.asArray()"),'Walking must animate skeleton, not just root position'
-  page.screenshot(path=f'/tmp/characters-{'webgpu' if gpu else 'webgl'}.png')
+  page.screenshot(path=f"/tmp/characters-{'webgpu' if gpu else 'webgl'}.png")
   page.evaluate("v.characters.motion(v.models.get('s0'),'idle')")
   colors=page.evaluate("[...v.characters.instances.get(v.models.get('s3')).materials].map(m=>m.albedoColor?.asArray())")
   assert all(0<=component<=1 for color in colors if color for component in color),colors

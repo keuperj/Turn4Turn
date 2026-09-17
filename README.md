@@ -44,6 +44,17 @@ renders the battlefield locally with WebGPU and an automatic WebGL 2 fallback.
 - A modern browser with WebGPU or WebGL 2 enabled
 - No Python packages for normal play
 
+The landing page opens without downloading the game engine or mission assets.
+The first mission loads the renderer, models, textures and sounds behind a progress
+panel with rotating equipment artwork, descriptions and authoritative game stats.
+Preview artwork is fetched and decoded before larger mission resources, so the
+field guide only displays ready images. Audio and renderer loading overlap.
+Later missions reuse loaded assets. The cards respect reduced-motion preferences.
+Static resources support gzip and ETag revalidation; unchanged downloads are reused
+across page reloads, while edited files receive fresh responses. Player API data
+remains uncached. Gzip reduces the bundled engine/model payload from about 27 MiB
+to 5.4 MiB; actual loading time also depends on the connection and rendering device.
+
 The landing page runs a bounded capability check. Babylon.js selects WebGPU only
 after adapter, device, compute, and canvas stages pass; WebGL 2 remains the
 default when the check is unavailable, fails, or times out. WebGPU initialization
@@ -282,6 +293,9 @@ Optional browser checks require Playwright and Chromium:
 python3 tests/browser_smoke.py --browser /snap/bin/chromium
 python3 tests/browser_webgpu.py
 python3 tests/browser_campaign.py
+python3 tests/browser_loading.py
+python3 tests/browser_picking.py
+python3 tests/browser_picking.py --dpr 1
 python3 tests/browser_interiors.py
 python3 tests/browser_babylon.py
 python3 tests/browser_audio.py

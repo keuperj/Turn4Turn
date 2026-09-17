@@ -183,7 +183,12 @@ export class PerspectiveCamera {
 /** Resolve Babylon mesh and tile-layer intersections. */
 export class Raycaster {
  /** Update from camera. */
- setFromCamera(pointer,camera){const e=world.getEngine();this.ray=world.createPickingRay((pointer.x+1)*e.getRenderWidth()/2,(1-pointer.y)*e.getRenderHeight()/2,B.Matrix.Identity(),camera.native,false);}
+ setFromCamera(pointer,camera){
+  const e=world.getEngine(),scale=e.getHardwareScalingLevel();
+  // Babylon applies inverse hardware scaling inside createPickingRay. Convert
+  // render-buffer pixels back to its input space so display scaling happens once.
+  this.ray=world.createPickingRay((pointer.x+1)*e.getRenderWidth()*scale/2,(1-pointer.y)*e.getRenderHeight()*scale/2,B.Matrix.Identity(),camera.native,false);
+ }
  /** Return sorted Babylon ray intersections for scene objects. */
  intersectObjects(objects,recursive){const allowed=new Set();for(const o of objects){allowed.add(o);if(recursive)o.traverse(n=>allowed.add(n));}
  const owner=m=>{for(let n=m;n;n=n.parent){if(n.metadata?.pickOwner)return n.metadata.pickOwner;if(n.metadata?.owner&&allowed.has(n.metadata.owner))return n.metadata.owner;}return null;};

@@ -8,3 +8,20 @@
 .loading-spinner{width:32px;height:32px;margin:0 auto 18px;border:3px solid #3d555e;border-top-color:#a5e9e8;border-radius:50%;animation:loading-spin .9s linear infinite}
 @keyframes loading-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.loading-spinner{animation:none}}
+/* Equipment previews are local artwork and animate independently of progress. */
+#mission-loading{width:480px;max-width:calc(100vw - 28px);padding:26px}
+#loading-detail{min-height:3.2em;font-size:12px}
+#loading-feature{margin-top:24px;border-top:1px solid var(--line);padding-top:18px;text-align:left}
+.loading-guide-label{display:flex;justify-content:space-between;font:10px monospace;letter-spacing:2px;color:var(--gold)}
+.loading-guide-label span{color:var(--muted);letter-spacing:0}
+.loading-item{animation:loading-reveal .55s ease-out}
+.loading-item .item-art,.loading-item .item-photo{height:165px;width:100%;margin:12px 0;object-fit:contain}
+.loading-item h3{margin:12px 0 6px;font-size:22px}
+.loading-item p{min-height:3.2em;font-size:12px}
+.loading-item dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:16px 0 0}
+.loading-item dl>div{padding:10px;background:#192e38;border:1px solid var(--line);border-radius:5px}
+.loading-item dt{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.loading-item dd{margin:5px 0 0;font:13px monospace;color:var(--text)}
+@keyframes loading-reveal{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.loading-item{animation:none}}
+@media(max-width:620px){#mission-loading{padding:18px}.loading-item .item-art,.loading-item .item-photo{height:125px}}

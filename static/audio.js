@@ -17,7 +17,7 @@ export class ActionAudio {
   constructor(){
     this.enabled=localStorage.getItem('sound')!=='off';this.volume=Number(localStorage.getItem('volume')||.35);
     this.context=null;this.manifest={};this.buffers=new Map();this.previous=new Map();this.voices=new Set();this.ambientVoices=new Set();this.ambientVersion=0;this.theme=null;this.sceneKey=null;this.listener={x:0,y:0,z:0,rightX:1,rightY:0};
-    this.catalogReady=this.refreshCatalog();
+    this.catalogReady=null;
     document.addEventListener('visibilitychange',()=>{if(document.hidden){this.stopAmbience();this.stopEffects();}else this.startAmbience();});
   }
   /** Reload the server-provided local audio catalog. */
@@ -71,6 +71,7 @@ export class ActionAudio {
   }
   /** Load the sound catalog and current theme ambience. */
   async prepare(state,onProgress=()=>{}){
+    this.catalogReady??=this.refreshCatalog();
     const key=`${state.seed}:${state.theme}:${state.status}`;
     if(key===this.sceneKey)return;
     const sameMission=this.sceneSeed===state.seed&&this.sceneTheme===state.theme;this.sceneKey=key;this.sceneSeed=state.seed;this.sceneTheme=state.theme;if(!sameMission||state.status==='loadout')this.stopEffects();this.stopAmbience();this.theme=state.status==='active'?state.theme:null;
