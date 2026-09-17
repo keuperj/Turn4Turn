@@ -51,12 +51,12 @@ try:
                 const outside=bg.getChildMeshes().filter(m=>m.name!=='background-ground').every(m=>{
                     m.computeWorldMatrix(true);const p=m.getAbsolutePosition();return p.x<0||p.z<0||p.x>=state.size||p.z>=state.size;
                 });
-                const detailed=f.nativeScene.meshes.filter(m=>m.name.endsWith('-body')||m.name.endsWith('-cabin'));
+                const detailed=f.nativeScene.meshes.filter(m=>m.metadata?.pickOwner?.userData.transport);
                 const opaque=detailed.every(m=>!m.material.needAlphaBlendingForMesh(m)&&m.material.alpha===1&&m.material.backFaceCulling);
                 const props=state.props.filter(p=>['car','tree_oak','tree_pine','tree_birch','bush'].includes(p.kind));
                 const pickable=props.every(p=>f.pickables.some(o=>o.userData.structure===p.id&&o.native.getChildMeshes().some(m=>m.isPickable&&m.metadata?.pickOwner===o)));
                 const bounds=state.props.filter(p=>p.kind==='car').every(p=>{
-                    const owner=f.pickables.find(o=>o.userData.structure===p.id&&o.native.getChildMeshes().some(m=>m.name.endsWith('-body')));
+                    const owner=f.pickables.find(o=>o.userData.structure===p.id&&o.userData.transport);
                     const b=owner.native.getHierarchyBoundingVectors(true),s=b.max.subtract(b.min);
                     return s.x<=p.width+.01&&s.z<=p.depth+.01;
                 });

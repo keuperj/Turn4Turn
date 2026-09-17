@@ -30,7 +30,7 @@ class Arsenal:
     def init_structures(self):
         """Initialize health and identifiers for destructible world objects."""
         for p in self.props+self.buildings:
-            hp=140 if 'level' in p else {'aircraft':100,'train':90,'car':35,'truck':50,'tractor':45}.get(p.get('kind'),30)
+            hp=140 if 'level' in p else {'aircraft':100,'train':90,'car':35,'truck':50,'bus':65,'ambulance':50,'tractor':45}.get(p.get('kind'),30)
             p.update(hp=hp,max_hp=hp,destroyed=False)
 
     def smoke_blocks(self,a,b):

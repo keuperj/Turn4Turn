@@ -1,10 +1,19 @@
 """Seeded themes, enterable structures and scenery with matching collision data."""
+import json
+from pathlib import Path
+
+# One catalog drives server-side seeded selection and the browser's asset loader.
+_TRANSPORT_CATALOG = json.loads((Path(__file__).parent / 'static/assets/models/transport/manifest.json').read_text())['models']
+TRANSPORT_MODELS = {}
+for _model in _TRANSPORT_CATALOG:
+    TRANSPORT_MODELS.setdefault(_model['kind'], []).append(_model['id'])
+
 THEMES = {
-    'urban': dict(label='Urban district', names=['APARTMENTS', 'CORNER SHOP', 'POST OFFICE', 'CAFE', 'HARDWARE STORE', 'LIVING QUARTERS', 'RESTAURANT', 'CLINIC', 'BOOK SHOP', 'OFFICES'], ground='#858578', road='#43494b', wall='#b7afa0', props=['car', 'car', 'bench', 'sign', 'lamp', 'bush']),
+    'urban': dict(label='Urban district', names=['APARTMENTS', 'CORNER SHOP', 'POST OFFICE', 'CAFE', 'HARDWARE STORE', 'LIVING QUARTERS', 'RESTAURANT', 'CLINIC', 'BOOK SHOP', 'OFFICES'], ground='#858578', road='#43494b', wall='#b7afa0', props=['car', 'car', 'ambulance', 'bench', 'sign', 'lamp', 'bush']),
     'factory': dict(label='Factory complex', names=['ASSEMBLY', 'WAREHOUSE', 'CONTROL', 'WORKSHOP', 'CANTEEN', 'PARTS STORE', 'ADMIN', 'LOADING HALL'], ground='#797c72', road='#4b5050', wall='#909d9d', props=['container', 'tank', 'truck', 'pipes', 'sign', 'trash']),
     'train_station': dict(label='Train station', names=['TICKET HALL', 'SIGNAL BOX', 'FREIGHT DEPOT', 'CAFE', 'POST OFFICE', 'WAITING ROOM', 'RESTAURANT', 'RAIL OFFICES'], ground='#929083', road='#69665f', wall='#ae9b82', props=['train', 'container', 'bench', 'car', 'sign', 'lamp']),
-    'airport': dict(label='Regional airport', names=['TERMINAL', 'HANGAR', 'CONTROL TOWER', 'CARGO', 'CAFE', 'AIRPORT HOTEL', 'FIRE STATION', 'MAINTENANCE'], ground='#939994', road='#616a6c', wall='#b7c4c2', props=['aircraft', 'truck', 'car', 'tank', 'sign', 'lamp']),
-    'streets': dict(label='Street intersection', names=['DINER', 'GARAGE', 'MARKET', 'TOWNHOUSE', 'HARDWARE STORE', 'POST OFFICE', 'CAFE', 'RESTAURANT', 'LIVING QUARTERS', 'PHARMACY'], ground='#8e8b7f', road='#42494b', wall='#b6a290', props=['car', 'truck', 'bench', 'sign', 'lamp', 'trash', 'bush']),
+    'airport': dict(label='Regional airport', names=['TERMINAL', 'HANGAR', 'CONTROL TOWER', 'CARGO', 'CAFE', 'AIRPORT HOTEL', 'FIRE STATION', 'MAINTENANCE'], ground='#939994', road='#616a6c', wall='#b7c4c2', props=['aircraft', 'truck', 'bus', 'car', 'tank', 'sign', 'lamp']),
+    'streets': dict(label='Street intersection', names=['DINER', 'GARAGE', 'MARKET', 'TOWNHOUSE', 'HARDWARE STORE', 'POST OFFICE', 'CAFE', 'RESTAURANT', 'LIVING QUARTERS', 'PHARMACY'], ground='#8e8b7f', road='#42494b', wall='#b6a290', props=['car', 'truck', 'bus', 'bench', 'sign', 'lamp', 'trash', 'bush']),
     'woods': dict(label='Woodland camp', names=['RANGER CABIN', 'LODGE', 'LOOKOUT', 'TOOL SHED', 'FIELD OFFICE', 'MESS HALL'], ground='#697451', road='#84765e', wall='#80644a', props=['tree_oak', 'tree_pine', 'tree_birch', 'bush', 'bench', 'truck']),
     'farm': dict(label='Farmstead', names=['FARMHOUSE', 'BARN', 'GRAIN STORE', 'MACHINE SHED', 'FARM SHOP', 'LIVING QUARTERS', 'PACKING HOUSE'], ground='#a69768', road='#83745c', wall='#b08269', props=['tractor', 'silo', 'hay', 'truck', 'tree_oak', 'bush', 'flowerbed']),
 }
@@ -15,7 +24,7 @@ def edge_key(a, b):
 
 
 # Footprints use the same approximate one-metre scale as the 1.7m fighters.
-PROP_SIZE={'car':(2,5),'truck':(2,6),'tractor':(2,3),'aircraft':(10,10),
+PROP_SIZE={'car':(2,5),'truck':(2,6),'bus':(3,7),'ambulance':(2,5),'tractor':(2,3),'aircraft':(10,10),
            'train':(3,10),'container':(3,6),'tank':(2,2),'silo':(2,2),
            'pipes':(2,3),'bench':(2,1),'hay':(2,2),'tree':(1,1),
            'tree_oak':(1,1),'tree_pine':(1,1),'tree_birch':(1,1),'bush':(1,1),
@@ -128,7 +137,11 @@ def generate(game):
             cells={(bx,by,0) for by in range(y,y+d) for bx in range(x,x+w)}
             buffer={(bx,by,0) for by in range(y-1,y+d+1) for bx in range(x-1,x+w+1)}
             if cells&reserved or buffer&game.blocked or any(game.heights[by][bx] for bx,by,_ in cells):continue
-            game.props.append(dict(id=f'prop{len(game.props)}',kind=kind,x=x,y=y,width=w,depth=d,variant=r.randrange(4),color=r.choice(['#8eaca9','#aa7257','#d1be8a','#5c6975','#71805f','#a2a4a0'])))
+            models=TRANSPORT_MODELS.get(kind,[])
+            variant=r.randrange(len(models) if models else 4)
+            prop=dict(id=f'prop{len(game.props)}',kind=kind,x=x,y=y,width=w,depth=d,variant=variant,color=r.choice(['#8eaca9','#aa7257','#d1be8a','#5c6975','#71805f','#a2a4a0']))
+            if models:prop['model']=models[variant]
+            game.props.append(prop)
             game.blocked.update(cells);break
     if game.theme=='farm':
         for x in range(n):

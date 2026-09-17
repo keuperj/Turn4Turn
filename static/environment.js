@@ -10,15 +10,15 @@ export function addProp(view, p, parent=view.terrain) {
   const x=p.x+(p.width-1)/2,z=p.y+(p.depth-1)/2;
   group.position.set(x,0,z);
   if(['tree','tree_oak','tree_pine','tree_birch','bush','flowerbed','sign','lamp','trash','bench'].includes(p.kind))group.rotation.y=(p.variant||0)*Math.PI/2;
-  const enhancedProp=view.renderer==='webgpu'&&detailedProp(view,p,group);
+  const enhancedProp=view.transport?.add(p,group)||(view.renderer==='webgpu'&&detailedProp(view,p,group));
   const box=(w,h,d,x,y,z,c)=>view.box(group,w,h,d,x,y,z,c);
   const color=p.color||'#91a5a1',metal=view.material(0x566164,'metal'),glass=view.material(0x294957,'glass'),rubber=view.material(0x202524,'rubber');
   const cylinder=(r,h,x,y,z,c,finish='paint')=>{const m=new G.Mesh(new G.CylinderGeometry(r,r,h,12),typeof c==='object'?c:view.material(c,finish));m.position.set(x,y,z);m.receiveShadow=true;if(r>.16&&h>.2)m.castShadow=true;group.add(m);return m;};
   const shape=(w,h,d,x,y,z,c,inset=.06,front=inset,back=inset)=>{const m=new G.Mesh(new G.BeveledBoxGeometry(w,h,d,inset,front,back),typeof c==='object'?c:view.material(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;};
   const wheel=(x,z,r=.19)=>{const tire=cylinder(r,.14,x,r,z,rubber);tire.rotation.z=Math.PI/2;const hub=cylinder(r*.48,.151,x,r,z,metal);hub.rotation.z=Math.PI/2;};
   if(!enhancedProp)switch(p.kind){
-    case 'car': case 'truck': case 'tractor': {
-      const truck=p.kind==='truck',tractor=p.kind==='tractor';
+    case 'car': case 'truck': case 'ambulance': case 'tractor': {
+      const truck=['truck','ambulance'].includes(p.kind),tractor=p.kind==='tractor';
       const body=view.material(color,'paint'),accent=view.material(((p.x*31+p.y*17)%2)?0xd7d0b4:0x596b6d,'paint');
       if(tractor){
         shape(.76,.38,.92,0,.30,-.02,body,.08,.12,.05);shape(.58,.48,.43,0,.62,-.20,body,.10,.08,.07);
@@ -44,6 +44,15 @@ export function addProp(view, p, parent=view.terrain) {
         for(const side of [-1,1])for(const end of [-1,1])for(let i=0;i<12;i++){const a=i*Math.PI/6;box(.15,.027,.027,side*.45,.20+Math.sin(a)*.196,end*.60+Math.cos(a)*.196,rubber);}
       }
       break;
+    }
+    case 'bus': {
+      box(2.5,1.9,6,0,1.4,0,view.material(color));
+      box(2.5,.18,6,0,2.42,0,metal);
+      for(const side of [-1,1]){
+        for(let z=-2.3;z<=2.3;z+=.75)box(.025,.65,.58,side*1.26,1.8,z,glass);
+        for(const z of [-1.9,1.9])wheel(side*1.14,z,.42);
+      }
+      box(2.2,.75,.03,0,1.8,-3.01,glass);break;
     }
     case 'train': {
       box(1.65,.36,4.7,0,.45,0,metal);box(1.65,1.7,4.55,0,1.35,0,view.material(color,'metal'));
@@ -100,11 +109,11 @@ export function addProp(view, p, parent=view.terrain) {
       cylinder(.25,.58,0,.29,0,view.material((p.variant||0)%2?0x4e615e:0x59605c,'metal'));{const lid=new G.Mesh(new G.CylinderGeometry(.27,.27,.045,12),metal);lid.position.y=.60;group.add(lid);}break;
   }
   if(view.renderer==='webgpu'&&!enhancedProp)propFittings(view,p,group);
-  const base={car:[1,2],truck:[1,2],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1]}[p.kind]||[1,1];
+  const base={car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1]}[p.kind]||[1,1];
   if(!enhancedProp)group.scale.set(p.width/base[0],p.kind==='car'?1.3:p.kind==='aircraft'?2:p.kind==='train'?1.5:1,p.depth/base[1]);
   group.traverse(o=>{if(o.isMesh){o.userData.structure=p.id;view.pickables.push(o);}});
   const labelY={aircraft:3,train:4,tree:3,tree_oak:3.2,tree_pine:3.7,tree_birch:3.1,bush:1.2,flowerbed:.9,sign:2,lamp:3,trash:1.1}[p.kind]||2.6;
-  const health=view.healthLabel(p.kind.replaceAll('_',' '),p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,labelY,z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
+  const health=view.healthLabel(p.kind.replaceAll('_',' '),p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,group.userData.transportHeight?group.userData.transportHeight+.45:labelY,z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
   return group;
 }
 

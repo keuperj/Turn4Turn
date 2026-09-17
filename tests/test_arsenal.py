@@ -93,6 +93,9 @@ class ArsenalTests(unittest.TestCase):
         g.action(dict(action='structure',unit=u['id'],target=p['id']))
         self.assertEqual(p['hp'],33)
         g.damage_area(14,26,0,2,40)
+        # Destruction ignites a random footprint cell; isolate the removed obstacle
+        # from the separate rule that pathfinding avoids active flames.
+        g.fires=[]
         self.assertTrue(p['destroyed']);self.assertIn((14,25,0),g.paths(u,10))
         self.assertTrue(g.state()['props'][0]['destroyed'])
 

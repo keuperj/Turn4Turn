@@ -1,0 +1,286 @@
+{
+  "author": "Quaternius",
+  "license": "CC0-1.0",
+  "packs": {
+    "cars": "https://quaternius.com/packs/cars.html",
+    "train": "https://quaternius.com/packs/modulartrain.html",
+    "public": "https://quaternius.com/packs/publictransport.html",
+    "zombie": "https://quaternius.com/packs/zombieapocalypsekit.html"
+  },
+  "textureSource": "https://drive.google.com/uc?export=download&id=1t2OBnWpp2pRV-eaV_vt6weiHN4vlEHwi",
+  "models": [
+    {
+      "id": "NormalCar1",
+      "kind": "car",
+      "pack": "cars",
+      "file": "NormalCar1.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1Xxe0nYbAx5epeoY8nT9kY48e9vG3LPWK",
+      "rotation": [
+        -90,
+        0,
+        0
+      ],
+      "width": 1.88,
+      "length": 4.7,
+      "dimensions": [
+        1.88,
+        1.223867339337867,
+        4.390352316564423
+      ],
+      "sha256": "687a42579884f12c2e5480d56818aba9ea10f64f8420cdf28cd95f55597c3899",
+      "sourceSha256": "61ae9bd52c3217738ae633444eec3435f244690d95ae0807d4dd7ca8d3be14fb"
+    },
+    {
+      "id": "NormalCar2",
+      "kind": "car",
+      "pack": "cars",
+      "file": "NormalCar2.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1iV3gduZs9-sHnyZkYRND_dyh21cz6XaH",
+      "rotation": [
+        -90,
+        0,
+        0
+      ],
+      "width": 1.88,
+      "length": 4.7,
+      "dimensions": [
+        1.88,
+        1.314510700256749,
+        3.797552086646222
+      ],
+      "sha256": "dd5bc93acf569f3bee83a75671fb4e9f2d4178e1ef86efcb400c16aa47c9f679",
+      "sourceSha256": "323865fe92ab7ef0a83394aa08ab2c00019a5134998466809210e3754768a09f"
+    },
+    {
+      "id": "SUV",
+      "kind": "car",
+      "pack": "cars",
+      "file": "SUV.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1r4gr34s-cNetFINZio-M4i8m2PgzVq_5",
+      "rotation": [
+        -90,
+        0,
+        0
+      ],
+      "width": 1.88,
+      "length": 4.7,
+      "dimensions": [
+        1.88,
+        1.3605974725632513,
+        3.7485519017393267
+      ],
+      "sha256": "c93c52ba661d70f4c8c13f456260340567749829ba195450b1446362d0687092",
+      "sourceSha256": "7c3769a955ab0cb628d4225a6a1695593d5e011649e8e0455c79014aa7691749"
+    },
+    {
+      "id": "Taxi",
+      "kind": "car",
+      "pack": "cars",
+      "file": "Taxi.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1PhIpbpj-lhTkVYGlqZMMeSqG4i9kge5V",
+      "rotation": [
+        -90,
+        0,
+        0
+      ],
+      "width": 1.88,
+      "length": 4.7,
+      "dimensions": [
+        1.88,
+        1.3631329363968765,
+        4.390352316564423
+      ],
+      "sha256": "335fc46688b0d3d10d1eb151d1573955e4255f959f2a68f2dc7b428586888014",
+      "sourceSha256": "45196b14ec0f17181a63227dcf666b7065911b3e5d98c5aa9f74293fc1fdf21f"
+    },
+    {
+      "id": "CargoTrain_Front",
+      "kind": "train",
+      "pack": "train",
+      "file": "CargoTrain_Front.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1pV5zv8WKX6TzWdBT6XM8x6lp3o8MK1af",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.7,
+      "length": 9.4,
+      "dimensions": [
+        1.9519886717047878,
+        2.4352039087019013,
+        9.400000000000002
+      ],
+      "sha256": "afe1ddc6326c8ebd36274adb7a8fe6bcc6468d2bad8be44f63a0d15679520ba5",
+      "sourceSha256": "b1c2e8d065dc31c1c01948d0c5def58a30e3cff2083f3e8f48575aba755bc154"
+    },
+    {
+      "id": "Locomotive_Front",
+      "kind": "train",
+      "pack": "train",
+      "file": "Locomotive_Front.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1jBZINoo8C2fhkBPWJm2nNxmX0Ic9cYRn",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.7,
+      "length": 9.4,
+      "dimensions": [
+        2.7000000000000006,
+        3.3746319965672513,
+        7.617680442441803
+      ],
+      "sha256": "4ebc1f2e59de59ebd7e4e02d7d0164935c515754dcbdf6fbec47dd5e5c1baa60",
+      "sourceSha256": "034742ced0ef46177f37b9dae5888f4da486b6f0fb4e1d75e5af154385feb208"
+    },
+    {
+      "id": "CargoTrain_Container",
+      "kind": "train",
+      "pack": "train",
+      "file": "CargoTrain_Container.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1SvRWuVZVHQr11rdue6t571zkxHzjFGFX",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.7,
+      "length": 9.4,
+      "dimensions": [
+        2.093948411023627,
+        2.6180904458473635,
+        9.4
+      ],
+      "sha256": "a20462153bd989e9dee5cf893c4f28bfd34252698e4d8dc871bf4a8299df65bc",
+      "sourceSha256": "bef6ee7b8e2cff2fb987da6a1d8d5160fdf036c56c8ed66b1ed9b226013f9972"
+    },
+    {
+      "id": "Vehicle_Pickup",
+      "kind": "truck",
+      "pack": "zombie",
+      "file": "Vehicle_Pickup.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1WF1MIW_IQHNnktwgItrppEf4IO-Wsqly",
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "width": 1.88,
+      "length": 5.6,
+      "dimensions": [
+        1.88,
+        1.5029484669202933,
+        4.212103998147831
+      ],
+      "sha256": "ee1a6dfc2fc03253f6c2618afb0a0a57fa92ea91259135f4df7d15b6d0366305",
+      "sourceSha256": "44ccfe70b3c57be48e978adcbd10d0223854cb516901c327fec71e183198cde2"
+    },
+    {
+      "id": "Vehicle_Truck",
+      "kind": "truck",
+      "pack": "zombie",
+      "file": "Vehicle_Truck.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1RUs8pXEy-_B0x9ssHNB4pUVTQU-rDjpA",
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "width": 1.88,
+      "length": 5.6,
+      "dimensions": [
+        1.88,
+        2.001216712395245,
+        3.6468951065089485
+      ],
+      "sha256": "49a9b88762b4343c846bc3a334bb71de628710470c4014171d32df4cd31fb7fd",
+      "sourceSha256": "c62e3710f633bfa19e635957e68191fedfdc0991c4ddeacb6ae0906302e2b604"
+    },
+    {
+      "id": "Train",
+      "kind": "train",
+      "pack": "public",
+      "file": "Train.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1lO9YwlVAWTmiilWC9vsd1aH7ab0UlznV",
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "width": 2.6,
+      "length": 9.4,
+      "dimensions": [
+        2.6,
+        2.6887498275578054,
+        8.580100770461668
+      ],
+      "sha256": "43327fc4399bf696a0b3de106b55fb3aa58cf4a760fcac86dcb054754bb01466",
+      "sourceSha256": "973b738a99406ba369153836c20223a4ffa21a307a1357ce4c520fd2b4b442ca"
+    },
+    {
+      "id": "Bus",
+      "kind": "bus",
+      "pack": "public",
+      "file": "Bus.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1OhR1tsqqEAzbM-kCysKCEvz9UVsIgyVh",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.6,
+      "length": 6.6,
+      "dimensions": [
+        2.6,
+        2.4976994399641677,
+        6.089884904211198
+      ],
+      "sha256": "46363183294d6be6a77ff7667a9934871ed186bcb097f2bda9f392438b528007",
+      "sourceSha256": "c75cdf437172daa37ffa5a5745ce08bbc0501a80714b63c1f43c0ed0b68cb47d"
+    },
+    {
+      "id": "SchoolBus",
+      "kind": "bus",
+      "pack": "public",
+      "file": "SchoolBus.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1o70BWY3v1IXIqZD--TttAaCuEhgEjzEm",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.6,
+      "length": 6.6,
+      "dimensions": [
+        2.6,
+        3.034688380491581,
+        6.377326870684915
+      ],
+      "sha256": "7e83f5aaab66db66aee978b03dd804e4830e92056dfb15d322b73f81afbb7708",
+      "sourceSha256": "08f74525747edde923baa2f6a13567c87476800c38161b800afb5c54d059fe71"
+    },
+    {
+      "id": "Ambulance",
+      "kind": "ambulance",
+      "pack": "public",
+      "file": "Ambulance.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1xV3uqb0jK2C919XZgB8RNrL3lbTOyhMj",
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "width": 1.88,
+      "length": 4.7,
+      "dimensions": [
+        1.88,
+        1.9303540856462813,
+        3.7870974177609296
+      ],
+      "sha256": "9b98579f4337996b7c924b6f83d6072ec447b30f9d919ab0b4574b22c5855d19",
+      "sourceSha256": "0cb78f9da4053734bd81baaec1e1c4300a05bbc7f582e626529cb36c843ee729"
+    }
+  ]
+}

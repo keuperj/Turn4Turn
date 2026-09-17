@@ -2,6 +2,7 @@
 import * as G from './rendering.js';
 import {B,OrbitControls} from './rendering.js';
 import {CharacterAssets} from './characters.js';
+import {TransportAssets} from './transport.js';
 import {addProp,addBuilding} from './environment.js';
 import {actionAudio} from './audio.js';
 import {qualityLighting,qualityMaterials} from './webgpu-quality.js';
@@ -66,7 +67,7 @@ export class Battlefield {
     G.configure(this.nativeScene,this.shadows);this.scene=new G.Scene(this.nativeScene);
     this.camera=new G.PerspectiveCamera(42,1,.1,500);this.camera.position.set(26,27,32);
     this.controls=new OrbitControls(this.camera,canvas);this.controls.target.set(8.5,0,8.5);
-    this.characters=new CharacterAssets(this);this.ready=this.characters.load();this.nativeScene.onAfterAnimationsObservable.add(()=>this.characters.afterAnimations());
+    this.characters=new CharacterAssets(this);this.transport=new TransportAssets(this);this.ready=Promise.all([this.characters.load(),this.transport.load()]);this.nativeScene.onAfterAnimationsObservable.add(()=>this.characters.afterAnimations());
     this.terrain=new G.Group();this.actors=new G.Group();this.overlay=new G.Group();this.fx=new G.Group();this.flames=[];this.elapsed=0;
     this.scene.add(this.terrain,this.actors,this.overlay,this.fx);this.models=new Map();this.pickables=[];this.portalModels=new Map();this.viewMode='auto';
     this.loader=new G.TextureLoader();
