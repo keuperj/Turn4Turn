@@ -1,5 +1,6 @@
 /** @fileoverview Build visual props, buildings, portals, and architectural details. */
 import * as G from './rendering.js';
+import {woodlandProp} from './woodland.js';
 import {detailedProp,propFittings,profileFor,furnish} from './webgpu-scenery.js';
 
 // Theme props share the footprints used by Python collision/pathfinding.
@@ -12,7 +13,7 @@ export function addProp(view, p, parent=view.terrain) {
   if(['tree','tree_oak','tree_pine','tree_birch','bush','flowerbed','sign','lamp','trash','bench'].includes(p.kind))group.rotation.y=(p.variant||0)*Math.PI/2;
   if(p.quarter_turn)group.rotation.y=p.quarter_turn*Math.PI/2;
   const localProp=p.quarter_turn%2?{...p,width:p.depth,depth:p.width}:p;
-  const enhancedProp=view.transport?.add(p,group)||(view.renderer==='webgpu'&&detailedProp(view,localProp,group));
+  const enhancedProp=(p.woodland&&woodlandProp(view,p,group))||view.transport?.add(p,group)||(view.renderer==='webgpu'&&detailedProp(view,localProp,group));
   const box=(w,h,d,x,y,z,c)=>view.box(group,w,h,d,x,y,z,c);
   const color=p.color||'#91a5a1',metal=view.material(0x566164,'metal'),glass=view.material(0x294957,'glass'),rubber=view.material(0x202524,'rubber');
   const cylinder=(r,h,x,y,z,c,finish='paint')=>{const m=new G.Mesh(new G.CylinderGeometry(r,r,h,12),typeof c==='object'?c:view.material(c,finish));m.position.set(x,y,z);m.receiveShadow=true;if(r>.16&&h>.2)m.castShadow=true;group.add(m);return m;};
@@ -142,9 +143,10 @@ export function addProp(view, p, parent=view.terrain) {
   if(view.renderer==='webgpu'&&!enhancedProp)propFittings(view,p,group);
   const base={car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1]}[p.kind]||[1,1];
   if(!enhancedProp)group.scale.set(localProp.width/base[0],p.kind==='car'?1.3:p.kind==='aircraft'?2:p.kind==='train'?1.5:1,localProp.depth/base[1]);
+  if(p.growth)group.scale.set(group.scale.x*1.25,group.scale.y*p.growth,group.scale.z*1.25);
   group.traverse(o=>{if(o.isMesh){o.userData.structure=p.id;view.pickables.push(o);}});
   const labelY={aircraft:3,train:4,tree:3,tree_oak:3.2,tree_pine:3.7,tree_birch:3.1,bush:1.2,flowerbed:.9,sign:2,lamp:3,traffic_light:3.1,cafe_table:1.1,trash:1.1}[p.kind]||2.6;
-  const health=view.healthLabel(p.kind.replaceAll('_',' '),p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,group.userData.transportHeight?group.userData.transportHeight+.45:labelY,z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
+  const health=view.healthLabel(p.kind.replaceAll('_',' '),p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,group.userData.transportHeight?group.userData.transportHeight+.45:labelY*(p.growth||1),z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
   return group;
 }
 
@@ -213,7 +215,7 @@ export function addBuilding(view,b,state){
   if(limit>=b.level){
     const roofY=b.level*3;
     for(const offset of [-1,1])view.box(parent,b.width+.12,.13,.10,cx,roofY+.04,cy+offset*b.depth/2,trim);
-    if(['urban','streets','train_station'].includes(state.theme)){
+    if(['urban','train_station'].includes(state.theme)){
       view.box(parent,1.6,.08,.60,b.x+1,2.58,b.y+b.depth-.26,state.theme==='train_station'?0x6e8a82:0x9b6652);
     }
     if(state.theme==='airport'&&b.id==='b2'){
@@ -244,10 +246,15 @@ export function addBuilding(view,b,state){
       const lettering=view.label(b.name==="CAFE"?'CAFÉ · COFFEE':b.name,'#fff1cd',Math.min(2.1,horizontal?b.width-1:b.depth-1));
       lettering.position.set(sx+(horizontal?0:direction*.13),2.86,sz+(horizontal?direction*.13:0));parent.add(lettering);
     }
-  }else if(b.archetype==='residential' &&b.level>1){
+  }else if(b.archetype==='residential'&&b.level>1&&state.theme!=='streets'){
     for(let level=1;level<b.level&&level<=limit;level++){const balcony=view.box(parent,horizontal?Math.min(2.3,b.width-.4):.55,.10,horizontal?.55:Math.min(2.3,b.depth-.4),horizontal?cx:b.x+(direction>0?b.width-.22:-.22),level*3+.18,horizontal?b.y+(direction>0?b.depth-.22:-.22):cy,view.material(trim,'metal'));for(const side of [-1,1])view.box(parent,.04,.72,.04,balcony.position.x+(horizontal?side*.8:0),level*3+.52,balcony.position.z+(horizontal?0:side*.8),view.material(trim,'metal'));}
   }else if(b.archetype==='civic'){
     for(const side of [-1,1])view.box(parent,.16,2.55,.16,horizontal?cx+side*.72:b.x+(direction>0?b.width-.18:-.18),1.27,horizontal?b.y+(direction>0?b.depth-.18:-.18):cy+side*.72,view.material(trim,'concrete'));
+  }
+  if(state.theme==='streets'){
+    const px=horizontal?cx:b.x+(direction>0?b.width-.25:-.75),pz=horizontal?b.y+(direction>0?b.depth-.25:-.75):cy;
+    const canopy=view.box(parent,horizontal?Math.min(1.8,b.width-.4):.75,.10,horizontal?.75:Math.min(1.8,b.depth-.4),px,2.48,pz,view.material(trim,'wood'));canopy.native.name='suburban-porch';
+    if(limit>=b.level){const chimney=view.box(parent,.38,.85,.38,b.x+.5,b.level*3+.7,b.y+.5,view.material(0x946e58,'brick'));chimney.native.name='suburban-chimney';}
   }
   if(view.renderer==='webgpu'){
     for(let level=0;level<Math.min(b.level,limit+1);level++)for(const x of [b.x-.48,b.x+b.width-.52]){

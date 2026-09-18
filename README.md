@@ -199,6 +199,18 @@ traffic signals, signs, street lamps and bins have collision footprints; generat
 keeps entrances and pedestrian routes connected. Streets continue into a matching
 background street grid and skyline. Cutaway controls include all six upper levels.
 
+Street crossing is a suburban four-lane junction (two lanes in each direction on
+both roads), with lane markings, zebra crossings, traffic signals and stopped cars.
+Detached one- and two-storey homes sit behind sidewalks and planted front gardens,
+with clear paths to their doors. The roads, sidewalks and houses continue into the
+static background. Road paint and distant traffic are batched; fog updates retain
+the scenery and vehicle instances.
+
+Woodlands uses dense mixed forest with seeded grassy clearings and scattered
+single-storey timber huts. Narrow footpaths connect every entrance to deployment
+and continue into the surrounding forest. Vegetation preserves walkable routes;
+background plants are decorative and do not affect movement or targeting.
+
 ### Difficulty
 
 | Difficulty | Squad AP | Hostile AP |
@@ -313,6 +325,7 @@ python3 tests/browser_incremental.py
 python3 tests/browser_incremental.py --webgpu
 python3 tests/browser_background.py
 python3 tests/browser_urban.py
+python3 tests/browser_streets.py
 python3 tests/browser_interiors.py
 python3 tests/browser_babylon.py
 python3 tests/browser_audio.py
