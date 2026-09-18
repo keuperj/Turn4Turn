@@ -32,6 +32,7 @@ class RoomTests(unittest.TestCase):
             for b in g.buildings:
                 for z in range(b['level']):
                     cells={(x,y,z) for x in range(b['x'],b['x']+b['width']) for y in range(b['y'],b['y']+b['depth'])}
+                    cells-=g.blocked
                     def region(open_doors):
                         """Return connected tiles reachable from the requested starting point."""
                         start=min(cells);seen={start};queue=deque([start])
@@ -40,7 +41,10 @@ class RoomTests(unittest.TestCase):
                             for q in [(x-1,y,z),(x+1,y,z),(x,y-1,z),(x,y+1,z)]:
                                 if q in cells and q not in seen and g.passable((x,y,z),q,open_doors):seen.add(q);queue.append(q)
                         return seen
-                    self.assertLess(len(region(False)),len(cells),(theme,b['id'],z))
+                    if b.get('station'):
+                        self.assertEqual(region(False),cells)  # Public hall has no room partitions.
+                    else:
+                        self.assertLess(len(region(False)),len(cells),(theme,b['id'],z))
                     self.assertEqual(region(True),cells,(theme,b['id'],z))
             self.assertGreaterEqual(sum(bool(g.building_at(*g.position(u))) for u in g.alive('alien')),2,theme)
             if theme not in ('farm','woods'):

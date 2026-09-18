@@ -211,6 +211,14 @@ single-storey timber huts. Narrow footpaths connect every entrance to deployment
 and continue into the surrounding forest. Vegetation preserves walkable routes;
 background plants are decorative and do not affect movement or targeting.
 
+Trainstation centers on two parallel railway tracks with independently placed trains.
+A large station has paired double doors from the street and covered platform,
+opening into a waiting hall with seating, a ticket counter, a table and bins.
+Both door leaves open together for one action point. Framed windows and
+forecourt trees complete the buildings; the opposite platform has benches, bins and lamps. Clear crossings
+connect both sides, with smaller city buildings and streets where space permits.
+The rails continue through the city background.
+
 ### Difficulty
 
 | Difficulty | Squad AP | Hostile AP |

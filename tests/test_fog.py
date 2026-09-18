@@ -99,7 +99,13 @@ class FogTests(unittest.TestCase):
                     footprint=PROP_SIZE[p['kind']]
                     if p.get('quarter_turn',0)%2:footprint=footprint[::-1]
                     self.assertEqual((p['width'],p['depth']),footprint)
-                    self.assertFalse(any(g.heights[y][x] for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
+                    if p.get('interior'):
+                        building=next(b for b in g.buildings if b['id']==p['interior'])
+                        self.assertTrue(building.get('station'))
+                        self.assertIn(p['kind'],('bench','ticket_counter','cafe_table','trash'))
+                        self.assertTrue(all(g.building_at(x,y,0)==building for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
+                    else:
+                        self.assertFalse(any(g.heights[y][x] for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
         self.assertEqual(len(signatures),21)
         self.assertGreaterEqual(PROP_SIZE['aircraft'][0],10)
         self.assertGreaterEqual(PROP_SIZE['car'][1],5)

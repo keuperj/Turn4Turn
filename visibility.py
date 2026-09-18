@@ -13,7 +13,7 @@ class FogOfWar:
         self.explored=set()
         self.visible=set()
         self.known_tiles={};self.known_walls={};self.known_buildings={};self.known_props={};self.known_corpses={};self.known_enemies={}
-        self._fog_key=None
+        self._fog_key=None;self.known_facades={}
         self.refresh_visibility()
 
     def sees(self, observer, target):
@@ -111,7 +111,18 @@ class FogOfWar:
         for b in self.known_buildings.values():
             for y in range(b['y'],b['y']+b['depth']):
                 for x in range(b['x'],b['x']+b['width']):heights[y][x]=b['level']
-        return dict(tiles=tiles,heights=heights,buildings=list(self.known_buildings.values()),walls=list(self.known_walls.values()),
+        # A discovered shell includes its static exterior architecture. Portal
+        # state and interactions still come exclusively from observed walls.
+        if not hasattr(self,'known_facades'):self.known_facades={}
+        openings={uid:[] for uid in self.known_buildings if uid not in self.known_facades}
+        for wall in self.walls.values():
+            if wall['building'] not in openings or wall.get('side')=='interior' or wall['kind']=='wall':continue
+            opening={k:copy.deepcopy(wall[k]) for k in ('a','b','kind')}
+            if wall.get('door_group'):opening.update(double_door=True,door_leaf=wall['door_leaf'])
+            openings[wall['building']].append(opening)
+        self.known_facades.update(openings)
+        buildings=[dict(b,exterior_openings=copy.deepcopy(self.known_facades[b['id']]) if not b.get('destroyed') else []) for b in self.known_buildings.values()]
+        return dict(tiles=tiles,heights=heights,buildings=buildings,walls=list(self.known_walls.values()),
                     portals=[w for w in self.known_walls.values() if w['kind']!='wall'],props=list(self.known_props.values()),
                     surfaces=sorted(self.explored),ladders=[link for link in self.ladders if any(tuple(p) in self.explored for p in link)],
                     stairs=[link for link in self.stairs if any(tuple(p) in self.explored for p in link)],

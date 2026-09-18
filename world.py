@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from suburbs import street_plan, street_props
 from woodlands import woodland_plan, woodland_props
+from railway import railway_plan, railway_props
 
 # One catalog drives server-side seeded selection and the browser's asset loader.
 _TRANSPORT_CATALOG = json.loads((Path(__file__).parent / 'static/assets/models/transport/manifest.json').read_text())['models']
@@ -30,7 +31,7 @@ PROP_SIZE={'car':(2,5),'truck':(2,6),'bus':(3,7),'ambulance':(2,5),'tractor':(2,
            'train':(3,10),'container':(3,6),'tank':(2,2),'silo':(2,2),
            'pipes':(2,3),'bench':(2,1),'hay':(2,2),'tree':(1,1),
            'tree_oak':(1,1),'tree_pine':(1,1),'tree_birch':(1,1),'bush':(1,1),
-           'flowerbed':(2,1),'sign':(1,1),'lamp':(1,1),'trash':(1,1),'traffic_light':(1,1),'cafe_table':(1,1)}
+           'flowerbed':(2,1),'sign':(1,1),'lamp':(1,1),'trash':(1,1),'traffic_light':(1,1),'cafe_table':(1,1),'ticket_counter':(2,1)}
 
 
 def urban_plan(game):
@@ -158,7 +159,8 @@ def generate(game):
     urban_lots,park=urban_plan(game) if game.theme=='urban' else (None,None)
     street_lots=street_plan(game) if game.theme=='streets' else None
     woodland_lots=woodland_plan(game) if game.theme=='woods' else None
-    planned_lots=urban_lots if urban_lots is not None else street_lots if street_lots is not None else woodland_lots
+    railway_lots=railway_plan(game) if game.theme=='train_station' else None
+    planned_lots=urban_lots if urban_lots is not None else street_lots if street_lots is not None else woodland_lots if woodland_lots is not None else railway_lots
     if planned_lots is not None:road_x,cross_y=game.road_x,game.cross_y
     game.heights=[[0]*n for _ in range(n)]
     game.surfaces={(x,y,0) for y in range(n) for x in range(n)}
@@ -200,6 +202,7 @@ def generate(game):
         if urban_lots is not None:levels=r.choice([3,4,4,5,6])
         if i==0 and game.theme not in ('woods','farm'):levels=max(2,levels)
         if street_lots is not None:levels=2 if i==0 else r.choice([1,1,2])
+        if railway_lots is not None:levels=1 if lot['station'] else r.choice([1,2])
         distances={'north':abs(y-cross_y),'south':abs(y+depth-cross_y),'west':abs(x-road_x),'east':abs(x+width-road_x)}
         front=('east' if x<road_x else 'west') if roadside and game.theme=='train_station' else min(distances,key=distances.get) if roadside else r.choice(['north','south','west','east'])
         roof_choices={'commercial':['flat','flat','terrace'],'residential':['gable','flat','terrace'],'industrial':['sawtooth','flat','vented'],'civic':['flat','dome','gable'],'rural':['gable','gable','vented']}
@@ -213,6 +216,9 @@ def generate(game):
             front=b['front'];archetype='residential'
         if woodland_lots is not None:
             b.update(archetype='rural',roof='gable',facade='timber',color=r.choice(['#806044','#96734e','#70563e']),accent='#625845')
+        if railway_lots is not None:
+            b.update(station=lot['station'],name='CENTRAL STATION' if lot['station'] else r.choice(['TOWNHOUSE','CORNER SHOP','APARTMENTS']),archetype='civic' if lot['station'] else 'residential',front='east' if x<road_x else 'west',roof='gable',facade='brick',color=r.choice(['#a58970','#b6aa90','#9e8575']))
+            front=b['front'];archetype=b['archetype']
         game.buildings.append(b)
         for by in range(y,y+depth):
             for bx in range(x,x+width):
@@ -226,12 +232,15 @@ def generate(game):
                 along=a[0]-x if side in ('north','south') else a[1]-y
                 span=width if side in ('north','south') else depth
                 entrance=min(span-1,max(0,span//2+(i%3)-1))
-                kind='door' if side==front and along==entrance and z==0 else 'window' if along%2==(i+z)%2 and (side==front or archetype in ('commercial','residential','civic')) else 'wall'
+                double=b.get('station') and side in ('east','west') and z==0 and along in (entrance,entrance+1)
+                kind='door' if double or (side==front and along==entrance and z==0) else 'window' if along%2==(i+z)%2 and (side==front or archetype in ('commercial','residential','civic')) else 'wall'
                 portal=dict(id=f'p{len(game.portals)}',a=a,b=other,kind=kind,open=False,building=b['id'],side=side)
+                if double:portal.update(door_group=f'{b["id"]}:{side}',door_leaf=along-entrance)
                 game.walls[edge_key(a,other)]=portal
                 if kind!='wall':game.portals.append(portal)
         # Connected two-room floors, with an optional third room in larger buildings.
         for z in range(levels):
+            if b.get('station'):continue  # An uninterrupted public waiting hall.
             split_y=y+r.randint(1,depth-1)
             doorway=x+r.randrange(width)
             for bx in range(x,x+width):
@@ -248,7 +257,7 @@ def generate(game):
                     wall=dict(id=f"{b['id']}_inner_{z}_v{by}",a=a,b=other,kind=kind,open=False,building=b['id'],side='interior')
                     game.walls[edge_key(a,other)]=wall
                     if kind=='door':game.portals.append(wall)
-        if i%2 or street_lots is not None:
+        if i%2 or street_lots is not None or railway_lots is not None:
             # Interior ladders connect floors (or a single-storey loft/roof).
             game.ladders.extend(((x+width-1,y+depth-1,z),(x+width-1,y+depth-1,z+1)) for z in range(levels))
         else:
@@ -266,6 +275,10 @@ def generate(game):
     if woodland_lots is not None:
         woodland_props(game)
         game.scenery=dict(theme=game.theme,road_x=road_x,cross_y=cross_y,road_width=1,meadows=game.meadows,**theme)
+        return
+    if railway_lots is not None:
+        railway_props(game,PROP_SIZE,TRANSPORT_MODELS)
+        game.scenery=dict(theme=game.theme,road_x=road_x,cross_y=cross_y,tracks=game.track_centers,road_width=2,**theme)
         return
     kinds=list(theme['props'])
     streetscape=['bench','sign','lamp','trash','bush','flowerbed']

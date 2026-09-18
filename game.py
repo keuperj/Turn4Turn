@@ -254,10 +254,13 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
 
     def toggle_portal(self, unit, portal):
         """Open or close an adjacent door or window after validation."""
-        portal['open']=not portal['open']
+        opened=not portal['open']
+        leaves=[p for p in self.portals if p.get('door_group')==portal['door_group']] if portal.get('door_group') else [portal]
         unit['ap']-=1
         self.geometry_revision+=1
-        self.emit(dict(type='portal',id=portal['id'],open=portal['open'],kind=portal['kind']),unit)
+        for leaf in leaves:
+            leaf['open']=opened
+            self.emit(dict(type='portal',id=leaf['id'],open=opened,kind=leaf['kind']),unit)
         if self.detected(unit):self.log.append(f"{unit['name']} {'opens' if portal['open'] else 'closes'} a {portal['kind']}.")
 
     def chance(self, shooter, target):

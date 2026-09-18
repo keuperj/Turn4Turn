@@ -137,11 +137,16 @@ export function addProp(view, p, parent=view.terrain) {
       cylinder(.025,.055,.06,.745,.03,0xe5dec7);
       break;
     }
+    case 'ticket_counter': {
+      box(1.8,.95,.75,0,.475,0,0x657b78);box(1.95,.08,.85,0,.99,0,view.material(0xc6ad85,'wood'));
+      box(.4,.32,.08,.5,1.18,0,glass);box(.12,.15,.12,.5,1.03,0,metal);
+      const sign=view.label('TICKETS','#f1e6cb',1.5);sign.position.set(0,1.55,0);group.add(sign);break;
+    }
     case 'trash':
       cylinder(.25,.58,0,.29,0,view.material((p.variant||0)%2?0x4e615e:0x59605c,'metal'));{const lid=new G.Mesh(new G.CylinderGeometry(.27,.27,.045,12),metal);lid.position.y=.60;group.add(lid);}break;
   }
   if(view.renderer==='webgpu'&&!enhancedProp)propFittings(view,p,group);
-  const base={car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1]}[p.kind]||[1,1];
+  const base={car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1],ticket_counter:[2,1]}[p.kind]||[1,1];
   if(!enhancedProp)group.scale.set(localProp.width/base[0],p.kind==='car'?1.3:p.kind==='aircraft'?2:p.kind==='train'?1.5:1,localProp.depth/base[1]);
   if(p.growth)group.scale.set(group.scale.x*1.25,group.scale.y*p.growth,group.scale.z*1.25);
   group.traverse(o=>{if(o.isMesh){o.userData.structure=p.id;view.pickables.push(o);}});
@@ -154,6 +159,7 @@ export function addProp(view, p, parent=view.terrain) {
 export function addBuilding(view,b,state){
   const parent=view.terrain,start=parent.children.length;
   if(b.destroyed){view.box(parent,b.width,.14,b.depth,b.x+(b.width-1)/2,.07,b.y+(b.depth-1)/2,0x66625b);return;}
+  if(b.station){const hall=view.label('WAITING HALL','#e7dfc7',Math.min(4,b.width-1));hall.position.set(b.x+(b.width-1)/2,.10,b.y+2);hall.rotation.x=-Math.PI/2;parent.add(hall);}
   const timber=b.facade==='timber'||(!b.facade&&['woods','farm'].includes(state.theme));
   const finish=timber?'wood':b.facade==='metal'?'metal':b.facade==='brick'?'brick':b.facade==='concrete'?'concrete':'paint';
   const wallMaterial=view.material(b.color||state.scenery.wall,view.renderer==='webgpu'?(finish==='paint'?profileFor(state.theme).finish:finish==='metal'?'cladding':finish):finish),trim=b.accent|| (state.theme==='airport'?0x708f9a:state.theme==='factory'?0x69817e:0xbab6a1);
@@ -175,9 +181,13 @@ export function addBuilding(view,b,state){
       if(state.theme==='factory')view.box(parent,.45,1.3,.35,b.x+.03,level*3+.65,b.y+b.depth-1.25,0x667c7c);
     }
   }
-  // A known building retains a solid exterior even before every wall/portal is observed.
-  // Unknown openings remain opaque; their actual state comes only from the server.
+  // Keep the discovered facade intact even before individual portals are seen.
+  // Unobserved openings are closed, opaque and have no portal interaction IDs.
   const walls=state.walls.filter(w=>w.building===b.id),edge=(a,b)=>[a.join(','),b.join(',')].sort().join('|'),known=new Set(walls.map(w=>edge(w.a,w.b)));
+  for(const opening of b.exterior_openings||[]){
+    const key=edge(opening.a,opening.b);if(known.has(key))continue;
+    walls.push({...opening,building:b.id,open:false,facadeOnly:true});known.add(key);
+  }
   for(let level=0;level<b.level;level++){
     const pairs=[];for(let x=b.x;x<b.x+b.width;x++)pairs.push([[x,b.y,level],[x,b.y-1,level]],[[x,b.y+b.depth-1,level],[x,b.y+b.depth,level]]);
     for(let y=b.y;y<b.y+b.depth;y++)pairs.push([[b.x,y,level],[b.x-1,y,level]],[[b.x+b.width-1,y,level],[b.x+b.width,y,level]]);
@@ -192,22 +202,32 @@ export function addBuilding(view,b,state){
     if(wall.kind==='wall'){seg(1,cut?.38:3,0);if(timber&&!cut)for(let h=.20;h<3;h+=.30)seg(.99,.025,h,0,view.material(0x5d4d3b));
       if(state.theme==='factory'&&!cut)for(let o=-.35;o<.5;o+=.23)seg(.025,3,0,o,view.material(trim));}
     else{
-      seg(.15,cut?.38:3,0,-.425);seg(.15,cut?.38:3,0,.425);
-      if(!cut)seg(.7,wall.kind==='door'?.5:.6,wall.kind==='door'?2.5:2.4);
+      const double=!!(wall.door_group||wall.double_door),flip=wall.door_leaf===1?-1:1;
+      if(!double||flip===1)seg(double?.075:.15,cut?.38:3,0,double?-.4625:-.425);
+      if(!double||flip===-1)seg(double?.075:.15,cut?.38:3,0,double?.4625:.425);
+      if(!cut)seg(double?1:.7,double?.25:wall.kind==='door'?.5:.6,double?2.75:wall.kind==='door'?2.5:2.4);
       if(wall.kind==='window')seg(.7,cut?.38:.85,0);
-      if(view.renderer==='webgpu'&&!cut){
+      if((view.renderer==='webgpu'||state.theme==='train_station')&&!cut&&!double){
         const frame=view.material(trim,'metal'),sill=view.material(0xbdb8a5,'concrete');
         seg(.82,.075,wall.kind==='window'?.84:2.5,0,sill);
         for(const offset of [-.36,.36])seg(.045,wall.kind==='window'?1.55:2.5,wall.kind==='window'?.87:0,offset,frame);
         if(wall.kind==='window'){seg(.76,.045,2.42,0,frame);seg(.035,1.5,.89,0,frame);}
       }
-      const hinge=new G.Group();hinge.position.set(x+(vertical?0:-.35),az*3,z+(vertical?-.35:0));
-      const height=wall.kind==='door'?2.45:1.4,base=wall.kind==='door'?0:.9;
-      const leaf=view.box(hinge,vertical?.065:.7,height,vertical?.7:.065,vertical?0:.35,base+height/2,vertical?.35:0,wall.kind==='door'?0x6d7c74:0x5b8793);
-      if(wall.kind==='window'){leaf.material=new G.MeshStandardMaterial({color:0x5b8793,roughness:.18,metalness:.1});leaf.material.transparent=true;leaf.material.opacity=wall.open?.30:.65;}
-      leaf.userData.portal=wall.id;
-      if(wall.kind==='door')view.box(hinge,.035,.035,.11,vertical?.08:.6,1.15,vertical?.6:.08,0xd4bd82);
-      hinge.rotation.y=wall.open?Math.PI*.48:0;parent.add(hinge);view.portalModels.set(wall.id,hinge);view.pickables.push(leaf);
+      const span=double?.925:.7,offset=double?-.425*flip:-.35;
+      const hinge=new G.Group();hinge.position.set(x+(vertical?0:offset),az*3,z+(vertical?offset:0));hinge.userData.swingSign=double?flip:1;
+      const height=double?2.72:wall.kind==='door'?2.45:1.4,base=wall.kind==='door'?0:.9;
+      const leaf=view.box(hinge,vertical?.065:span,height,vertical?span:.065,vertical?0:span/2*flip,base+height/2,vertical?span/2*flip:0,wall.kind==='door'?double?0x8badae:0x6d7c74:0x5b8793);
+      if(wall.kind==='window'){leaf.material=new G.MeshStandardMaterial({color:0x5b8793,roughness:.18,metalness:.1});leaf.material.transparent=true;leaf.material.opacity=wall.facadeOnly?1:wall.open?.30:.65;}
+      leaf.native.name=double?'station-double-door':wall.kind==='door'?'building-door':'building-window';
+      leaf.userData.facadeOnly=!!wall.facadeOnly;
+      if(wall.id)leaf.userData.portal=wall.id;
+      if(wall.kind==='door'){
+        view.box(hinge,.045,double?.4:.035,.11,vertical?.08:(span-.1)*flip,1.15,vertical?(span-.1)*flip:.08,0xd4bd82);
+        if(double){for(const h of [.12,.85,2.62])view.box(hinge,vertical?.085:span,.08,vertical?span:.085,vertical?0:span/2*flip,h,vertical?span/2*flip:0,0xd0c8ae);}
+      }
+      hinge.rotation.y=wall.open?Math.PI*.48*hinge.userData.swingSign:0;parent.add(hinge);
+      if(!wall.id)continue;
+      view.portalModels.set(wall.id,hinge);view.pickables.push(leaf);
       hinge.traverse(o=>{if(o.isMesh)o.userData.portal=wall.id;});
       const icon=view.hoverLabel(`${wall.open?'OPEN':'CLOSED'} ${wall.kind.toUpperCase()}`,`portal:${wall.id}`,wall.open?'#a4eacb':'#eed29b',1.0);icon.position.set(x,az*3+(wall.kind==='door'?2.65:2.5),z);parent.add(icon);
     }
@@ -217,6 +237,11 @@ export function addBuilding(view,b,state){
     for(const offset of [-1,1])view.box(parent,b.width+.12,.13,.10,cx,roofY+.04,cy+offset*b.depth/2,trim);
     if(['urban','train_station'].includes(state.theme)){
       view.box(parent,1.6,.08,.60,b.x+1,2.58,b.y+b.depth-.26,state.theme==='train_station'?0x6e8a82:0x9b6652);
+    }
+    if(b.station){
+      const edge=b.x+b.width-.5;
+      view.box(parent,2.7,.16,b.depth,edge+1.3,3.25,cy,0x667f7b);
+      const sign=view.label('CENTRAL STATION','#eee5cb',Math.min(6,b.width));sign.position.set(cx,3.65,cy);parent.add(sign);
     }
     if(state.theme==='airport'&&b.id==='b2'){
       // Glazed upper control-room facade; real operable window stays in its wall slot.

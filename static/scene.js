@@ -12,6 +12,7 @@ import {urbanStreets} from './urban.js';
 import {streetCrossing} from './street-crossing.js';
 import {BackgroundAssets} from './background.js';
 import {woodlandGround} from './woodland.js';
+import {railwayGround} from './railway.js';
 
 // Geometry is genuinely three-dimensional; Python supplies all walkable surfaces.
 /** Manage the Babylon battlefield and its WebGPU or WebGL engine. */
@@ -223,7 +224,7 @@ export class Battlefield {
     const natural=['woods','farm'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
     this.groundMat.color.set(natural?theme.ground:0xffffff);this.pavedGroundMat.color.set(natural?0xc6c0b4:theme.ground);this.groundAccentMat.color.set(0xffffff);
     const n=state.size,c=(n-1)/2;
-    this.box(this.terrain,n+(['urban','streets','woods'].includes(state.theme)?0:2),.4,n+(['urban','streets','woods'].includes(state.theme)?0:2),c,-.4,c,0x18282b);
+    this.box(this.terrain,n+(['urban','streets','woods','train_station'].includes(state.theme)?0:2),.4,n+(['urban','streets','woods','train_station'].includes(state.theme)?0:2),c,-.4,c,0x18282b);
     const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
     const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
     if(!natural&&!['urban','streets'].includes(state.theme))this.tiles(this.terrain,groundPatches,this.groundAccentMat,.985);
@@ -242,11 +243,7 @@ export class Battlefield {
     if(state.theme==='urban')urbanStreets(this,state);
     if(state.theme==='streets')streetCrossing(this,state);
     if(state.theme==='woods')woodlandGround(this,state);
-    if(state.theme==='train_station'){
-      for(const x of [theme.road_x-.8,theme.road_x+.8]){this.box(this.terrain,.055,.065,n,x,.05,c,0x99a3a0);}
-      for(let y=0;y<n;y+=.5)this.box(this.terrain,2.2,.04,.12,theme.road_x,.025,y,0x5e5445);
-
-    }
+    if(state.theme==='train_station')railwayGround(this,state);
     if(state.theme==='airport'){
       for(let i=0;i<8;i++)this.box(this.terrain,.14,.04,1.6,theme.road_x-2+i*.6,.05,n-6,0xeee9d5);
     }
@@ -456,7 +453,7 @@ export class Battlefield {
       if(e.type==='heal'){const p=new G.Vector3(e.point[0],e.point[2]*3+1,e.point[1]);await this.burst(p,0x80f3b4,.5,400);this.clear(this.fx);}
       if(e.type==='rocket_launch'&&e.target){const from=new G.Vector3(e.point[0],e.point[2]*3+1,e.point[1]),to=new G.Vector3(e.target[0],e.target[2]*3+.4,e.target[1]),rocket=new G.Mesh(new G.SphereGeometry(.1,8,6),new G.MeshBasicMaterial({color:0xffdb9a}));this.fx.add(rocket);await this.tween(250,t=>rocket.position.lerpVectors(from,to,t));this.clear(this.fx);}
       if(e.type==='throw'){const points=[e.origin,...(e.via?[e.via]:[]),e.point].map(p=>new G.Vector3(p[0],p[2]*3+1,p[1])),ball=new G.Mesh(new G.SphereGeometry(.09,8,6),this.material(0x718268));this.fx.add(ball);for(let i=1;i<points.length;i++)await this.tween(i===1&&e.via?130:350,t=>{ball.position.lerpVectors(points[i-1],points[i],t);const distance=points[i-1].distanceTo(points[i]),arc=i===1&&e.via?.15:Math.max(1.5,Math.min(3,distance*.4));ball.position.y+=Math.sin(t*Math.PI)*arc;});this.clear(this.fx);}
-      if(e.type==='portal'){const model=this.portalModels.get(e.id);if(model){const from=model.rotation.y,to=e.open?Math.PI*.48:0;await this.tween(240,t=>model.rotation.y=from+(to-from)*t);}}
+      if(e.type==='portal'){const model=this.portalModels.get(e.id);if(model){const from=model.rotation.y,to=e.open?Math.PI*.48*(model.userData.swingSign||1):0;await this.tween(240,t=>model.rotation.y=from+(to-from)*t);}}
       if(e.type==='shot'||e.type==='impact'){
         const point=new G.Vector3(e.point[0]+(e.hit||e.structure?0:.45),e.point[2]*3+(e.structure?1:e.hit?.8:.12),e.point[1]+(e.hit||e.structure?0:.3));
         if(e.origin){const model=this.models.get(e.unit);if(model){const yaw=Math.atan2(e.origin[0]-e.point[0],e.origin[1]-e.point[1]),from=model.rotation.y,delta=Math.atan2(Math.sin(yaw-from),Math.cos(yaw-from));await this.tween(120,t=>model.rotation.y=from+delta*t);}const origin=new G.Vector3(e.origin[0],e.origin[2]*3+1.1,e.origin[1]);const bullet=new G.Mesh(new G.SphereGeometry(.07,6,4),new G.MeshBasicMaterial({color:0xffe8b2}));this.fx.add(bullet);await this.tween(e.burst?35:100,t=>bullet.position.lerpVectors(origin,point,t));this.clear(this.fx);}

@@ -1,6 +1,7 @@
 /** Seeded decorative scenery outside the tactical grid, shared by both renderers. */
 import {B} from './rendering.js';
 import {crossingPaint,surfaceBatch} from './street-crossing.js';
+import {railTracks} from './railway.js';
 const trees=['CommonTree_1','CommonTree_3','BirchTree_1','BirchTree_3'];
 const shrubs=['Bush_1','BushBerries_1'];
 export const backgroundProfiles={
@@ -48,10 +49,11 @@ export class BackgroundAssets {
   this.key=key;this.root?.dispose(false,false);this.placements=[];
   this.root=new B.TransformNode('scenario-background-'+state.theme,this.view.nativeScene);
   const p=backgroundProfiles[state.theme]||backgroundProfiles.urban,n=state.size,c=(n-1)/2,rng=randomFor(state.seed+state.theme.length*797);
-  this.plane('background-ground',c,c,900,900,this.material(state.theme+'-ground',p.color,p.texture,90),['urban','streets','woods'].includes(state.theme)?-.025:-.64);
+  this.plane('background-ground',c,c,900,900,this.material(state.theme+'-ground',p.color,p.texture,90),['urban','streets','woods','train_station'].includes(state.theme)?-.025:-.64);
   if(state.theme==='urban'){this.urban(state,rng);return;}
   if(state.theme==='streets'){this.suburban(state,rng);return;}
   if(state.theme==='woods'){this.woodland(state,rng);return;}
+  if(state.theme==='train_station'){this.railway(state,rng);return;}
   const road=this.material(state.theme+'-road',['farm','woods'].includes(state.theme)?'#8d7958':'#525b5b','concrete-weathered-v2.webp',12);
   // A clear perimeter separates the board from the scenery and stays unobstructed.
   if(!['woods','farm'].includes(state.theme))for(const side of [-1,1]){
@@ -101,6 +103,33 @@ export class BackgroundAssets {
    const id=trees[index%trees.length];this.add(id,px,pz,.78+rng()*.42,rng()*Math.PI*2,0);
    if(index%2===0)this.add(shrubs[(index>>1)%shrubs.length],px+1,pz+1,.45+rng()*.3,rng()*Math.PI*2,0);
    index++;
+  }
+ }
+ /** Rails continue straight through a surrounding city street grid. */
+ railway(state,rng){
+  const n=state.size,c=(n-1)/2,tracks=state.scenery.tracks||[state.scenery.road_x,state.scenery.road_x+4],middle=(tracks[0]+tracks[1])/2,extent=65;
+  for(const [start,end] of [[-extent,-.5],[n-.5,n+extent]])railTracks(this.view,this.root,tracks,start,end,'background-railway');
+  const road=this.material('rail-city-road','#50585b','concrete-weathered-v2.webp',14),paving=this.material('rail-city-paving','#aaa99c','concrete-weathered-v2.webp',14);
+  // Parallel city streets leave the railway corridor clear all the way to the horizon.
+  for(const x of [.5,n-1.5,-19,n+18]){
+   for(const [start,end] of (x<0||x>n? [[-extent,n+extent]]:[[-extent,-.5],[n-.5,n+extent]])){
+    this.plane('background-station-sidewalk',x,(start+end)/2,6,end-start,paving,.011);
+    this.plane('background-station-street',x,(start+end)/2,2,end-start,road,.02);
+   }
+  }
+  // Cross streets stop at the rail corridor, avoiding asphalt over the track bed.
+  for(const z of [-18,n+17])for(const [left,right] of [[-extent,middle-6],[middle+6,n+extent]]){
+   this.plane('background-station-sidewalk',(left+right)/2,z,right-left,7,paving,.011);
+   this.plane('background-station-street',(left+right)/2,z,right-left,4,road,.02);
+  }
+  let i=0;
+  for(let x=-48;x<n+48;x+=12)for(let z=-48;z<n+48;z+=12){
+   const px=x+(rng()-.5)*2,pz=z+(rng()-.5)*2;
+   if(px>-7&&px<n+6&&pz>-7&&pz<n+6)continue;
+   if(Math.abs(px-middle)<10||[.5,n-1.5,-19,n+18].some(v=>Math.abs(px-v)<7)||[-18,n+17].some(v=>Math.abs(pz-v)<7))continue;
+   const id=['Flat','Flat2','Shop','House2','House3'][i%5];this.add(id,px,pz,.70+rng()*.2,rng()<.5?0:Math.PI,0);
+   if(i%3===0)this.add([...trees,...shrubs][Math.floor(i/3)%6],px+4,pz,.5,0,0);
+   i++;
   }
  }
  urban(state,rng){
