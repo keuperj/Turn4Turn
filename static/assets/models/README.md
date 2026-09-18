@@ -88,3 +88,34 @@ VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json .venv/bin/python tests/bro
 The browser test renders all seven themes, measures/picks every asset, compares
 it with humans and a building floor, checks cleanup and fallback, and writes
 `/tmp/transport-webgl.png` or `/tmp/transport-webgpu.png`.
+
+# Background scenery
+
+`background/` contains 19 **CC0 1.0** models by Quaternius from the
+[Ultimate Nature Pack](https://quaternius.com/packs/ultimatenature.html),
+[Farm Buildings Pack](https://quaternius.com/packs/farmbuildings.html), and
+[Simple Buildings Pack](https://quaternius.com/packs/simplebuildings.html).
+The manifest records source links, original/output hashes, texture atlas bindings,
+axis corrections, and normalized dimensions. Original Nature and Farm license
+notices are bundled; Simple Buildings declares CC0 on its pack page.
+
+The older Simple Buildings FBXs omit texture bindings. Conversion restores the
+supplied 32×32 palette atlases using their existing UVs. Untextured legacy FBX
+colors are corrected for the export's color-space conversion. Mesh material groups
+are consolidated, scale stays uniform, and origins are centered at ground level.
+
+The game uses shared instances with non-pickable meshes outside the playable grid.
+The seeded layout persists through turns, cutaways, and visibility changes; it is
+replaced only when the mission seed, theme, or size changes. Day/night horizon fog
+follows camera distance so the tactical board stays legible at different zooms.
+Ground materials and decorative roads, fields, rails, and runway markings follow
+the scenario. Both WebGL and WebGPU use the same scenery. The additional GLBs total
+about 3.4 MiB on disk / 0.67 MiB over gzip; no remote requests occur during play.
+
+Rebuild and validate:
+
+```sh
+.venv/bin/python tools/import_background.py /tmp/background-fbx --download
+.venv/bin/python tests/browser_background.py
+VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json .venv/bin/python tests/browser_background.py --webgpu
+```

@@ -8,7 +8,7 @@ import {actionAudio} from './audio.js';
 import {qualityLighting,qualityMaterials} from './webgpu-quality.js';
 import {smokeCanvas,detailedEffects} from './webgpu-nature.js';
 
-import {background} from './webgpu-scenery.js';
+import {BackgroundAssets} from './background.js';
 
 // Geometry is genuinely three-dimensional; Python supplies all walkable surfaces.
 /** Manage the Babylon battlefield and its WebGPU or WebGL engine. */
@@ -67,7 +67,7 @@ export class Battlefield {
     G.configure(this.nativeScene,this.shadows);this.scene=new G.Scene(this.nativeScene);
     this.camera=new G.PerspectiveCamera(42,1,.1,500);this.camera.position.set(26,27,32);
     this.controls=new OrbitControls(this.camera,canvas);this.controls.target.set(8.5,0,8.5);
-    this.characters=new CharacterAssets(this);this.transport=new TransportAssets(this);this.ready=Promise.all([this.characters.load(),this.transport.load()]);this.nativeScene.onAfterAnimationsObservable.add(()=>this.characters.afterAnimations());
+    this.characters=new CharacterAssets(this);this.transport=new TransportAssets(this);this.background=new BackgroundAssets(this);this.ready=Promise.all([this.characters.load(),this.transport.load(),this.background.load()]);this.nativeScene.onAfterAnimationsObservable.add(()=>this.characters.afterAnimations());
     this.terrain=new G.Group();this.actors=new G.Group();this.overlay=new G.Group();this.fx=new G.Group();this.flames=[];this.elapsed=0;
     this.scene.add(this.terrain,this.actors,this.overlay,this.fx);this.models=new Map();this.pickables=[];this.portalModels=new Map();this.viewMode='auto';
     this.loader=new G.TextureLoader();
@@ -95,7 +95,7 @@ export class Battlefield {
     canvas.addEventListener('pointerleave',()=>{this.hoverPointer=null;this.queueHover();});
     this.controls.addEventListener('change',()=>this.queueHover());
     new ResizeObserver(()=>this.resize()).observe(canvas.parentElement);this.resize();
-    this.engine.runRenderLoop(()=>{const dt=Math.min(this.engine.getDeltaTime()/1000,.1);this.elapsed+=dt;this.controls.update();this.characters.update(dt);for(const e of this.ambientEffects?.values()||[])e.effect.update({kind:e.kind,age:this.elapsed-e.start},e.origin,e.size);for(const f of this.flames){const pulse=.8+Math.sin(this.elapsed*7+f.phase)*.22;f.mesh.scale.set(pulse,pulse*(1.15+Math.sin(this.elapsed*5+f.phase)*.18),pulse);f.mesh.position.y=f.base+Math.sin(this.elapsed*6+f.phase)*.08;}this.nativeScene.render();});
+    this.engine.runRenderLoop(()=>{const dt=Math.min(this.engine.getDeltaTime()/1000,.1);this.elapsed+=dt;this.controls.update();this.background.atmosphere();this.characters.update(dt);for(const e of this.ambientEffects?.values()||[])e.effect.update({kind:e.kind,age:this.elapsed-e.start},e.origin,e.size);for(const f of this.flames){const pulse=.8+Math.sin(this.elapsed*7+f.phase)*.22;f.mesh.scale.set(pulse,pulse*(1.15+Math.sin(this.elapsed*5+f.phase)*.18),pulse);f.mesh.position.y=f.base+Math.sin(this.elapsed*6+f.phase)*.08;}this.nativeScene.render();});
 
   }
   /** Load and configure a repeating battlefield texture. */
@@ -159,7 +159,6 @@ export class Battlefield {
     const natural=['woods','farm'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
     this.groundMat.color.set(natural?theme.ground:0xffffff);this.pavedGroundMat.color.set(natural?0xc6c0b4:theme.ground);this.groundAccentMat.color.set(0xffffff);
     const n=state.size,c=(n-1)/2;
-    if(this.renderer==='webgpu')background(this,state);
     this.box(this.terrain,n+2,.4,n+2,c,-.4,c,0x18282b);
     const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
     const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
@@ -247,9 +246,10 @@ export class Battlefield {
   /** Synchronize the 3D scene with authoritative game state. */
   sync(state,selected,target,mode,aim){
     this.mode=mode;
-    const night=state.lighting==='night';this.nativeScene.clearColor=B.Color4.FromHexString(night?'#07101cff':'#26383fff');this.nativeScene.fogColor=B.Color3.FromHexString(night?'#07101c':'#26383f');this.nativeScene.fogStart=night?45:100;this.nativeScene.fogEnd=night?150:350;this.sky.intensity=night?.18:.85;this.sun.intensity=night?.32:2.6;this.sun.diffuse=B.Color3.FromHexString(night?'#7592bd':'#fff1db');
+    const night=state.lighting==='night';this.sky.intensity=night?.18:.85;this.sun.intensity=night?.32:2.6;this.sun.diffuse=B.Color3.FromHexString(night?'#7592bd':'#fff1db');
     const first=!this.state||this.state.seed!==state.seed,sameState=this.state===state;this.state=state;this.selected=selected;
     if(first){this.home();const u=state.units.find(u=>u.id===selected);if(u){this.focus(u);this.camera.position.copy(this.controls.target).add(new G.Vector3(17,23,22));}}
+    this.background.sync(state);
     const terrainContext=JSON.stringify([this.viewMode,state.buildings.map(b=>this.buildingLevel(b))]);
     if(!sameState||this.terrainContext!==terrainContext){const signature=JSON.stringify([state.seed,state.theme,state.mission.key,state.mission.flag,state.tiles,state.walls,state.portals,state.ladders,state.stairs,this.viewMode,state.fog.visible,state.fog.explored,state.buildings.map(b=>[this.buildingLevel(b),b.hp]),state.props.map(p=>[p.id,p.hp])]);if(this.signature!==signature){this.build(state);this.signature=signature;}this.terrainState=state;this.terrainContext=terrainContext;}
     const actorSignature=JSON.stringify([terrainContext,state.units.map(u=>[u.id,u.name,u.team,u.x,u.y,u.z,u.hp,u.max_hp,u.stance,u.facing,u.weapon,u.evacuated]),state.last_seen]);

@@ -82,31 +82,6 @@ export function propFittings(view,p,group){
  if(p.kind==='hay')for(const x of [-.25,.25])box('bale-binding',.035,.72,.70,x,.42,0,wood);
  if(p.kind==='trash'){box('bin-lid',.39,.045,.39,0,.64,0);box('bin-handle',.16,.03,.035,0,.68,0,dark);}
 }
-export function background(view,state){
- const profile=profileFor(state.theme),n=state.size,c=(n-1)/2,natural=['woods','farm'].includes(state.theme);
- const parent=new G.Group();view.terrain.add(parent);parent.native.name='scenario-background-'+state.theme;
- view.box(parent,n+70,.25,n+70,c,-.72,c,natural?view.groundMat:view.pavedGroundMat).native.name='background-ground';
- const wall=view.material(profile.color,profile.finish),roof=view.material(profile.roof,'cladding'),glass=view.material(0x36535d,'paint'),wood=view.material(0x9b896e,'wood');
- for(let i=0;i<12;i++){
-  // All silhouettes remain outside the playable square, on two sides.
-  const x=i<8?-7+i*(n+14)/7:n+8+(i%2)*4,z=i<8?-9-(i%3)*3:(i-8)*(n+5)/3;
-  if(state.theme==='woods'||(natural&&i%2===0)){detailedTree(view.nativeScene,parent.native,[x,0,z],view.shadows,.85,i,i%3===0?'tree_pine':'tree_oak');continue;}
-  const w=profile.kind==='hangars'?6:4,d=4,h=natural?3:['works','depot','hangars'].includes(profile.kind)?4:4+(i%3)*2;
-  view.box(parent,w,h,d,x,h/2-.5,z,wall);view.box(parent,w+.18,.18,d+.18,x,h-.4,z,roof);
-  if(natural){for(const side of [-1,1]){const slope=view.box(parent,w+.25,.15,d*.6,x,h-.04,z+side*d*.24,roof);slope.rotation.x=side*.4;}view.box(parent,1.4,2.2,.045,x,.65,z+d/2+.03,wood);}
-  else if(['works','hangars','depot'].includes(profile.kind)){
-   view.box(parent,w*.65,2.8,.05,x,1,z+d/2+.03,roof);
-   for(let k=0;k<10;k++)view.box(parent,w*.65,.025,.035,x,-.25+k*.28,z+d/2+.07,glass);
-   view.box(parent,.7,1,.6,x+w*.25,h+.1,z,roof);
-   if(state.theme==='factory')view.box(parent,.5,3,.5,x-w*.3,h+1,z,wall);
-  }else for(let y=1;y<h-.6;y+=1.5)for(const dx of [-1.3,0,1.3]){
-   view.box(parent,.70,.90,.05,x+dx,y,z+d/2+.03,glass);view.box(parent,.84,.08,.20,x+dx,y-.48,z+d/2+.08,roof);
-  }
-  view.box(parent,.08,h,.08,x-w/2+.15,h/2-.5,z+d/2+.1,roof);
-  // Yard freight, hay and utility cabinets match the scenario's architecture.
-  if(i%2===0){const cargo=view.box(parent,1.1,.85,1.1,x+w/2+1,.02,z, natural?wood:roof);cargo.native.name='background-'+profile.kind+'-cargo';for(let k=0;k<5;k++)view.box(parent,1.12,.055,1.12,x+w/2+1,-.3+k*.15,z,wood);}
- }
-}
 /** Small edge furnishings follow visible floors and never create gameplay blockers. */
 export function furnish(view,b,level,theme,parent){
  const profile=profileFor(theme),y=level*3,x=b.x+.12,z=b.y+b.depth-1.15;

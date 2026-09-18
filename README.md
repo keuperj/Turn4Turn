@@ -296,6 +296,7 @@ python3 tests/browser_campaign.py
 python3 tests/browser_loading.py
 python3 tests/browser_picking.py
 python3 tests/browser_picking.py --dpr 1
+python3 tests/browser_background.py
 python3 tests/browser_interiors.py
 python3 tests/browser_babylon.py
 python3 tests/browser_audio.py
