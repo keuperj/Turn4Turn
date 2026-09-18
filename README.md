@@ -275,6 +275,12 @@ order is executed.
 The Python state is authoritative. The renderer handles presentation and input,
 but it cannot decide whether an action is legal or alter hidden simulation state.
 
+Rendering updates retain unchanged buildings, props, ladders and character rigs.
+Visibility updates rebuild only the two fog meshes; discovery, damage and cutaways
+invalidate the affected scenery layers. Moving or turning a character updates its
+transform without cloning its skeleton and materials. Scene cleanup also releases
+character-owned texture clones while preserving shared source textures.
+
 Maintained Python modules, classes, and functions use docstrings. Maintained
 browser modules and named APIs use JSDoc. Bundled third-party libraries under
 `static/vendor/` and `static/comparison/vendor/` retain their upstream comments.
@@ -303,6 +309,8 @@ python3 tests/browser_campaign.py
 python3 tests/browser_loading.py
 python3 tests/browser_picking.py
 python3 tests/browser_picking.py --dpr 1
+python3 tests/browser_incremental.py
+python3 tests/browser_incremental.py --webgpu
 python3 tests/browser_background.py
 python3 tests/browser_urban.py
 python3 tests/browser_interiors.py

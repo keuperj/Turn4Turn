@@ -129,7 +129,17 @@ export class Battlefield {
   /** Queue hover. */
   queueHover(){if(this.hoverFrame)return;this.hoverFrame=requestAnimationFrame(()=>{this.hoverFrame=0;this.updateHover();});}
   /** Dispose and remove every child of a scene group. */
-  clear(group){for(const child of [...group.children]){this.characters?.release(child);const materials=new Set();child.traverse(o=>{if(o.material&&!o.material.userData?.shared&&!Object.values(this).includes(o.material))materials.add(o.material);});child.dispose();for(const m of materials){if(m.userData?.label)m.map?.dispose();m.dispose();}}}
+  clear(group){
+    for(const child of [...group.children])this.disposeObject(child);
+    if(group===this.terrain){this.terrainState=null;this.terrainWorldKey=null;}
+    if(group===this.actors)this.actorWorldKey=null;
+  }
+  /** Release nested character instances as well as geometry and private labels. */
+  disposeObject(child){
+    child.traverse(o=>this.characters?.release(o));
+    const materials=new Set();child.traverse(o=>{if(o.material&&!o.material.userData?.shared&&!Object.values(this).includes(o.material))materials.add(o.material);});
+    child.dispose();for(const m of materials){if(m.userData?.label)m.map?.dispose();m.dispose();}
+  }
 
   /** Build ing level. */
   buildingLevel(b){
@@ -152,10 +162,61 @@ export class Battlefield {
     return !u.evacuated;
   }
   /** Update view. */
-  setView(mode){if(this.viewMode===mode)return;this.viewMode=mode;this.signature=null;this.terrainState=null;}
-  /** Rebuild battlefield geometry from authoritative world data. */
+  setView(mode){if(this.viewMode===mode)return;this.viewMode=mode;this.terrainState=null;}
+  /** Retain unchanged scene layers; only dispose resources owned by a changed layer. */
+  terrainLayer(key,signature,draw){
+    this.liveTerrainLayers.add(key);
+    const cached=this.terrainLayers.get(key);if(cached?.signature===signature)return cached;
+    if(cached){this.clear(cached.group);cached.group.dispose();}
+    const root=this.terrain,pickables=this.pickables,portals=this.portalModels;
+    const group=new G.Group();group.native.name=key;root.add(group);
+    const entry={group,signature,pickables:[],portals:new Map(),hover:[]};
+    this.terrain=group;this.pickables=entry.pickables;this.portalModels=entry.portals;
+    try{
+      draw();group.updateMatrixWorld();
+      group.traverse(o=>{
+        if(o.isMesh&&!o.userData.portal&&!o.userData.hoverFor&&!o.userData.health)o.native.freezeWorldMatrix();
+        if(o.userData.hoverFor||o.userData.health)entry.hover.push(o);
+      });
+    }finally{this.terrain=root;this.pickables=pickables;this.portalModels=portals;}
+    this.terrainLayers.set(key,entry);return entry;
+  }
+  /** Synchronize scenery independently from visibility and tactical overlays. */
   build(state){
-    this.clear(this.terrain);this.pickables=[];this.portalModels.clear();
+    const worldKey=JSON.stringify([state.seed,state.theme,state.size]);
+    if(this.terrainWorldKey!==worldKey){
+      this.clear(this.terrain);this.terrainLayers=new Map();this.terrainWorldKey=worldKey;
+    }
+    this.liveTerrainLayers=new Set();
+    const key=value=>JSON.stringify(value),levels=state.buildings.map(b=>[b.id,b.x,b.y,b.width,b.depth,this.buildingLevel(b)]);
+    this.terrainLayer('ground',key([state.tiles,state.scenery,!!state.civilians.total]),()=>this.buildGround(state));
+    const walls=new Map();
+    for(const w of state.walls){if(!walls.has(w.building))walls.set(w.building,[]);walls.get(w.building).push(w);}
+    for(const b of state.buildings){
+      const limit=this.buildingLevel(b),links=state.stairs.filter(([a])=>a[0]>=b.x&&a[0]<b.x+b.width&&a[1]>=b.y&&a[1]<b.y+b.depth);
+      const knownWalls=walls.get(b.id)||[];
+      this.terrainLayer('building:'+b.id,key([b,limit,knownWalls.filter(w=>w.a[2]<=limit),links]),()=>addBuilding(this,b,{...state,walls:knownWalls,stairs:links}));
+    }
+    for(const prop of state.props)this.terrainLayer('prop:'+prop.id,key(prop),()=>addProp(this,prop));
+    for(const [a,b] of state.ladders){
+      const building=state.buildings.find(v=>b[0]>=v.x&&b[0]<v.x+v.width&&b[1]>=v.y&&b[1]<v.y+v.depth);
+      this.terrainLayer('ladder:'+a.join(',')+':'+b.join(','),key([a,b,building?this.buildingLevel(building):b[2]]),()=>this.buildLadder(state,a,b));
+    }
+    this.terrainLayer('fog',key([state.fog,levels]),()=>this.buildFog(state));
+    this.terrainLayer('objective',key(state.mission.flag),()=>this.buildObjective(state));
+    for(const [id,entry] of this.terrainLayers)if(!this.liveTerrainLayers.has(id)){
+      this.clear(entry.group);entry.group.dispose();this.terrainLayers.delete(id);
+    }
+    this.pickables=[];this.portalModels.clear();this.terrainHoverItems=[];
+    for(const entry of this.terrainLayers.values()){
+      this.pickables.push(...entry.pickables);this.terrainHoverItems.push(...entry.hover);
+      for(const [id,portal] of entry.portals)this.portalModels.set(id,portal);
+    }
+    const pickSurfaces=state.surfaces.filter(([x,y,z])=>this.surfaceVisible(x,y,z));
+    this.pickSurfaceSet=new Set(pickSurfaces.map(p=>p.join(',')));this.pickSurfaceLevels=[...new Set(pickSurfaces.map(p=>p[2]))];
+  }
+  /** Ground and street geometry change only when terrain is discovered or damaged. */
+  buildGround(state){
     const theme=state.scenery;
     const natural=['woods','farm'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
     this.groundMat.color.set(natural?theme.ground:0xffffff);this.pavedGroundMat.color.set(natural?0xc6c0b4:theme.ground);this.groundAccentMat.color.set(0xffffff);
@@ -164,7 +225,6 @@ export class Battlefield {
     const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
     const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
     if(!natural&&state.theme!=='urban')this.tiles(this.terrain,groundPatches,this.groundAccentMat,.985);
-    const pickSurfaces=state.surfaces.filter(([x,y,z])=>this.surfaceVisible(x,y,z));this.pickSurfaceSet=new Set(pickSurfaces.map(p=>p.join(',')));this.pickSurfaceLevels=[...new Set(pickSurfaces.map(p=>p[2]))];
     const roads=[],laneMarkers=[];
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){
       const t=state.tiles[y][x];
@@ -178,20 +238,6 @@ export class Battlefield {
     if(roads.length)this.tiles(this.terrain,roads,this.material(theme.road,'asphalt'),1);
     if(laneMarkers.length)this.tiles(this.terrain,laneMarkers,this.material(0xc8bd86),.055);
     if(state.theme==='urban')urbanStreets(this,state);
-    for(const b of state.buildings)addBuilding(this,b,state);
-    for(const [a,b] of state.ladders){
-      const building=state.buildings.find(v=>b[0]>=v.x&&b[0]<v.x+v.width&&b[1]>=v.y&&b[1]<v.y+v.depth);
-      const inside=a[0]===b[0]&&a[1]===b[1],limit=building?this.buildingLevel(building):b[2];
-      if(inside&&a[2]>limit)continue;
-      const bottom=a[2]*3,top=Math.min(b[2],limit+1)*3;
-      const h=top-bottom,x=inside?a[0]-.30:a[0]+(b[0]-a[0])*.30,z=a[1];
-      const id=`ladder:${a.join(',')}:${b.join(',')}`,data={transition:id,ends:[a,b],x:a[0],y:a[1],z:a[2]};
-      const part=(w,h,d,px,py,pz)=>{const m=this.box(this.terrain,w,h,d,px,py,pz,0xc3ac64);m.userData={...data};this.pickables.push(m);};
-      for(const offset of [-.23,.23])part(.055,h+.3,.055,x,bottom+h/2+.15,z+offset);
-      for(let r=.2;r<h+.3;r+=.3)part(.06,.04,.5,x,bottom+r,z);
-      const icon=this.hoverLabel('LADDER ↕',id,'#f9d58a',1);icon.position.set(x+.12,bottom+1,z);this.terrain.add(icon);
-    }
-    for(const prop of state.props)addProp(this,prop);
     if(state.theme==='train_station'){
       for(const x of [theme.road_x-.8,theme.road_x+.8]){this.box(this.terrain,.055,.065,n,x,.05,c,0x99a3a0);}
       for(let y=0;y<n;y+=.5)this.box(this.terrain,2.2,.04,.12,theme.road_x,.025,y,0x5e5445);
@@ -203,9 +249,29 @@ export class Battlefield {
 
     if(state.civilians.total){const evac=this.label('CIVILIAN EVACUATION →','#ace9c0',4);evac.position.set(c,.12,n-.3);this.terrain.add(evac);}
     const grid=new G.GridHelper(n,n,0x9aaca3,0x6e8074);grid.position.set(c,.035,c);grid.material.transparent=true;grid.material.opacity=.16;this.terrain.add(grid);
+  }
+  /** Rebuild only the ladder affected by discovery or a building cutaway. */
+  buildLadder(state,a,b){
+    const building=state.buildings.find(v=>b[0]>=v.x&&b[0]<v.x+v.width&&b[1]>=v.y&&b[1]<v.y+v.depth);
+    const inside=a[0]===b[0]&&a[1]===b[1],limit=building?this.buildingLevel(building):b[2];
+    if(inside&&a[2]>limit)return;
+    const bottom=a[2]*3,top=Math.min(b[2],limit+1)*3;
+    const h=top-bottom,x=inside?a[0]-.30:a[0]+(b[0]-a[0])*.30,z=a[1];
+    const id=`ladder:${a.join(',')}:${b.join(',')}`,data={transition:id,ends:[a,b],x:a[0],y:a[1],z:a[2]};
+    const part=(w,h,d,px,py,pz)=>{const m=this.box(this.terrain,w,h,d,px,py,pz,0xc3ac64);m.userData={...data};this.pickables.push(m);};
+    for(const offset of [-.23,.23])part(.055,h+.3,.055,x,bottom+h/2+.15,z+offset);
+    for(let r=.2;r<h+.3;r+=.3)part(.06,.04,.5,x,bottom+r,z);
+    const icon=this.hoverLabel('LADDER ↕',id,'#f9d58a',1);icon.position.set(x+.12,bottom+1,z);this.terrain.add(icon);
+  }
+  /** Fog consists of two small batched meshes, independent of every structure. */
+  buildFog(state){
+    const n=state.size;
     const explored=new Set(state.fog.explored.map(p=>p.join(','))),visible=new Set(state.fog.visible.map(p=>p.join(','))),fogTiles={explored:[],unseen:[]};
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){const b=state.buildings.find(b=>x>=b.x&&x<b.x+b.width&&y>=b.y&&y<b.y+b.depth),z=b?this.buildingLevel(b):0,key=`${x},${y},${z}`;if(!visible.has(key))fogTiles[explored.has(key)?'explored':'unseen'].push({x,y:z*3+.17,z:y});}
     this.tiles(this.terrain,fogTiles.explored,this.fogMaterials.explored,1.015);this.tiles(this.terrain,fogTiles.unseen,this.fogMaterials.unseen,1.015);
+  }
+  /** Objective ownership never invalidates buildings or terrain. */
+  buildObjective(state){
     if(state.mission.flag){
       const f=state.mission.flag,color=f.team==='soldier'?0x45b9dc:0xe45f4a,flag=new G.Group();
       this.box(flag,.07,2.8,.07,0,1.4,0,0xc9d3ce);this.box(flag,.28,.08,.28,0,.04,0,0x59676a);
@@ -214,8 +280,6 @@ export class Battlefield {
       const marker=this.label(f.label,f.team==='soldier'?'#9cecff':'#ffad91',1.8);marker.position.set(.3,3.25,0);flag.add(marker);
       flag.position.set(f.x,f.z*3,f.y);flag.traverse(o=>{o.userData.x=f.x;o.userData.y=f.y;o.userData.z=f.z;});this.terrain.add(flag);
     }
-    this.terrain.updateMatrixWorld();this.terrain.traverse(o=>{if(o.isMesh&&!o.userData.portal&&!o.userData.hoverFor&&!o.userData.health)o.native.freezeWorldMatrix();});
-    this.terrainHoverItems=[];this.terrain.traverse(o=>{if(o.userData.hoverFor||o.userData.health)this.terrainHoverItems.push(o);});
   }
   /** Create a camera-facing text label. */
   label(text,color='#ffffff',width=1.3){const c=document.createElement('canvas');c.width=256;c.height=64;const ctx=c.getContext('2d');ctx.fillStyle='rgba(12,22,25,.8)';ctx.fillRect(0,0,256,64);ctx.fillStyle=color;ctx.font='bold 27px monospace';ctx.textAlign='center';ctx.fillText(text,128,43,244);const map=new G.CanvasTexture(c),mat=new G.SpriteMaterial({map,depthTest:false});mat.userData.label=true;const s=new G.Sprite(mat);s.scale.set(width,width/4,1);return s;}
@@ -245,21 +309,55 @@ export class Battlefield {
     this.characters.apply(root,u,gun);
     return root;
   }
+  /** Keep characters, skeletons and animations alive when only their positions change. */
+  syncActors(state){
+    const worldKey=JSON.stringify([state.seed,state.theme,state.size]);
+    if(this.actorWorldKey!==worldKey){
+      this.clear(this.actors);this.actorLayers=new Map();this.models.clear();this.memoryLayer=null;this.actorWorldKey=worldKey;
+    }
+    // Animation can introduce a newly revealed actor before its final state arrives.
+    const retained=new Set([...this.actorLayers.values()].map(e=>e.group));if(this.memoryLayer)retained.add(this.memoryLayer);
+    for(const child of [...this.actors.children])if(!retained.has(child))this.disposeObject(child);
+    const live=new Set();this.models.clear();
+    for(const u of state.units){
+      if(!this.actorVisible(u))continue;live.add(u.id);
+      const signature=JSON.stringify([u.id,u.name,u.team,u.hp,u.max_hp,u.stance,u.weapon,u.hp<=0?[u.x,u.y,u.z]:null]);
+      let entry=this.actorLayers.get(u.id);
+      if(entry?.signature!==signature){
+        if(entry)this.disposeObject(entry.group);
+        const group=new G.Group();this.actors.add(group);entry={group,signature,model:null};
+        if(u.hp<=0){const root=this.actors;this.actors=group;try{this.corpse(u);}finally{this.actors=root;}}
+        else{entry.model=this.figure(u);group.add(entry.model);}
+        this.actorLayers.set(u.id,entry);
+      }
+      if(entry.model){
+        entry.model.position.set(u.x,u.z*3,u.y);entry.model.rotation.y=u.facing??(u.team==='soldier'?0:Math.PI);entry.model.visible=true;
+        const character=this.characters.instances.get(entry.model);if(character)character.unit=u;
+        this.models.set(u.id,entry.model);
+      }
+    }
+    for(const [id,entry] of this.actorLayers)if(!live.has(id)){this.disposeObject(entry.group);this.actorLayers.delete(id);}
+    const memories=(state.last_seen||[]).filter(m=>this.surfaceVisible(m.x,m.y,m.z)),memoryKey=JSON.stringify(memories);
+    if(!this.memoryLayer||this.memoryKey!==memoryKey){
+      if(this.memoryLayer)this.disposeObject(this.memoryLayer);
+      const root=this.actors;this.memoryLayer=new G.Group();root.add(this.memoryLayer);this.actors=this.memoryLayer;
+      try{
+      for(const m of memories){if(!this.surfaceVisible(m.x,m.y,m.z))continue;const ghost=new G.Group(),mat=new G.MeshBasicMaterial({color:0x9ba3a8,transparent:true,opacity:.42,depthWrite:false});const body=new G.Mesh(new G.CapsuleGeometry(.19,.65,4,8),mat);body.position.y=.7;ghost.add(body);const head=new G.Mesh(new G.SphereGeometry(.14,8,6),mat);head.position.y=1.3;ghost.add(head);const tag=this.label(`LAST SEEN · R${m.round}`,'#adb5ba',1.65);tag.position.y=1.65;ghost.add(tag);ghost.position.set(m.x,m.z*3,m.y);ghost.traverse(o=>o.userData.memory=m.id);this.actors.add(ghost);}
+      }finally{this.actors=root;}
+      this.memoryKey=memoryKey;
+    }
+    this.actorHoverItems=[];this.actors.traverse(o=>{if(o.userData.hoverFor||o.userData.health)this.actorHoverItems.push(o);});
+  }
   /** Synchronize the 3D scene with authoritative game state. */
   sync(state,selected,target,mode,aim){
     this.mode=mode;
     const night=state.lighting==='night';this.sky.intensity=night?.18:.85;this.sun.intensity=night?.32:2.6;this.sun.diffuse=B.Color3.FromHexString(night?'#7592bd':'#fff1db');
-    const first=!this.state||this.state.seed!==state.seed,sameState=this.state===state;this.state=state;this.selected=selected;
+    const first=!this.state||this.state.seed!==state.seed||this.state.theme!==state.theme||this.state.size!==state.size;this.state=state;this.selected=selected;
     if(first){this.home();const u=state.units.find(u=>u.id===selected);if(u){this.focus(u);this.camera.position.copy(this.controls.target).add(new G.Vector3(17,23,22));}}
     this.background.sync(state);
     const terrainContext=JSON.stringify([this.viewMode,state.buildings.map(b=>this.buildingLevel(b))]);
-    if(!sameState||this.terrainContext!==terrainContext){const signature=JSON.stringify([state.seed,state.theme,state.mission.key,state.mission.flag,state.tiles,state.walls,state.portals,state.ladders,state.stairs,this.viewMode,state.fog.visible,state.fog.explored,state.buildings.map(b=>[this.buildingLevel(b),b.hp]),state.props.map(p=>[p.id,p.hp])]);if(this.signature!==signature){this.build(state);this.signature=signature;}this.terrainState=state;this.terrainContext=terrainContext;}
-    const actorSignature=JSON.stringify([terrainContext,state.units.map(u=>[u.id,u.name,u.team,u.x,u.y,u.z,u.hp,u.max_hp,u.stance,u.facing,u.weapon,u.evacuated]),state.last_seen]);
-    if(this.actorSignature!==actorSignature){this.clear(this.actors);this.models.clear();
-      for(const u of state.units){if(!this.actorVisible(u))continue;if(u.hp<=0){this.corpse(u);continue;}const model=this.figure(u);this.actors.add(model);this.models.set(u.id,model);}
-      for(const m of state.last_seen||[]){if(!this.surfaceVisible(m.x,m.y,m.z))continue;const ghost=new G.Group(),mat=new G.MeshBasicMaterial({color:0x9ba3a8,transparent:true,opacity:.42,depthWrite:false});const body=new G.Mesh(new G.CapsuleGeometry(.19,.65,4,8),mat);body.position.y=.7;ghost.add(body);const head=new G.Mesh(new G.SphereGeometry(.14,8,6),mat);head.position.y=1.3;ghost.add(head);const tag=this.label(`LAST SEEN · R${m.round}`,'#adb5ba',1.65);tag.position.y=1.65;ghost.add(tag);ghost.position.set(m.x,m.z*3,m.y);ghost.traverse(o=>o.userData.memory=m.id);this.actors.add(ghost);}
-      this.actorHoverItems=[];this.actors.traverse(o=>{if(o.userData.hoverFor||o.userData.health)this.actorHoverItems.push(o);});this.actorSignature=actorSignature;
-    }
+    if(this.terrainState!==state||this.terrainContext!==terrainContext){this.build(state);this.terrainState=state;this.terrainContext=terrainContext;}
+    this.syncActors(state);
     this.updateHover(true);
     this.lastSeed=state.seed;
     this.clear(this.overlay);this.flames=[];

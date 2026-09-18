@@ -54,14 +54,18 @@ export class CharacterAssets {
     const rig=model.userData.rig,body=rig.body;
     // Keep the equipment and tactical markers; replace the procedural person.
     for(const part of [...body.children])if(part!==weapon){part.dispose();}
+    const existingTextures=new Set(this.view.nativeScene.textures);
     const instance=container.instantiateModelsToScene(name=>`${unit.id}:${name}`,true,{doNotInstantiate:true});
+    // Babylon clones material textures too. Own only the new texture wrappers,
+    // never source atlases or the shared WebGPU detail maps added below.
+    const textures=this.view.nativeScene.textures.filter(t=>!existingTextures.has(t));
     const root=instance.rootNodes[0];root.parent=body.native;root.scaling.scaleInPlace(scale);root.position.y=-bottom*scale;root.rotationQuaternion=B.Quaternion.RotationAxis(B.Axis.Y,Math.PI);
     if(this.view.renderer==='webgpu'&&unit.team==='soldier')dressCharacter(this.view.nativeScene,root,this.view.shadows);
     const meshes=root.getChildMeshes();for(const m of meshes){m.metadata={pickOwner:model};m.isPickable=!unit.corpse;m.receiveShadows=true;this.view.shadows.addShadowCaster(m,false);}
     const all=[root,...root.getDescendants()],hand=all.find(n=>n.name.endsWith(':FistR'));
     const bones=new Map(all.map(n=>[n.name.split(':').at(-1),n]));
     instance.animationGroups.forEach(g=>g.stop());
-    const entry={model,unit,variant,scale,bottom,instance,root,weapon,hand,bones,materials:new Set(meshes.map(m=>m.material).filter(Boolean)),current:null,previous:null,blend:1,stance:unit.stance};this.instances.set(model,entry);model.userData.animated=true;
+    const entry={model,unit,variant,scale,bottom,instance,root,weapon,hand,bones,textures,materials:new Set(meshes.map(m=>m.material).filter(Boolean)),current:null,previous:null,blend:1,stance:unit.stance};this.instances.set(model,entry);model.userData.animated=true;
     // The source character has no authored crawl/kneel clip. Apply a static knee
     // pose to its skeleton; the prone pose uses the body's existing ground tilt.
     this.motion(model,'idle');
@@ -92,5 +96,5 @@ export class CharacterAssets {
     if(e.hand&&e.weapon.visible){e.hand.computeWorldMatrix(true);const inverse=e.model.userData.rig.body.native.computeWorldMatrix(true).clone().invert();const p=B.Vector3.TransformCoordinates(e.hand.getAbsolutePosition(),inverse);e.weapon.position.set(p.x,p.y,p.z-.06);}
   }}
   /** Dispose one character instance and its owned materials. */
-  release(model){const e=this.instances.get(model);if(!e)return;for(const m of e.root.getChildMeshes())this.view.shadows.removeShadowCaster(m,false);e.instance.dispose();for(const m of e.materials)m.dispose(false,false);this.instances.delete(model);}
+  release(model){const e=this.instances.get(model);if(!e)return;for(const m of e.root.getChildMeshes())this.view.shadows.removeShadowCaster(m,false);e.instance.dispose();for(const m of e.materials)m.dispose(false,false);for(const t of e.textures)t.dispose();this.instances.delete(model);}
 }
