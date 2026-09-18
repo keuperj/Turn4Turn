@@ -61,8 +61,13 @@ class RoomTests(unittest.TestCase):
 
     def test_upper_windows_observed_from_ground_without_revealing_rooms(self):
         """Verify that upper windows observed from ground without revealing rooms."""
-        g=Game(41,'urban');b=g.buildings[0]
-        for u in g.alive('soldier'):u.update(x=b['x']-3 if b['x']>=3 else b['x']+b['width']+3,y=b['y']+1,z=0,stance='standing')
+        g=Game(41,'urban')
+        # Dense blocks can occupy the old arbitrary three-tile offset. Observe
+        # from an actual clear street tile outside an upper exterior window.
+        window=next(p for p in g.portals if p['kind']=='window' and p['side']!='interior' and p['a'][2]==1
+                    and 0<=p['b'][0]<g.size and 0<=p['b'][1]<g.size
+                    and not g.heights[p['b'][1]][p['b'][0]] and (p['b'][0],p['b'][1],0) not in g.blocked)
+        for u in g.alive('soldier'):u.update(x=window['b'][0],y=window['b'][1],z=0,stance='standing')
         g.init_fog();state=g.state()
         upper=[w for w in state['walls'] if w['kind']=='window' and w['a'][2]>0]
         self.assertTrue(upper)

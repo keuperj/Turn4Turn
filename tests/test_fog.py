@@ -96,7 +96,9 @@ class FogTests(unittest.TestCase):
                 walk=g.paths(g.units[0],999,True,True)
                 for u in g.alive():self.assertIn(g.position(u),walk)
                 for p in g.props:
-                    self.assertEqual((p['width'],p['depth']),PROP_SIZE[p['kind']])
+                    footprint=PROP_SIZE[p['kind']]
+                    if p.get('quarter_turn',0)%2:footprint=footprint[::-1]
+                    self.assertEqual((p['width'],p['depth']),footprint)
                     self.assertFalse(any(g.heights[y][x] for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
         self.assertEqual(len(signatures),21)
         self.assertGreaterEqual(PROP_SIZE['aircraft'][0],10)

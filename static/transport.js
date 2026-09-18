@@ -24,7 +24,8 @@ export class TransportAssets {
   if(!source)return false;
   // Assets already use Y-up and a centered, grounded metre-scale origin.
   // This guard also keeps older/smaller saved footprints safe without distortion.
-  const scale=Math.min(1,prop.width*.94/entry.dimensions[0],prop.depth*.94/entry.dimensions[2]);
+  const turned=prop.quarter_turn%2;
+  const scale=Math.min(1,(turned?prop.depth:prop.width)*.94/entry.dimensions[0],(turned?prop.width:prop.depth)*.94/entry.dimensions[2]);
   const instance=source.instantiateModelsToScene(name=>`${prop.id}:${name}`,false,{doNotInstantiate:false});
   for(const root of instance.rootNodes){
    root.parent=owner.native;root.scaling.scaleInPlace(scale);

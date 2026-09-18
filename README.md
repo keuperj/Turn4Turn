@@ -192,6 +192,13 @@ missions provide these values from their briefing and keep them locked.
 
 Larger maps generate more scenery, structures, walkable area, and hostiles.
 
+Urban maps use compact downtown blocks with 3–6-storey buildings, shops and cafés
+with outdoor seating. Asphalt streets, crosswalks, sidewalks and paved pedestrian
+lanes surround one seeded pocket park with trees, shrubs and a bench. Parked cars,
+traffic signals, signs, street lamps and bins have collision footprints; generation
+keeps entrances and pedestrian routes connected. Streets continue into a matching
+background street grid and skyline. Cutaway controls include all six upper levels.
+
 ### Difficulty
 
 | Difficulty | Squad AP | Hostile AP |
@@ -297,6 +304,7 @@ python3 tests/browser_loading.py
 python3 tests/browser_picking.py
 python3 tests/browser_picking.py --dpr 1
 python3 tests/browser_background.py
+python3 tests/browser_urban.py
 python3 tests/browser_interiors.py
 python3 tests/browser_babylon.py
 python3 tests/browser_audio.py

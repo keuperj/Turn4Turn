@@ -8,6 +8,7 @@ import {actionAudio} from './audio.js';
 import {qualityLighting,qualityMaterials} from './webgpu-quality.js';
 import {smokeCanvas,detailedEffects} from './webgpu-nature.js';
 
+import {urbanStreets} from './urban.js';
 import {BackgroundAssets} from './background.js';
 
 // Geometry is genuinely three-dimensional; Python supplies all walkable surfaces.
@@ -159,16 +160,16 @@ export class Battlefield {
     const natural=['woods','farm'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
     this.groundMat.color.set(natural?theme.ground:0xffffff);this.pavedGroundMat.color.set(natural?0xc6c0b4:theme.ground);this.groundAccentMat.color.set(0xffffff);
     const n=state.size,c=(n-1)/2;
-    this.box(this.terrain,n+2,.4,n+2,c,-.4,c,0x18282b);
+    this.box(this.terrain,n+(state.theme==='urban'?0:2),.4,n+(state.theme==='urban'?0:2),c,-.4,c,0x18282b);
     const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
     const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
-    if(!natural)this.tiles(this.terrain,groundPatches,this.groundAccentMat,.985);
+    if(!natural&&state.theme!=='urban')this.tiles(this.terrain,groundPatches,this.groundAccentMat,.985);
     const pickSurfaces=state.surfaces.filter(([x,y,z])=>this.surfaceVisible(x,y,z));this.pickSurfaceSet=new Set(pickSurfaces.map(p=>p.join(',')));this.pickSurfaceLevels=[...new Set(pickSurfaces.map(p=>p[2]))];
     const roads=[],laneMarkers=[];
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){
       const t=state.tiles[y][x];
       if(t==='road')roads.push({x,y:.012,z:y});
-      if(t==='road'&&x===theme.road_x&&y%2===0&&state.theme!=='train_station')laneMarkers.push({x,y:.029,z:y});
+      if(t==='road'&&x===theme.road_x&&y%2===0&&!['train_station','urban'].includes(state.theme))laneMarkers.push({x,y:.029,z:y});
       if(t==='crops')for(let k=0;k<3;k++)this.box(this.terrain,.055,.3,.85,x-.3+k*.3,.15,y,0x849052);
       if(t==='low'){this.box(this.terrain,.88,.55,.7,x,.275,y,0x817c61);for(let k=0;k<3;k++)this.box(this.terrain,.26,.2,.76,x-.29+k*.29,.65,y,0xa69d7b);}
       if(t==='high'){this.box(this.terrain,.84,2.2,.72,x,1.1,y,this.concreteMat);for(let k=0;k<4;k++)this.box(this.terrain,.88,.035,.76,x,.3+k*.5,y,0x93968a);}
@@ -176,6 +177,7 @@ export class Battlefield {
     }
     if(roads.length)this.tiles(this.terrain,roads,this.material(theme.road,'asphalt'),1);
     if(laneMarkers.length)this.tiles(this.terrain,laneMarkers,this.material(0xc8bd86),.055);
+    if(state.theme==='urban')urbanStreets(this,state);
     for(const b of state.buildings)addBuilding(this,b,state);
     for(const [a,b] of state.ladders){
       const building=state.buildings.find(v=>b[0]>=v.x&&b[0]<v.x+v.width&&b[1]>=v.y&&b[1]<v.y+v.depth);
