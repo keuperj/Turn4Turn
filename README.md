@@ -232,12 +232,13 @@ three-storey control tower. Runway markings continue seamlessly into the flat
 grassland background; an approach road leads directly to the terminal entrance.
 Compact maps have one parked aircraft; standard and large maps have two.
 
-Factory is an indoor production hall with three playable levels: the main floor,
-a connected mezzanine, and an upper assembly gallery. Only the north and west
+Factory is an indoor production hall with dense, staggered machine rows and clear
+work aisles. Outer mezzanines surround a central stack rising three floors above
+the main floor. Only the north and west
 outer walls are shown; the south and east sides stay open, against a plain background.
 Imported CNC machines, lathes, mills, compressors, storage racks, welding robots,
-conveyors and a forklift furnish the floors. Stairs connect the levels; floor controls
-reveal lower work areas. Equipment has collision, visibility and damage on its own floor.
+conveyors and a forklift furnish the floors. Full stair flights with handrails and open stair wells connect the levels; floor
+controls reveal lower work areas. Equipment has collision, visibility and damage on its own floor.
 
 ### Difficulty
 

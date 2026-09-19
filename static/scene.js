@@ -158,10 +158,13 @@ export class Battlefield {
     return b.level;
   }
   /** Return whether a floor surface is visible in the cutaway. */
-  surfaceVisible(x,y,z){
+  surfaceLevel(x,y){
     const b=this.state.buildings.find(b=>x>=b.x&&x<b.x+b.width&&y>=b.y&&y<b.y+b.depth);
-    return b ? z===this.buildingLevel(b) : z===0;
+    let level=b?this.buildingLevel(b):0;
+    while(level>0&&b?.floor_holes?.some(([hx,hy,hz])=>hx===x&&hy===y&&hz===level))level--;
+    return level;
   }
+  surfaceVisible(x,y,z){return z===this.surfaceLevel(x,y);}
   /** Return whether an actor belongs in the current cutaway view. */
   actorVisible(u){
     if(!this.surfaceVisible(u.x,u.y,u.z))return false;
@@ -273,7 +276,7 @@ export class Battlefield {
   buildFog(state){
     const n=state.size;
     const explored=new Set(state.fog.explored.map(p=>p.join(','))),visible=new Set(state.fog.visible.map(p=>p.join(','))),fogTiles={explored:[],unseen:[]};
-    for(let y=0;y<n;y++)for(let x=0;x<n;x++){const b=state.buildings.find(b=>x>=b.x&&x<b.x+b.width&&y>=b.y&&y<b.y+b.depth),z=b?this.buildingLevel(b):0,key=`${x},${y},${z}`;if(!visible.has(key))fogTiles[explored.has(key)?'explored':'unseen'].push({x,y:z*3+.17,z:y});}
+    for(let y=0;y<n;y++)for(let x=0;x<n;x++){const z=this.surfaceLevel(x,y),key=`${x},${y},${z}`;if(!visible.has(key))fogTiles[explored.has(key)?'explored':'unseen'].push({x,y:z*3+.17,z:y});}
     this.tiles(this.terrain,fogTiles.explored,this.fogMaterials.explored,1.015);this.tiles(this.terrain,fogTiles.unseen,this.fogMaterials.unseen,1.015);
   }
   /** Objective ownership never invalidates buildings or terrain. */

@@ -256,7 +256,7 @@ function pick(hit,execute=false){
   if(!state||(busy&&activeRequest!=='/api/preview')||state.status!=='active')return;
   const u=state.units.find(u=>u.id===hit.unit),memory=state.last_seen?.find(m=>m.id===hit.memory);
   let p=u||memory||hit;
-  if(mode==='move'&&hit.transition){const own=soldier(),at=hit.ends.findIndex(v=>v[0]===own.x&&v[1]===own.y&&v[2]===own.z);const end=hit.ends[at>=0?1-at:0];p={x:end[0],y:end[1],z:end[2]};}
+  if(mode==='move'&&hit.transition){const own=soldier(),at=hit.ends.findIndex(v=>v[0]===own.x&&v[1]===own.y&&v[2]===own.z);const end=at>=0?hit.ends[1-at]:hit.ends.find(v=>v[2]===own.z)||hit.ends[0];p={x:end[0],y:end[1],z:end[2]};}
   if(mode==='face'){if(!busy&&!execute)act('face',{x:p.x,y:p.y});return;}
   if(mode==='move'&&u?.team==='soldier'&&u.hp>0){select(u.id);return;}
   if(mode==='move'&&hit.portal){chooseGoal({action:'interact',unit:selected,portal:hit.portal},execute);return;}

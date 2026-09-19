@@ -25,29 +25,32 @@ def main(base,gpu):
             g=Game(41,'factory',size=size);state=g.state()
             state.update(buildings=g.buildings,props=g.props,walls=list(g.walls.values()),portals=g.portals,tiles=g.tiles,heights=g.heights,surfaces=sorted(g.surfaces),stairs=g.stairs,ladders=g.ladders,fog={'visible':sorted(g.surfaces),'explored':sorted(g.surfaces)})
             seen=set()
-            for mode in ('exterior','0','1','2'):
+            for mode in ('exterior','0','1','2','3'):
                 result=page.evaluate('''({state,mode})=>{
                   f.setView(mode);f.sync(state,'s0',null,'move');const n=state.size;f.controls.target.set((n-1)/2,1,(n-1)/2);f.camera.position.set(n+9,n+18,n+9);f.controls.update();
                   const background=f.background.root,ground=f.terrainLayers.get('ground'),models=f.pickables.filter(p=>p.userData?.transport?.startsWith('Factory'));
                   const fits=models.every(owner=>{const prop=state.props.find(p=>p.id===owner.userData.structure),b=owner.native.getHierarchyBoundingVectors(true),span=b.max.subtract(b.min);return span.x<=prop.width*.94+.01&&span.z<=prop.depth*.94+.01&&Math.abs(b.min.y-prop.z*3)<.01&&f.surfaceVisible(prop.x,prop.y,prop.z);});
                   const allExpected=state.props.filter(p=>f.surfaceVisible(p.x,p.y,p.z)).length===models.length;
                   const meshes=f.nativeScene.meshes,wallNames=[...new Set(meshes.filter(m=>m.name.startsWith('factory-wall-')&&!['factory-wall-column','factory-wall-trim'].includes(m.name)).map(m=>m.name))];
+                  const floors=meshes.filter(m=>m.name==='factory-floor');
+                  const holesClear=state.buildings.every(b=>(b.floor_holes||[]).every(([x,z,level])=>floors.filter(m=>m.metadata.level===level).every(m=>{m.computeWorldMatrix(true);const bounds=m.getBoundingInfo().boundingBox;return x<bounds.minimumWorld.x||x>bounds.maximumWorld.x||z<bounds.minimumWorld.z||z>bounds.maximumWorld.z;})));
+                  const floorPicking=floors.every(m=>m.metadata.owner?.userData.structure);
                   const layers=[...f.terrainLayers].filter(([id])=>id!=='fog').map(([,layer])=>layer);
                   f.sync({...state,fog:{...state.fog,visible:state.fog.visible.slice(10)}},'s0',null,'move');
-                  return {mode,fits,allExpected,models:models.map(p=>p.userData.transport),walls:wallNames,plain:background.getChildMeshes().length===1&&f.background.placements.length===0,
-                    floors:meshes.filter(m=>m.name==='factory-floor').length,stairs:meshes.filter(m=>m.name==='factory-stair').length,
+                  return {mode,fits,allExpected,holesClear,floorPicking,models:models.map(p=>p.userData.transport),walls:wallNames,plain:background.getChildMeshes().length===1&&f.background.placements.length===0,
+                    floors:new Set(meshes.filter(m=>m.name==='factory-floor').map(m=>m.metadata.factoryFloor+':'+m.metadata.level)).size,stairs:meshes.filter(m=>m.name==='factory-stair').length,
                     retained:background===f.background.root&&ground===f.terrainLayers.get('ground')&&layers.every(layer=>[...f.terrainLayers.values()].includes(layer))};
                 }''',dict(state=state,mode=mode))
-                assert all(result[k] for k in ('fits','allExpected','plain','retained')),result
+                assert all(result[k] for k in ('fits','allExpected','holesClear','floorPicking','plain','retained')),result
                 assert set(result['walls'])=={'factory-wall-north','factory-wall-west'},result
                 assert result['stairs']>0,result
-                assert result['floors']==(4 if mode=='0' else 7 if mode=='1' else 8),result
+                assert result['floors']==sum(min(b['level'],3 if mode=='exterior' else int(mode))+1 for b in g.buildings),result
                 seen.update(result['models'])
                 page.wait_for_function('f.nativeScene.isReady()');page.evaluate('f.engine.beginFrame();f.nativeScene.render();f.engine.endFrame()')
                 if size==30 and not gpu and mode in ('exterior','0'):
                     page.screenshot(path=f'/tmp/factory-{mode}.jpg',type='jpeg',quality=85)
             assert seen=={'FactoryLathe','FactoryMill','FactoryCNC','FactoryCompressor','FactoryRack','FactoryForklift','FactoryRobot','FactoryConveyor'},seen
-            print('PASS',size,'all three levels, eight models, two walls, plain background, retained fog updates',flush=True)
+            print('PASS',size,'ground plus three upper levels, dense equipment rows, two walls, plain background, retained fog updates',flush=True)
         assert not errors,errors
         browser.close()
 

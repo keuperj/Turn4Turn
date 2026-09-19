@@ -224,7 +224,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if oldz != z:
                 # Floor/roof slabs separate vertically overlapping positions.
                 for bx,by in [(x,y),(oldx,oldy)]:
-                    if 0<=bx<self.size and 0<=by<self.size and self.heights[by][bx]>=max(oldz,z)>0:
+                    if 0<=bx<self.size and 0<=by<self.size and max(oldz,z)>0 and (bx,by,max(oldz,z)) in self.surfaces:
                         return False
             edges=[]
             if x != oldx: edges.append(((oldx,oldy,z),(x,oldy,z)))
