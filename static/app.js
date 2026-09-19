@@ -60,10 +60,15 @@ const gpuTestPromise=testWebGPU({timeoutMs:8000})
   .catch(error=>({ok:false,stage:'unknown',reason:error?.message||String(error)}))
   .then(result=>{showGPUCheckStatus(result);return result});
 
-/** Require consent and establish the current player session. */
+/** Restore a previously consented profile, or ask a new player for consent. */
 async function ensureSession(){
-  const current=await fetch('/api/session').then(r=>r.json());if(current.accepted)return true;
-  const dialog=$('welcome'),form=$('welcome-form'),error=$('welcome-error');$('welcome-name').value=decodeURIComponent(cookie('turn4turn_name')||'');dialog.showModal();
+  const response=await fetch('/api/session'),current=await response.json();
+  if(current.accepted)return true;
+  if(current.full){showServerFull();return false;}
+  if(!response.ok)throw Error(current.error||'Could not check the player session.');
+  const dialog=$('welcome'),form=$('welcome-form'),error=$('welcome-error');
+  try{$('welcome-name').value=decodeURIComponent(cookie('turn4turn_name')||'');}catch{$('welcome-name').value='';}
+  dialog.showModal();
   return new Promise(resolve=>form.onsubmit=async event=>{event.preventDefault();error.textContent='';
     try{const response=await fetch('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({consent:$('cookie-consent').checked,username:$('welcome-name').value})});const result=await response.json();if(!response.ok){if(result.full){dialog.close();showServerFull();resolve(false);return;}throw Error(result.error);}dialog.close();resolve(true);}
     catch(reason){error.textContent=reason.message;}

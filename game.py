@@ -8,6 +8,7 @@ from visibility import FogOfWar
 from arsenal import Arsenal
 from targeting import Targeting
 from fieldcraft import Fieldcraft
+from deployment import place_rescue_civilians
 
 WEAPONS = {
     'M4A1': dict(damage=4, capacity=6, accuracy=82, range=10, kind='rifle'),
@@ -104,9 +105,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.units.append(enemy)
         occupied={self.position(u) for u in self.units}
         if MISSIONS[mission]['has_civilians']:
-            civilians=[p for p in reachable if p[2]==0 and p not in occupied and 4<p[1]<self.size-6]
-            for i,(x,y,z) in enumerate(self.rng.sample(sorted(civilians),5)):
-                self.units.append(self.make_unit(f'c{i}',f'CIVILIAN {i+1}','civilian',x,y,None,'Noncombatant'))
+            place_rescue_civilians(self,reachable,spawns)
         self.flag=None
         if mission=='capture_flag':
             choices=[p for p in reachable if p[2]==0 and p[1]<self.size//3 and p not in occupied]

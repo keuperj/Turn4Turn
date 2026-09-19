@@ -19,6 +19,10 @@ missions provide these values from their briefing and keep them locked.
 | Capture the enemy flag | Reach the hostile flag within 30 rounds. |
 | Defend the flag | Hold the squad flag for 30 rounds or eliminate all hostiles. |
 
+Rescue missions randomize both groups while keeping every civilian at least
+10 tiles from every enemy at deployment and outside every enemy’s initial view.
+This gives the squad room to intervene before enemies close in.
+
 ### Theater and scale
 
 - **Theaters:** Random, Urban District, Factory, Train Station, Airport, Streets,

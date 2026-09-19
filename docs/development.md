@@ -12,6 +12,7 @@ The engine, models, textures and sounds are bundled; gameplay uses no runtime CD
 | --- | --- |
 | `server.py` | Threaded HTTP server, cookies, capacity, and per-player sessions |
 | `game.py` | Authoritative turns, AI, missions, movement, and damage |
+| `deployment.py` | Seeded rescue placement with enemy separation and initial concealment |
 | `targeting.py` | Attack previews and coordinate targeting |
 | `visibility.py` | Fog of war and public-state filtering |
 | `fieldcraft.py` | Facing, peeking, healing, and nearby interactions |

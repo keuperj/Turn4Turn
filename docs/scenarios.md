@@ -164,6 +164,11 @@ ambient sound mappings are optional; a new ID without audio entries uses synthes
 .venv/bin/python tests/browser_transport.py
 ```
 
+Rescue deployment also needs enough reachable ground for five civilians, each
+at least ten tiles horizontally from every enemy and outside initial enemy sight.
+The shared deployment planner retries randomized pockets and enemy positions; it
+rejects layouts that cannot meet these rules instead of spawning unsafe civilians.
+
 Add generation tests across all sizes and several seeds. Check deterministic
 layouts, deployment clearance, collision/visual agreement, reachable levels and
 model footprints. The static tests follow every registered module's imports and

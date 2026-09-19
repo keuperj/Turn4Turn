@@ -119,7 +119,11 @@ cookies for identity, campaign progress, and preferred loadout remain available.
 
 ## Browser storage and privacy
 
-Turn4Turn asks for consent before creating its player cookies.
+Turn4Turn asks for consent once, before creating its player cookies. Returning
+players with valid ID and name cookies reconnect automatically, including after
+a server restart or idle timeout. Their identity and consent are restored; an
+expired or restarted in-memory game starts fresh. The dialog appears again if
+the identifying cookies have expired, been cleared, or are invalid.
 
 | Cookie | Contents |
 | --- | --- |

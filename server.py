@@ -5,7 +5,7 @@ from functools import lru_cache
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from game import Game
 from scenarios import registry as scenario_registry
 from scenarios.assets import model_catalog
@@ -61,15 +61,18 @@ class SessionRegistry:
             self.prune();s=self.sessions.get(uid)
             if s:s.last_seen=time.monotonic()
             return s
-    def create(self,username,requested_id=None):
-        """Create or reconnect a player unless server capacity is exhausted."""
+    def create(self,username,requested_id=None,*,fresh=False):
+        """Create or reconnect a player; fresh restores identity without old gameplay."""
+        global game
         with self.lock:
             self.prune()
             if requested_id in self.sessions:
                 s=self.sessions[requested_id];s.username=username;s.last_seen=time.monotonic();return s
             if len(self.sessions)>=MAX_PLAYERS:return None
             uid=requested_id if requested_id and USER_ID.fullmatch(requested_id) else uuid.uuid4().hex
-            s=PlayerSession(uid,username,game if not self.sessions else Game(deployed=False));self.sessions[uid]=s;return s
+            session_game=Game(deployed=False) if self.sessions or fresh else game
+            if not self.sessions:game=session_game  # Keep the local-development alias in sync.
+            s=PlayerSession(uid,username,session_game);self.sessions[uid]=s;return s
 
 registry=SessionRegistry()
 
@@ -126,6 +129,16 @@ class Handler(BaseHTTPRequestHandler):
         path=self.path.split('?')[0]
         if path=='/api/session':
             s=self.player()
+            if not s:
+                # These persistent cookies are issued only after consent. The
+                # in-memory session may have expired or been lost on restart.
+                saved=self.cookies();uid=saved.get(USER_COOKIE,'')
+                try:username=unquote(saved.get(NAME_COOKIE,''),errors='strict').strip()
+                except UnicodeError:username=''
+                if USER_ID.fullmatch(uid) and 2<=len(username)<=30 and not any(ord(c)<32 for c in username):
+                    s=registry.create(username,uid,fresh=True)
+                    if not s:
+                        self.send(503,json.dumps({'accepted':False,'full':True,'error':'The server is full. Please try again later.'}).encode());return
             with registry.lock:registry.prune();available=max(0,MAX_PLAYERS-len(registry.sessions))
             self.send(200,json.dumps({'accepted':bool(s),**({'username':s.username} if s else {'available':available})}).encode());return
         if path=='/comparison':self.send_response(302);self.send_header('Location','/comparison/');self.end_headers();return
