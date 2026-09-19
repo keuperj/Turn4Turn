@@ -46,7 +46,7 @@ def main():
                 return {renderer:field.renderer,failures:field.transport.failures,count:field.transport.sources.size};
             }''', gpu)
             assert result['renderer'] == ('webgpu' if gpu else 'webgl'), result
-            assert not result['failures'] and result['count'] == 13, result
+            assert not result['failures'] and result['count'] == len(json.loads((server.ROOT/'assets/models/transport/manifest.json').read_text())['models']), result
             for index, theme in enumerate(THEMES):
                 game = Game(41 + index, theme, size=24)
                 state = game.state()

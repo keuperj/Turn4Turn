@@ -13,6 +13,7 @@ import {streetCrossing} from './street-crossing.js';
 import {BackgroundAssets} from './background.js';
 import {woodlandGround} from './woodland.js';
 import {farmGround} from './farm.js';
+import {airportGround} from './airport.js';
 import {railwayGround} from './railway.js';
 
 // Geometry is genuinely three-dimensional; Python supplies all walkable surfaces.
@@ -148,6 +149,7 @@ export class Battlefield {
   /** Build ing level. */
   buildingLevel(b){
     if(this.viewMode==='exterior')return b.level;
+    if(b.factory&&this.viewMode==='auto'){const u=this.state?.units.find(u=>u.id===this.selected);return u&&u.x>=b.x&&u.x<b.x+b.width&&u.y>=b.y&&u.y<b.y+b.depth?Math.min(u.z,b.level):b.level;}
     if(this.viewMode!=='auto')return Math.min(Number(this.viewMode),b.level);
     const u=this.state?.units.find(u=>u.id===this.selected);
     if(u&&u.x>=b.x&&u.x<b.x+b.width&&u.y>=b.y&&u.y<b.y+b.depth)return u.z;
@@ -201,7 +203,10 @@ export class Battlefield {
       const knownWalls=walls.get(b.id)||[];
       this.terrainLayer('building:'+b.id,key([b,limit,knownWalls.filter(w=>w.a[2]<=limit),links]),()=>addBuilding(this,b,{...state,walls:knownWalls,stairs:links}));
     }
-    for(const prop of state.props)this.terrainLayer('prop:'+prop.id,key(prop),()=>addProp(this,prop));
+    for(const prop of state.props){
+      if(prop.z!==undefined&&!this.surfaceVisible(prop.x,prop.y,prop.z))continue;
+      this.terrainLayer('prop:'+prop.id,key(prop),()=>addProp(this,prop));
+    }
     for(const [a,b] of state.ladders){
       const building=state.buildings.find(v=>b[0]>=v.x&&b[0]<v.x+v.width&&b[1]>=v.y&&b[1]<v.y+v.depth);
       this.terrainLayer('ladder:'+a.join(',')+':'+b.join(','),key([a,b,building?this.buildingLevel(building):b[2]]),()=>this.buildLadder(state,a,b));
@@ -222,10 +227,10 @@ export class Battlefield {
   /** Ground and street geometry change only when terrain is discovered or damaged. */
   buildGround(state){
     const theme=state.scenery;
-    const natural=['woods','farm'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
+    const natural=['woods','farm','airport'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
     this.groundMat.color.set(natural?theme.ground:0xffffff);this.pavedGroundMat.color.set(natural?0xc6c0b4:theme.ground);this.groundAccentMat.color.set(0xffffff);
     const n=state.size,c=(n-1)/2;
-    this.box(this.terrain,n+(['urban','streets','woods','train_station','farm'].includes(state.theme)?0:2),.4,n+(['urban','streets','woods','train_station','farm'].includes(state.theme)?0:2),c,-.4,c,0x18282b);
+    this.box(this.terrain,n+(['urban','streets','woods','train_station','farm','airport'].includes(state.theme)?0:2),.4,n+(['urban','streets','woods','train_station','farm','airport'].includes(state.theme)?0:2),c,-.4,c,0x18282b);
     const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
     const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
     if(!natural&&!['urban','streets'].includes(state.theme))this.tiles(this.terrain,groundPatches,this.groundAccentMat,.985);
@@ -233,7 +238,7 @@ export class Battlefield {
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){
       const t=state.tiles[y][x];
       if(t==='road')roads.push({x,y:.012,z:y});
-      if(t==='road'&&x===theme.road_x&&y%2===0&&!['train_station','urban','streets','farm'].includes(state.theme))laneMarkers.push({x,y:.029,z:y});
+      if(t==='road'&&x===theme.road_x&&y%2===0&&!['train_station','urban','streets','farm','airport'].includes(state.theme))laneMarkers.push({x,y:.029,z:y});
       if(t==='crops'&&state.theme!=='farm')for(let k=0;k<3;k++)this.box(this.terrain,.055,.3,.85,x-.3+k*.3,.15,y,0x849052);
       if(t==='low'){this.box(this.terrain,.88,.55,.7,x,.275,y,0x817c61);for(let k=0;k<3;k++)this.box(this.terrain,.26,.2,.76,x-.29+k*.29,.65,y,0xa69d7b);}
       if(t==='high'){this.box(this.terrain,.84,2.2,.72,x,1.1,y,this.concreteMat);for(let k=0;k<4;k++)this.box(this.terrain,.88,.035,.76,x,.3+k*.5,y,0x93968a);}
@@ -246,9 +251,7 @@ export class Battlefield {
     if(state.theme==='farm')farmGround(this,state);
     if(state.theme==='woods')woodlandGround(this,state);
     if(state.theme==='train_station')railwayGround(this,state);
-    if(state.theme==='airport'){
-      for(let i=0;i<8;i++)this.box(this.terrain,.14,.04,1.6,theme.road_x-2+i*.6,.05,n-6,0xeee9d5);
-    }
+    if(state.theme==='airport')airportGround(this,state);
 
     if(state.civilians.total){const evac=this.label('CIVILIAN EVACUATION →','#ace9c0',4);evac.position.set(c,.12,n-.3);this.terrain.add(evac);}
     const grid=new G.GridHelper(n,n,0x9aaca3,0x6e8074);grid.position.set(c,.035,c);grid.material.transparent=true;grid.material.opacity=.16;this.terrain.add(grid);
@@ -376,7 +379,7 @@ export class Battlefield {
     const t=state.units.find(u=>u.id===target&&u.hp>0);if(u&&t&&this.actorVisible(u)&&this.actorVisible(t)&&mode!=='attack'){const line=new G.Line(new G.BufferGeometry().setFromPoints([new G.Vector3(u.x,u.z*3+1,u.y),new G.Vector3(t.x,t.z*3+1,t.y)]),new G.LineDashedMaterial({color:0xf3bc87,dashSize:.15,gapSize:.12}));line.computeLineDistances();this.overlay.add(line);}
   }
   /** Resolve a canvas pointer event to tactical scene data. */
-  pick(e){this.scene.updateMatrixWorld(true);this.camera.updateMatrixWorld();const r=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.ray.setFromCamera(this.pointer,this.camera);const hits=this.ray.intersectObjects([...this.actors.children,...this.pickables],true).concat(this.ray.intersectTileLayers(this.pickSurfaceLevels||[],this.pickSurfaceSet||new Set())).sort((a,b)=>a.distance-b.distance);const hit=hits.find(h=>!h.object.userData.health&&h.object.visible&&h.object.parent?.visible&&(h.object.userData.transition||h.object.userData.memory||h.object.userData.portal||h.object.userData.unit||h.object.userData.structure||h.object.userData.x!==undefined));if(!hit)return null;const data={...hit.object.userData};if(data.unit||data.memory||data.transition)return data;let structure=this.state.buildings.concat(this.state.props).find(p=>p.id===data.structure);if(structure){data.x=Math.max(structure.x,Math.min(structure.x+structure.width-1,Math.round(hit.point.x)));data.y=Math.max(structure.y,Math.min(structure.y+structure.depth-1,Math.round(hit.point.z)));data.z=Math.max(0,Math.min(structure.level||0,Math.floor((hit.point.y+.05)/3)));}else if(this.mode==='attack'&&data.x!==undefined){structure=this.state.buildings.find(b=>!b.destroyed&&data.z===b.level&&data.x>=b.x&&data.x<b.x+b.width&&data.y>=b.y&&data.y<b.y+b.depth);if(structure)data.structure=structure.id;}return data;}
+  pick(e){this.scene.updateMatrixWorld(true);this.camera.updateMatrixWorld();const r=this.canvas.getBoundingClientRect();this.pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);this.ray.setFromCamera(this.pointer,this.camera);const hits=this.ray.intersectObjects([...this.actors.children,...this.pickables],true).concat(this.ray.intersectTileLayers(this.pickSurfaceLevels||[],this.pickSurfaceSet||new Set())).sort((a,b)=>a.distance-b.distance);const hit=hits.find(h=>!h.object.userData.health&&h.object.visible&&h.object.parent?.visible&&(h.object.userData.transition||h.object.userData.memory||h.object.userData.portal||h.object.userData.unit||h.object.userData.structure||h.object.userData.x!==undefined));if(!hit)return null;const data={...hit.object.userData};if(data.unit||data.memory||data.transition)return data;let structure=this.state.buildings.concat(this.state.props).find(p=>p.id===data.structure);if(structure){data.x=Math.max(structure.x,Math.min(structure.x+structure.width-1,Math.round(hit.point.x)));data.y=Math.max(structure.y,Math.min(structure.y+structure.depth-1,Math.round(hit.point.z)));data.z=Math.max(0,Math.min(structure.level??structure.z??0,Math.max(structure.z||0,Math.floor((hit.point.y+.05)/3))));}else if(this.mode==='attack'&&data.x!==undefined){structure=this.state.buildings.find(b=>!b.destroyed&&data.z===b.level&&data.x>=b.x&&data.x<b.x+b.width&&data.y>=b.y&&data.y<b.y+b.depth);if(structure)data.structure=structure.id;}return data;}
   /** Update hover. */
   updateHover(force=false){
     if(!this.state||!this.ray)return;

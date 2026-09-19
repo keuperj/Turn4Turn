@@ -1,12 +1,14 @@
 """Static asset compression, conditional caching, and API isolation."""
 import gzip
 import http.client
+import re
 import tempfile
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urljoin
 import server
 
 class QuietHandler(server.Handler):
@@ -28,6 +30,23 @@ class StaticAssetTests(unittest.TestCase):
         connection.request('GET',path,headers=headers or {})
         response=connection.getresponse();result=(response.status,dict(response.getheaders()),response.read())
         connection.close();return result
+
+    def test_scene_module_dependencies_are_served(self):
+        pending=['/scene.js'];visited=set()
+        while pending:
+            path=pending.pop()
+            if path in visited:continue
+            visited.add(path)
+            with self.subTest(path=path):
+                status,headers,body=self.get(path)
+                self.assertEqual(status,200)
+                self.assertIn(headers['Content-Type'].split(';')[0],
+                              ('text/javascript','application/javascript'))
+                self.assertEqual(body,(server.ROOT/path.lstrip('/')).read_bytes())
+                # Follow the renderer's static relative imports transitively.
+                imports=re.findall(r"^import\s+(?:[^;\n]*?\s+from\s+)?['\"]([^'\"]+)['\"]",
+                                   body.decode(),re.MULTILINE)
+                pending.extend(urljoin(path,name) for name in imports if name.startswith('.'))
 
     def test_gzip_assets_are_identical_after_decompression(self):
         for path in ['/vendor/babylon.js','/assets/models/Ninja_Male.glb','/app.js']:

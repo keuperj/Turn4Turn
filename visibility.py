@@ -56,10 +56,11 @@ class FogOfWar:
                 b=next(b for b in self.buildings if b['id']==wall['building'])
                 self.known_buildings[b['id']]=copy.deepcopy(b)
         for b in self.buildings:
-            if any((x,y,b['level']) in self.visible for x in range(b['x'],b['x']+b['width']) for y in range(b['y'],b['y']+b['depth'])):
+            levels=range(b['level']+1) if b.get('factory') else (b['level'],)
+            if any((x,y,z) in self.visible for x in range(b['x'],b['x']+b['width']) for y in range(b['y'],b['y']+b['depth']) for z in levels):
                 self.known_buildings[b['id']]=copy.deepcopy(b)
         for p in self.props:
-            if any((x,y,0) in self.visible for x in range(p['x'],p['x']+p['width']) for y in range(p['y'],p['y']+p['depth'])):
+            if any((x,y,p.get('z',0)) in self.visible for x in range(p['x'],p['x']+p['width']) for y in range(p['y'],p['y']+p['depth'])):
                 self.known_props[p['id']]=copy.deepcopy(p)
         observed_destroyed={p['id'] for p in self.props+self.buildings if p.get('destroyed') and any(c in self.visible for c in self.footprint(p))}
         self.known_walls={k:w for k,w in self.known_walls.items() if w['building'] not in observed_destroyed}

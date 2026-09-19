@@ -134,8 +134,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
 
     def building_at(self, x, y, z=0):
         """Return the building containing a world coordinate, if any."""
-        return next((b for b in self.buildings if b['x'] <= x < b['x']+b['width']
-                     and b['y'] <= y < b['y']+b['depth'] and z < b['level']), None)
+        return next((b for b in self.buildings if not b.get('destroyed') and b['x'] <= x < b['x']+b['width']
+                     and b['y'] <= y < b['y']+b['depth'] and (z <= b['level'] if b.get('factory') else z < b['level'])), None)
 
     def alive(self, team=None):
         """Return living, non-evacuated units, optionally filtered by team."""
@@ -192,9 +192,9 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             wall=self.walls.get(edge_key(self.position(target),p))
             if wall:
                 values.append(20 if wall['kind']=='window' and wall['open'] else 40 if not wall['open'] else 0)
+            if p in self.blocked:values.append(40)
             if target['z']==0:
                 values.append({'low':20,'high':40}.get(self.tiles[y][x],0))
-                if p in self.blocked: values.append(40)
             elif p not in self.surfaces and shooter['z']<target['z']:
                 values.append(20)
         return max(values)
@@ -237,9 +237,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 if wall and (wall['kind']=='wall' or not wall['open'] or
                              (wall['kind']=='window' and not .85 < h-z*3 < 2.4)):
                     return False
+            if include_cover and (x,y,z) in self.blocked and (x,y) not in [(a['x'],a['y']),(b['x'],b['y'])] and h-z*3<2.3:return False
             if include_cover and z==0:
-                if (x,y,0) in self.blocked and (x,y) not in [(a['x'],a['y']),(b['x'],b['y'])]:
-                    if h<2.3: return False
                 t=self.tiles[y][x]
                 height=.8 if t=='low' else 2.2 if t=='high' else 0
                 adjacent=min(abs(x-a['x'])+abs(y-a['y']),abs(x-b['x'])+abs(y-b['y']))<=1

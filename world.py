@@ -5,6 +5,8 @@ from suburbs import street_plan, street_props
 from woodlands import woodland_plan, woodland_props
 from railway import railway_plan, railway_props
 from farm import farm_plan, farm_props
+from airport import airport_plan, airport_props
+from factory import factory_generate
 
 # One catalog drives server-side seeded selection and the browser's asset loader.
 _TRANSPORT_CATALOG = json.loads((Path(__file__).parent / 'static/assets/models/transport/manifest.json').read_text())['models']
@@ -16,7 +18,7 @@ THEMES = {
     'urban': dict(label='Urban district', names=['APARTMENTS', 'CORNER SHOP', 'POST OFFICE', 'CAFE', 'HARDWARE STORE', 'LIVING QUARTERS', 'RESTAURANT', 'CLINIC', 'BOOK SHOP', 'OFFICES'], ground='#858578', road='#43494b', wall='#b7afa0', props=['car', 'car', 'ambulance', 'bench', 'sign', 'lamp', 'bush']),
     'factory': dict(label='Factory complex', names=['ASSEMBLY', 'WAREHOUSE', 'CONTROL', 'WORKSHOP', 'CANTEEN', 'PARTS STORE', 'ADMIN', 'LOADING HALL'], ground='#797c72', road='#4b5050', wall='#909d9d', props=['container', 'tank', 'truck', 'pipes', 'sign', 'trash']),
     'train_station': dict(label='Train station', names=['TICKET HALL', 'SIGNAL BOX', 'FREIGHT DEPOT', 'CAFE', 'POST OFFICE', 'WAITING ROOM', 'RESTAURANT', 'RAIL OFFICES'], ground='#929083', road='#69665f', wall='#ae9b82', props=['train', 'container', 'bench', 'car', 'sign', 'lamp']),
-    'airport': dict(label='Regional airport', names=['TERMINAL', 'HANGAR', 'CONTROL TOWER', 'CARGO', 'CAFE', 'AIRPORT HOTEL', 'FIRE STATION', 'MAINTENANCE'], ground='#939994', road='#616a6c', wall='#b7c4c2', props=['aircraft', 'truck', 'bus', 'car', 'tank', 'sign', 'lamp']),
+    'airport': dict(label='Regional airport', names=['TERMINAL', 'HANGAR', 'CONTROL TOWER', 'CARGO', 'CAFE', 'AIRPORT HOTEL', 'FIRE STATION', 'MAINTENANCE'], ground='#809565', road='#616a6c', wall='#b7c4c2', props=['aircraft', 'truck', 'bus', 'car', 'tank', 'sign', 'lamp']),
     'streets': dict(label='Street crossing', names=['FAMILY HOME', 'GARDEN HOUSE', 'BUNGALOW', 'COTTAGE'], ground='#8c9c71', road='#42494b', wall='#b6a290', props=['car', 'truck', 'bus', 'bench', 'sign', 'lamp', 'trash', 'bush']),
     'woods': dict(label='Woodland camp', names=['RANGER CABIN', 'LODGE', 'LOOKOUT', 'TOOL SHED', 'FIELD OFFICE', 'MESS HALL'], ground='#697451', road='#84765e', wall='#80644a', props=['tree_oak', 'tree_pine', 'tree_birch', 'bush', 'bench', 'truck']),
     'farm': dict(label='Farmstead', names=['FARMHOUSE', 'BARN', 'GRAIN STORE', 'MACHINE SHED', 'FARM SHOP', 'LIVING QUARTERS', 'PACKING HOUSE'], ground='#a69768', road='#83745c', wall='#b08269', props=['tractor', 'silo', 'hay', 'truck', 'tree_oak', 'bush', 'flowerbed']),
@@ -29,6 +31,8 @@ def edge_key(a, b):
 
 # Footprints use the same approximate one-metre scale as the 1.7m fighters.
 PROP_SIZE={'car':(2,5),'truck':(2,6),'bus':(3,7),'ambulance':(2,5),'tractor':(2,3),'aircraft':(10,10),
+           'factory_machine':(3,2),'factory_robot':(2,2),'factory_conveyor':(3,2),'factory_rack':(3,1),'factory_forklift':(2,3),
+           'airport_tug':(2,3),'airport_fuel':(2,3),'airport_cart':(2,2),'windsock':(2,2),
            'cow':(1,2),'sheep':(1,1),'pig':(1,1),'train':(3,10),'container':(3,6),'tank':(2,2),'silo':(2,2),
            'pipes':(2,3),'bench':(2,1),'hay':(2,2),'tree':(1,1),
            'tree_oak':(1,1),'tree_pine':(1,1),'tree_birch':(1,1),'bush':(1,1),
@@ -151,6 +155,8 @@ def urban_props(game,park):
 def generate(game):
     """Generate a deterministic, connected battlefield for a theme and size."""
     r,n,theme=game.rng,game.size,THEMES[game.theme]
+    if game.theme=='factory':
+        factory_generate(game,theme,TRANSPORT_MODELS);return
     road_x=n//2+r.choice([-2,0,2]);cross_y=r.randrange(9,n-9)
     road_width=11 if game.theme=='airport' else 5
     game.road_x,game.cross_y=road_x,cross_y
@@ -162,7 +168,8 @@ def generate(game):
     woodland_lots=woodland_plan(game) if game.theme=='woods' else None
     railway_lots=railway_plan(game) if game.theme=='train_station' else None
     farm_lots=farm_plan(game) if game.theme=='farm' else None
-    planned_lots=urban_lots if urban_lots is not None else street_lots if street_lots is not None else woodland_lots if woodland_lots is not None else railway_lots if railway_lots is not None else farm_lots
+    airport_lots=airport_plan(game) if game.theme=='airport' else None
+    planned_lots=urban_lots if urban_lots is not None else street_lots if street_lots is not None else woodland_lots if woodland_lots is not None else railway_lots if railway_lots is not None else farm_lots if farm_lots is not None else airport_lots
     if planned_lots is not None:road_x,cross_y=game.road_x,game.cross_y
     game.heights=[[0]*n for _ in range(n)]
     game.surfaces={(x,y,0) for y in range(n) for x in range(n)}
@@ -206,6 +213,7 @@ def generate(game):
         if i==0 and game.theme not in ('woods','farm'):levels=max(2,levels)
         if street_lots is not None:levels=2 if i==0 else r.choice([1,1,2])
         if railway_lots is not None:levels=1 if lot['station'] else r.choice([1,2])
+        if airport_lots is not None:levels=lot['level']
         distances={'north':abs(y-cross_y),'south':abs(y+depth-cross_y),'west':abs(x-road_x),'east':abs(x+width-road_x)}
         front=('east' if x<road_x else 'west') if roadside and game.theme=='train_station' else min(distances,key=distances.get) if roadside else r.choice(['north','south','west','east'])
         roof_choices={'commercial':['flat','flat','terrace'],'residential':['gable','flat','terrace'],'industrial':['sawtooth','flat','vented'],'civic':['flat','dome','gable'],'rural':['gable','gable','vented']}
@@ -225,6 +233,12 @@ def generate(game):
         if farm_lots is not None:
             b.update(name=lot['name'],archetype='residential' if i==0 else 'rural',front=lot['front'],roof='gable',facade='stucco' if i==0 else 'timber',color='#d5c6a5' if i==0 else '#a15342',accent='#e2d5b7')
             front=b['front'];archetype=b['archetype']
+        if airport_lots is not None:
+            role=lot['airport_role']
+            b.update(name=lot['name'],airport_role=role,archetype='civic' if role!='hangar' else 'industrial',
+                     front='east',roof='gable' if role=='hangar' else 'flat',facade='metal' if role=='hangar' else 'concrete',
+                     color='#b9c5c7' if role=='terminal' else '#788c99',accent='#4e6572')
+            front=b['front'];archetype=b['archetype']
         game.buildings.append(b)
         for by in range(y,y+depth):
             for bx in range(x,x+width):
@@ -238,15 +252,16 @@ def generate(game):
                 along=a[0]-x if side in ('north','south') else a[1]-y
                 span=width if side in ('north','south') else depth
                 entrance=min(span-1,max(0,span//2+(i%3)-1))
-                double=b.get('station') and side in ('east','west') and z==0 and along in (entrance,entrance+1)
+                double=(b.get('station') and side in ('east','west') or b.get('airport_role')=='terminal' and side in ('east','west') or b.get('airport_role')=='hangar' and side=='east') and z==0 and along in (entrance,entrance+1)
                 kind='door' if double or (side==front and along==entrance and z==0) else 'window' if along%2==(i+z)%2 and (side==front or archetype in ('commercial','residential','civic')) else 'wall'
+                if b.get('airport_role')=='tower' and z==levels-1:kind='window'
                 portal=dict(id=f'p{len(game.portals)}',a=a,b=other,kind=kind,open=False,building=b['id'],side=side)
                 if double:portal.update(door_group=f'{b["id"]}:{side}',door_leaf=along-entrance)
                 game.walls[edge_key(a,other)]=portal
                 if kind!='wall':game.portals.append(portal)
         # Connected two-room floors, with an optional third room in larger buildings.
         for z in range(levels):
-            if b.get('station'):continue  # An uninterrupted public waiting hall.
+            if b.get('station') or b.get('airport_role') in ('terminal','hangar','tower'):continue  # An uninterrupted public waiting hall.
             split_y=y+r.randint(1,depth-1)
             doorway=x+r.randrange(width)
             for bx in range(x,x+width):
@@ -263,7 +278,7 @@ def generate(game):
                     wall=dict(id=f"{b['id']}_inner_{z}_v{by}",a=a,b=other,kind=kind,open=False,building=b['id'],side='interior')
                     game.walls[edge_key(a,other)]=wall
                     if kind=='door':game.portals.append(wall)
-        if i%2 or street_lots is not None or railway_lots is not None:
+        if airport_lots is not None or i%2 or street_lots is not None or railway_lots is not None:
             # Interior ladders connect floors (or a single-storey loft/roof).
             game.ladders.extend(((x+width-1,y+depth-1,z),(x+width-1,y+depth-1,z+1)) for z in range(levels))
         else:
@@ -289,6 +304,10 @@ def generate(game):
     if farm_lots is not None:
         farm_props(game)
         game.scenery=dict(theme=game.theme,road_x=road_x,cross_y=cross_y,road_width=3,field_edge=game.field_edge,**theme)
+        return
+    if airport_lots is not None:
+        airport_props(game,TRANSPORT_MODELS)
+        game.scenery=dict(theme=game.theme,road_x=road_x,cross_y=cross_y,**game.airport,**theme)
         return
     kinds=list(theme['props'])
     streetscape=['bench','sign','lamp','trash','bush','flowerbed']

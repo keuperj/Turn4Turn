@@ -25,7 +25,7 @@ class Targeting:
         structure=self.target_structure(data)
         if data.get('structure') and not structure:raise ValueError('Structure is no longer available.')
         if structure:
-            if not(structure['x']<=x<structure['x']+structure['width'] and structure['y']<=y<structure['y']+structure['depth'] and (z<=structure.get('level',0))):raise ValueError('Select the structure’s surface.')
+            if not(structure['x']<=x<structure['x']+structure['width'] and structure['y']<=y<structure['y']+structure['depth'] and (0<=z<=structure['level'] if 'level' in structure else z==structure.get('z',0))):raise ValueError('Select the structure’s surface.')
             if structure['id'] not in self.known_buildings and structure['id'] not in self.known_props:raise ValueError('Structure is not visible.')
         elif (x,y,z) not in self.visible and w['kind'] not in ('grenade','smoke'):raise ValueError('That point is outside current squad visibility.')
         vision=20 if u['weapon']=='M24 sniper' and u['stance']=='standing' else SIGHT[u['stance']]

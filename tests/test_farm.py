@@ -28,7 +28,8 @@ class FarmTests(unittest.TestCase):
                 self.assertTrue({'FarmTractor','FarmLoader','FarmCow','FarmSheep','FarmPig'}<={p.get('model') for p in g.props},(n,seed))
                 for row in g.tiles:
                     self.assertEqual(row[0],'crops');self.assertEqual(row[-1],'crops')
-                self.assertLessEqual(sum(p['kind'].startswith('tree_') for p in g.props),3)
+                self.assertEqual(sum(p['kind'].startswith('tree_') for p in g.props),n//3)
+                self.assertEqual(sum(p['kind']=='bush' for p in g.props),n//2)
             self.assertGreater(len(layouts),10)
 
     def test_farm_remains_fully_reachable(self):

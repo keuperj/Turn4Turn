@@ -77,8 +77,8 @@ class Arsenal:
 
     @staticmethod
     def footprint(p):
-        """Return every ground coordinate occupied by a structure."""
-        return [(x,y,0) for x in range(p['x'],p['x']+p['width']) for y in range(p['y'],p['y']+p['depth'])]
+        """Return every floor coordinate occupied by a structure."""
+        return [(x,y,p.get('z',0)) for x in range(p['x'],p['x']+p['width']) for y in range(p['y'],p['y']+p['depth'])]
 
     def structure_targets(self,u):
         """Return damageable structures intersecting a blast area."""
@@ -88,12 +88,12 @@ class Arsenal:
         targets=[]
         for p in self.props+self.buildings:
             if p.get('destroyed'):continue
-            cells=[c for c in self.footprint(p) if any((c[0]+dx,c[1]+dy,0) in self.visible for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)])]
+            cells=[c for c in self.footprint(p) if any((c[0]+dx,c[1]+dy,c[2]) in self.visible for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)])]
             if not cells:continue
             x,y,z=min(cells,key=lambda c:math.hypot(c[0]-u['x'],c[1]-u['y']))
             if math.hypot(x-u['x'],y-u['y'])>w['range']:continue
             # Shoot the exposed surface from a visible adjacent approach, not through its solid interior.
-            if not any(self.line_of_sight(u,dict(x=x+dx,y=y+dy,z=0,stance='standing')) for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)] if (x+dx,y+dy,0) in self.visible):continue
+            if not any(self.line_of_sight(u,dict(x=x+dx,y=y+dy,z=z,stance='standing')) for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)] if (x+dx,y+dy,z) in self.visible):continue
             targets.append(dict(id=p['id'],name=p.get('name',p.get('kind','structure')),hp=p['hp'],max_hp=p['max_hp'],point=[x,y,z]))
         return targets
 
@@ -117,8 +117,8 @@ class Arsenal:
     def damage_area(self,x,y,z,radius,power):
         """Apply blast damage to units and structures around a point."""
         for p in self.props+self.buildings:
-            distance=min(math.hypot(a-x,b-y) for a,b,_ in self.footprint(p))
-            if not p.get('destroyed') and distance<=radius and (z==0 or 'level' in p):
+            distance=min(math.sqrt((a-x)**2+(b-y)**2+(0 if 'level' in p else ((c-z)*3)**2)) for a,b,c in self.footprint(p))
+            if not p.get('destroyed') and distance<=radius:
                 self.damage_structure(p,max(1,round(power*(1-distance/(radius+1)))))
 
     def ignite(self,x,y,z,radius=1):
@@ -138,14 +138,20 @@ class Arsenal:
         observed=any(c in self.visible for c in self.footprint(p))
         p['destroyed']=True
         cells=set(self.footprint(p))
-        x,y,_=self.rng.choice(sorted(cells));self.ignite(x,y,0,1)
-        for x,y,_ in cells:self.tiles[y][x]='rubble';self.heights[y][x]=0
+        x,y,z=self.rng.choice(sorted(cells));self.ignite(x,y,z,1)
+        for x,y,z in cells:
+            if z==0:self.tiles[y][x]='rubble'
+            if 'level' in p:self.heights[y][x]=0
         self.blocked.difference_update(cells)
         if 'level' in p:
             self.walls={k:w for k,w in self.walls.items() if w['building']!=p['id']}
             self.portals=[w for w in self.portals if w['building']!=p['id']]
             removed={c for c in self.surfaces if c[2]>0 and (c[0],c[1],0) in cells}
             self.surfaces.difference_update(removed)
+            self.blocked.difference_update(removed)
+            for prop in self.props:
+                if prop.get('z',0)>0 and any(c in removed for c in self.footprint(prop)):
+                    prop.update(hp=0,destroyed=True)
             self.ladders=[link for link in self.ladders if not any(tuple(c) in removed for c in link)]
             self.stairs=[link for link in self.stairs if not any(tuple(c) in removed for c in link)]
             for u in self.units:

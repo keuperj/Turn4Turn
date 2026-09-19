@@ -2,14 +2,15 @@
 import {B} from './rendering.js';
 import {crossingPaint,surfaceBatch} from './street-crossing.js';
 import {railTracks} from './railway.js';
+import {runwayStrip} from './airport.js';
 const trees=['CommonTree_1','CommonTree_3','BirchTree_1','BirchTree_3'];
 const shrubs=['Bush_1','BushBerries_1'];
 export const backgroundProfiles={
  urban:{color:'#9b9a8c',sky:'#9aaeb8',texture:'concrete-weathered-v2.webp',buildings:['Flat','Flat2','Shop','House3'],buildCount:32,plantCount:32},
  streets:{color:'#8fa573',sky:'#a3b2b5',texture:'terrain-mixed-v2.webp',buildings:['House','House2','House3'],buildCount:28,plantCount:40},
- factory:{color:'#777b76',sky:'#9ca9aa',texture:'concrete-weathered-v2.webp',buildings:['OpenBarn','BigBarn','WaterTower','Silo','Flat'],buildCount:24,plantCount:16},
+ factory:{color:'#777f83',sky:'#899397',texture:null,buildings:[],buildCount:0,plantCount:0},
  train_station:{color:'#958a75',sky:'#a8afa9',texture:'concrete-weathered-v2.webp',buildings:['Shop','OpenBarn','WaterTower','Flat','House2'],buildCount:24,plantCount:24},
- airport:{color:'#9ca7a0',sky:'#a7bbc2',texture:'concrete-weathered-v2.webp',buildings:['OpenBarn','BigBarn','Flat2','WaterTower','Shop'],buildCount:16,plantCount:20},
+ airport:{color:'#809565',sky:'#a7bbc2',texture:'terrain-mixed-v2.webp',buildings:[],buildCount:0,plantCount:0},
  woods:{color:'#81916a',sky:'#96a89b',texture:'terrain-mixed-v2.webp',buildings:['SmallBarn','House','OpenBarn'],buildCount:4,plantCount:112},
  farm:{color:'#b3a47b',sky:'#b7b8a6',texture:'terrain-mixed-v2.webp',buildings:['Barn','BigBarn','SmallBarn','Silo','Windmill','House2'],buildCount:20,plantCount:48},
 };
@@ -49,9 +50,11 @@ export class BackgroundAssets {
   this.key=key;this.root?.dispose(false,false);this.placements=[];
   this.root=new B.TransformNode('scenario-background-'+state.theme,this.view.nativeScene);
   const p=backgroundProfiles[state.theme]||backgroundProfiles.urban,n=state.size,c=(n-1)/2,rng=randomFor(state.seed+state.theme.length*797);
-  this.plane('background-ground',c,c,900,900,this.material(state.theme+'-ground',p.color,p.texture,90),['urban','streets','woods','train_station','farm'].includes(state.theme)?-.025:-.64);
+  this.plane('background-ground',c,c,900,900,this.material(state.theme+'-ground',p.color,p.texture,90),['urban','streets','woods','train_station','farm','airport'].includes(state.theme)?-.025:-.64);
+  if(state.theme==='factory')return;
   if(state.theme==='urban'){this.urban(state,rng);return;}
   if(state.theme==='streets'){this.suburban(state,rng);return;}
+  if(state.theme==='airport'){this.airport(state);return;}
   if(state.theme==='farm'){this.farm(state,rng);return;}
   if(state.theme==='woods'){this.woodland(state,rng);return;}
   if(state.theme==='train_station'){this.railway(state,rng);return;}
@@ -59,10 +62,6 @@ export class BackgroundAssets {
   // A clear perimeter separates the board from the scenery and stays unobstructed.
   if(!['woods','farm'].includes(state.theme))for(const side of [-1,1]){
    const edge=c+side*(n/2+4);this.plane('background-service-road',c,edge,n+16,3.8,road);this.plane('background-service-road',edge,c,3.8,n+16,road);
-  }
-  if(state.theme==='airport'){
-   this.plane('background-runway',c,-28,n+95,10,road,-.59);
-   const paint=this.material('runway-marking','#cbc6a7');for(let x=-35;x<n+40;x+=10)this.plane('background-runway-stripe',x,-28,4,.22,paint,-.57);
   }
   if(state.theme==='train_station'){
    const ballast=this.material('rail-ballast','#756f62','concrete-weathered-v2.webp',18),steel=this.material('rails','#414a49');
@@ -84,6 +83,15 @@ export class BackgroundAssets {
    if(['airport','train_station'].includes(state.theme)&&z<0){x=n+12+ring*10;z=along;}
    const list=i%3===0?shrubs:trees;this.add(list[Math.floor(i/3)%list.length],x,z,.7+rng()*.55,rng()*Math.PI*2);
   }
+ }
+ /** Flat grassland, continuous runway and a single public terminal approach. */
+ airport(state){
+  const n=state.size,extent=180;
+  runwayStrip(this.view,this.root,state,-extent,-.5,'background-airport-north');
+  runwayStrip(this.view,this.root,state,n-.5,n+extent,'background-airport-south');
+  surfaceBatch(this.view,this.root,'background-airport-access-road',[
+   {x:(-extent-.5)/2,z:state.scenery.access_y,w:extent-.5,d:3}
+  ],this.view.material(state.scenery.road,'asphalt'),.012);
  }
  /** Field strips and the farm lane share the playable board's exact boundaries. */
  farm(state,rng){
@@ -111,6 +119,18 @@ export class BackgroundAssets {
    for(const side of [-1,1])this.add(trees[Math.floor(rng()*trees.length)],rx+side*7,z-7,.65+rng()*.15,0,0);
   }
   surfaceBatch(this.view,this.root,'background-farm-paths',paths,road,.018);
+  // Mixed hedgerows frame the fields, with generous clearance from the board.
+  for(const x of [-6,n+5])for(let z=-48;z<n+48;z+=3){
+   const px=x+(rng()-.5)*1.2,pz=z+(rng()-.5)*1.2;
+   this.add(shrubs[Math.floor(rng()*shrubs.length)],px,pz,.55+rng()*.25,rng()*Math.PI*2,0);
+   if(Math.floor((z+48)/3)%3===0)this.add(trees[Math.floor(rng()*trees.length)],px-1,pz,.55+rng()*.25,rng()*Math.PI*2,0);
+  }
+  // Distant shelter belts break up the horizon; leave the central lane open.
+  for(const z of [-52,n+55])for(let x=-45;x<n+45;x+=5){
+   if(Math.abs(x-rx)<5)continue;
+   this.add(trees[Math.floor(rng()*trees.length)],x,z+rng()*3,.65+rng()*.35,rng()*Math.PI*2,0);
+   this.add(shrubs[Math.floor(rng()*shrubs.length)],x+1,z+2,.6,rng()*Math.PI*2,0);
+  }
  }
  /** Dense, irregular mixed forest continues beyond every board edge. */
  woodland(state,rng){

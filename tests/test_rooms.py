@@ -41,7 +41,7 @@ class RoomTests(unittest.TestCase):
                             for q in [(x-1,y,z),(x+1,y,z),(x,y-1,z),(x,y+1,z)]:
                                 if q in cells and q not in seen and g.passable((x,y,z),q,open_doors):seen.add(q);queue.append(q)
                         return seen
-                    if b.get('station'):
+                    if b.get('factory') or b.get('station') or b.get('airport_role') in ('terminal','hangar','tower'):
                         self.assertEqual(region(False),cells)  # Public hall has no room partitions.
                     else:
                         self.assertLess(len(region(False)),len(cells),(theme,b['id'],z))

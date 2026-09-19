@@ -219,6 +219,26 @@ forecourt trees complete the buildings; the opposite platform has benches, bins 
 connect both sides, with smaller city buildings and streets where space permits.
 The rails continue through the city background.
 
+Farmstead has a farmhouse, barns and a machine shed connected by clear dirt paths.
+Locally bundled tractor, front-loader, cow, sheep and pig models populate the yard.
+Mixed trees, shrubs and pasture grass fill the playable grounds, with hedgerows and
+shelter belts continuing into the surrounding fields. Equipment and vegetation
+preserve access to every entrance; livestock are static scenery.
+
+Airport centers on a clear runway and apron with locally bundled light aircraft,
+business jet, tug, fuel bowser, power cart and windsock models. A larger terminal
+has a furnished waiting area and check-in counter, alongside two hangars and a
+three-storey control tower. Runway markings continue seamlessly into the flat
+grassland background; an approach road leads directly to the terminal entrance.
+Compact maps have one parked aircraft; standard and large maps have two.
+
+Factory is an indoor production hall with three playable levels: the main floor,
+a connected mezzanine, and an upper assembly gallery. Only the north and west
+outer walls are shown; the south and east sides stay open, against a plain background.
+Imported CNC machines, lathes, mills, compressors, storage racks, welding robots,
+conveyors and a forklift furnish the floors. Stairs connect the levels; floor controls
+reveal lower work areas. Equipment has collision, visibility and damage on its own floor.
+
 ### Difficulty
 
 | Difficulty | Squad AP | Hostile AP |

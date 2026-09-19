@@ -13,7 +13,7 @@ class SceneryVarianceTests(unittest.TestCase):
     """Group automated checks for sceneryvariance behavior."""
     def test_transport_selection_is_seeded_and_all_variants_are_reachable(self):
         seen={kind:set() for kind in TRANSPORT_MODELS}
-        for theme in ('urban','streets','airport','train_station','farm'):
+        for theme in ('urban','streets','airport','train_station','farm','factory'):
             for seed in range(12):
                 game=Game(seed,theme)
                 self.assertEqual(game.props,Game(seed,theme).props)
@@ -23,12 +23,13 @@ class SceneryVarianceTests(unittest.TestCase):
                     self.assertEqual(prop['model'],models[prop['variant']])
                     seen[prop['kind']].add(prop['model'])
         for kind,models in TRANSPORT_MODELS.items():
-            self.assertEqual(seen[kind],set(models),kind)
+            # Legacy road trucks remain available for saved maps; factories now use forklifts.
+            if kind!='truck':self.assertEqual(seen[kind],set(models),kind)
 
     def test_transport_assets_fit_human_scale_and_collision_footprints(self):
         directory=Path(__file__).resolve().parents[1]/'static/assets/models/transport'
         catalog=json.loads((directory/'manifest.json').read_text())
-        height_ranges={'tractor':(1.5,2.2),'cow':(.9,1.5),'sheep':(.5,1),'pig':(.35,.8),'car':(1.15,1.7),'truck':(1.4,2.8),'train':(2.3,3.5),'bus':(2.4,3.2),'ambulance':(1.8,2.4)}
+        height_ranges={'factory_machine':(1.8,2.6),'factory_robot':(1,2),'factory_conveyor':(.4,1),'factory_rack':(2,2.6),'factory_forklift':(1.8,2.6),'aircraft':(2,3),'airport_tug':(.8,1.5),'airport_fuel':(.8,1.5),'airport_cart':(.8,1.5),'windsock':(3,4),'tractor':(1.5,2.2),'cow':(.9,1.5),'sheep':(.5,1),'pig':(.35,.8),'car':(1.15,1.7),'truck':(1.4,2.8),'train':(2.3,3.5),'bus':(2.4,3.2),'ambulance':(1.8,2.4)}
         for entry in catalog['models']:
             data=(directory/entry['file']).read_bytes()
             self.assertEqual(data[:4],b'glTF')

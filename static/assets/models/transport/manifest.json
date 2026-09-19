@@ -7,7 +7,12 @@
     "public": "https://quaternius.com/packs/publictransport.html",
     "zombie": "https://quaternius.com/packs/zombieapocalypsekit.html",
     "farmVehicles": "https://kenney.nl/assets/car-kit",
-    "farmAnimals": "https://quaternius.com/packs/farmanimal.html"
+    "farmAnimals": "https://quaternius.com/packs/farmanimal.html",
+    "airport": "https://3dassets.dev/packs/aircraft-fleet-and-airfield",
+    "factory": [
+      "https://3dassets.dev/packs/machine-shop-and-factory-hall",
+      "https://3dassets.dev/packs/car-factory-production-line"
+    ]
   },
   "textureSource": "https://drive.google.com/uc?export=download&id=1t2OBnWpp2pRV-eaV_vt6weiHN4vlEHwi",
   "models": [
@@ -363,6 +368,258 @@
       "source": "https://opengameart.org/content/lowpoly-animated-farm-animal-pack",
       "author": "Quaternius",
       "license": "CC0-1.0"
+    },
+    {
+      "id": "AirportLightPlane",
+      "kind": "aircraft",
+      "pack": "airport",
+      "file": "AirportLightPlane.glb",
+      "dimensions": [
+        9.4,
+        2.1653254764530154,
+        7.871336679985055
+      ],
+      "sha256": "62742bef1496b24e1a9b1f4663eed4736a31e83bba4cb60f9f0d54bf35d44914",
+      "sourceSha256": "028a8ff2c6958b1ae5ba026a69f266126a3591b70eb8676b4b7040d6a69d0c8f",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-high-wing-single-e581e577",
+      "download": "https://cdn.3dassets.dev/assets/32563/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportBusinessJet",
+      "kind": "aircraft",
+      "pack": "airport",
+      "file": "AirportBusinessJet.glb",
+      "dimensions": [
+        8.025040962548598,
+        2.7155540210229665,
+        9.4
+      ],
+      "sha256": "f66cbb9e825b93579fbe16b3326b70b36ce3384f58efbc12fb79d80cf09dc9cd",
+      "sourceSha256": "3013a4a4243f6a6f07f9ca412b12336a75bb249a1c962ae4845969c05e256587",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-light-business-jet-4cb0858d",
+      "download": "https://cdn.3dassets.dev/assets/32589/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportFuelBowser",
+      "kind": "airport_fuel",
+      "pack": "airport",
+      "file": "AirportFuelBowser.glb",
+      "dimensions": [
+        1.1687935378466836,
+        1.1026553686352736,
+        2.82
+      ],
+      "sha256": "daae0f01e0ed3c5c93e9976826fe045d2a57208502b63842b45391f86fd849b1",
+      "sourceSha256": "d9ea120f55b31e1d56f52fb0178f3f8d295e8ef7a7befabb4492b4a8e3890637",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-fuel-bowser-c6655fc8",
+      "download": "https://cdn.3dassets.dev/assets/32825/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportTug",
+      "kind": "airport_tug",
+      "pack": "airport",
+      "file": "AirportTug.glb",
+      "dimensions": [
+        0.9068816512707968,
+        1.1486073796171676,
+        2.82
+      ],
+      "sha256": "264bb25b5189ad3a845fcaeb12a07fcdd955cfc1bfa6bc319b3c724eec3eddcf",
+      "sourceSha256": "5cef344b921c6fc2cfa8e206ab7644c8e85c4c1bc7abe667ee93ad89c4cc95ac",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-aircraft-tug-2c52813e",
+      "download": "https://cdn.3dassets.dev/assets/32834/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportPowerCart",
+      "kind": "airport_cart",
+      "pack": "airport",
+      "file": "AirportPowerCart.glb",
+      "dimensions": [
+        1.1714600961748405,
+        1.0591118312882648,
+        1.88
+      ],
+      "sha256": "9051871154dddb42fb4cfcc1b0b02a31b6d35a102dd35f5afada32976bab7d67",
+      "sourceSha256": "dbe0442b0947067a01162630bf3d4a472f3a28515840d08222b16f00cb60a0cf",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-ground-power-cart-69186e50",
+      "download": "https://cdn.3dassets.dev/assets/32839/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportWindsock",
+      "kind": "windsock",
+      "pack": "airport",
+      "file": "AirportWindsock.glb",
+      "dimensions": [
+        1.8799999999999997,
+        3.2500773791972826,
+        0.8638879859234438
+      ],
+      "sha256": "874ecd411e3bf5b6b01af2ec9e1063bb19d13704c8a7d838a6cb404b0b40a896",
+      "sourceSha256": "1266dda012e5db0e03f862e08d93d905e59937a9422c288683e16dc26d3c4be5",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-windsock-mast-90d20d88",
+      "download": "https://cdn.3dassets.dev/assets/32827/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryLathe",
+      "kind": "factory_machine",
+      "pack": "factory",
+      "file": "FactoryLathe.glb",
+      "dimensions": [
+        2.8199999999999994,
+        2.246959740744278,
+        1.1660467340256027
+      ],
+      "sha256": "bd62d05ab7b23590bc52f0ec4e2457e11a896cb7bf2b8046f0d08ae7ff8b0442",
+      "sourceSha256": "9da7d7eda2962bbb134364f7b332a7802ed8f65d6f5c5f25592e3e7052e7f04c",
+      "source": "https://3dassets.dev/assets/machine-shop-and-factory-hall-machine-shop-and-factory-85a43bb6",
+      "download": "https://cdn.3dassets.dev/assets/27724/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryMill",
+      "kind": "factory_machine",
+      "pack": "factory",
+      "file": "FactoryMill.glb",
+      "dimensions": [
+        1.346516815297009,
+        2.5,
+        1.3417458844484447
+      ],
+      "sha256": "2a8445875c7b27df8cee1eb9faa8b4fc7bad11ec02ac1aed4807ee339afa591b",
+      "sourceSha256": "4002d909d08c689bfbdd2186c990de8305fd576c0922e92e4ec35fce232c9b86",
+      "source": "https://3dassets.dev/assets/machine-shop-and-factory-hall-machine-shop-and-factory-4ad41824",
+      "download": "https://cdn.3dassets.dev/assets/27725/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryCNC",
+      "kind": "factory_machine",
+      "pack": "factory",
+      "file": "FactoryCNC.glb",
+      "dimensions": [
+        2.82,
+        2.4801180466405572,
+        1.7858309895367468
+      ],
+      "sha256": "24d55537de891b6d738bc0a1ee506af9457ab5cc9dacda3433d17a4a5032c1f6",
+      "sourceSha256": "46b2897c6509b4ada7e91839bc1795f8347521d328694a901290e2086120286d",
+      "source": "https://3dassets.dev/assets/machine-shop-and-factory-hall-machine-shop-and-factory-c358e0db",
+      "download": "https://cdn.3dassets.dev/assets/27732/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryCompressor",
+      "kind": "factory_machine",
+      "pack": "factory",
+      "file": "FactoryCompressor.glb",
+      "dimensions": [
+        2.82,
+        1.908429193933231,
+        0.8544280887737006
+      ],
+      "sha256": "a0321e21176b5a2cbb39080fd41aba7346a6f588a860c275ccedfb4da48ce85c",
+      "sourceSha256": "22f7b46940184ad56f896dbd8dbe0e1af21d7acd2ce6d5057b76c42b78237e6a",
+      "source": "https://3dassets.dev/assets/machine-shop-and-factory-hall-machine-shop-and-factory-081490c8",
+      "download": "https://cdn.3dassets.dev/assets/27740/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryRack",
+      "kind": "factory_rack",
+      "pack": "factory",
+      "file": "FactoryRack.glb",
+      "dimensions": [
+        1.9481381483126143,
+        2.5,
+        0.6717463580555398
+      ],
+      "sha256": "1469d52e2ef00c0218733caa1e05eb623d25f1abcf1068222221e344b57dc743",
+      "sourceSha256": "8134f97432469e99bd0f44eb27fa7457487549fabf0c48b09c5bccccc553b06b",
+      "source": "https://3dassets.dev/assets/machine-shop-and-factory-hall-machine-shop-and-factory-ebf92b35",
+      "download": "https://cdn.3dassets.dev/assets/27757/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryForklift",
+      "kind": "factory_forklift",
+      "pack": "factory",
+      "file": "FactoryForklift.glb",
+      "dimensions": [
+        1.1591411467317119,
+        2.1972069451829785,
+        2.82
+      ],
+      "sha256": "e3378494415d86a5abb0e9bcefc4c6f0fdaabf16e5fd904c46a3d2f901f1170c",
+      "sourceSha256": "7efe111ea57cd1fed6c3e5ce887014745e4635b42864a08025c4cf989881a234",
+      "source": "https://3dassets.dev/assets/machine-shop-and-factory-hall-machine-shop-and-factory-78651fdd",
+      "download": "https://cdn.3dassets.dev/assets/27768/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryRobot",
+      "kind": "factory_robot",
+      "pack": "factory",
+      "file": "FactoryRobot.glb",
+      "dimensions": [
+        0.6285714380957486,
+        1.3828721526581393,
+        1.8799999999999997
+      ],
+      "sha256": "6c0fd2345c5e9f7c83c86a543b7289bc2ee0fde8f43b9a9a1a42faa630499824",
+      "sourceSha256": "9da584cbc00295341b4aa99a8c54ebaee5457997e47df9a71095d70e45214d5c",
+      "source": "https://3dassets.dev/assets/car-factory-production-line-six-axis-welding-robot-2e651b95",
+      "download": "https://cdn.3dassets.dev/assets/27803/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "FactoryConveyor",
+      "kind": "factory_conveyor",
+      "pack": "factory",
+      "file": "FactoryConveyor.glb",
+      "dimensions": [
+        1.391232156963967,
+        0.6486268378046541,
+        1.88
+      ],
+      "sha256": "f0890c0d3fe78516c49653723636a3f0c101fae580af76e77ecb726d2e5e5860",
+      "sourceSha256": "aef4e16053925ec3bcb29923989068c234ff33837a09f1d140a4aa52a59e8e3f",
+      "source": "https://3dassets.dev/assets/car-factory-production-line-skid-conveyor-straight-1a490c1b",
+      "download": "https://cdn.3dassets.dev/assets/27808/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
     }
   ]
 }

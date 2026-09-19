@@ -38,7 +38,10 @@ def farm_props(game):
     protected=network|{tuple(p) for link in game.ladders+game.stairs for p in link}
     protected.update((x,y,0) for y in range(n-4,n) for x in range(n))
     # Keep all walkable ground connected as machinery and livestock are placed.
-    specs=[('tractor',2,3,'FarmTractor'),('tractor',2,3,'FarmLoader'),('silo',2,2,None),('hay',2,2,None),('cow',1,2,'FarmCow'),('sheep',1,1,'FarmSheep'),('pig',1,1,'FarmPig'),('sheep',1,1,'FarmSheep'),('tree_oak',1,1,None),('tree_birch',1,1,None),('tree_oak',1,1,None)]
+    specs=[('tractor',2,3,'FarmTractor'),('tractor',2,3,'FarmLoader'),('silo',2,2,None),('hay',2,2,None),('cow',1,2,'FarmCow'),('sheep',1,1,'FarmSheep'),('pig',1,1,'FarmPig'),('sheep',1,1,'FarmSheep')]
+    # Scale the mixed orchard and undergrowth with the map, after essential props.
+    specs += [('tree_oak' if i%2==0 else 'tree_birch',1,1,None) for i in range(n//3)]
+    specs += [('bush',1,1,None) for _ in range(n//2)]
     for kind,w,d,model in specs:
         positions=sorted(exterior-protected);r.shuffle(positions)
         # Machinery stays near the yard; animals graze beside the barns.
@@ -55,5 +58,5 @@ def farm_props(game):
             prop=dict(id=f'prop{len(game.props)}',kind=kind,x=x,y=y,width=w,depth=d,variant=r.randrange(4),color='#bdab72')
             if model:
                 prop['model']=model;prop['variant']=1 if model=='FarmLoader' else 0
-            if kind.startswith('tree_'):prop['woodland']=True
+            if kind.startswith('tree_') or kind=='bush':prop['woodland']=True
             game.props.append(prop);game.blocked.update(cells);break

@@ -1,15 +1,16 @@
 /** @fileoverview Build visual props, buildings, portals, and architectural details. */
 import * as G from './rendering.js';
+import {factoryBuilding} from './factory.js';
 import {woodlandProp} from './woodland.js';
 import {detailedProp,propFittings,profileFor,furnish} from './webgpu-scenery.js';
 
 // Theme props share the footprints used by Python collision/pathfinding.
 /** Add one scenery prop and its visual details to the battlefield. */
 export function addProp(view, p, parent=view.terrain) {
-  if(p.destroyed){view.box(parent,p.width*.8,.12,p.depth*.8,p.x+(p.width-1)/2,.06,p.y+(p.depth-1)/2,0x45443e);return;}
+  if(p.destroyed){view.box(parent,p.width*.8,.12,p.depth*.8,p.x+(p.width-1)/2,(p.z||0)*3+.06,p.y+(p.depth-1)/2,0x45443e);return;}
   const group=new G.Group();parent.add(group);
   const x=p.x+(p.width-1)/2,z=p.y+(p.depth-1)/2;
-  group.position.set(x,0,z);
+  group.position.set(x,(p.z||0)*3,z);
   if(['tree','tree_oak','tree_pine','tree_birch','bush','flowerbed','sign','lamp','trash','bench'].includes(p.kind))group.rotation.y=(p.variant||0)*Math.PI/2;
   if(p.quarter_turn)group.rotation.y=p.quarter_turn*Math.PI/2;
   const localProp=p.quarter_turn%2?{...p,width:p.depth,depth:p.width}:p;
@@ -20,6 +21,12 @@ export function addProp(view, p, parent=view.terrain) {
   const shape=(w,h,d,x,y,z,c,inset=.06,front=inset,back=inset)=>{const m=new G.Mesh(new G.BeveledBoxGeometry(w,h,d,inset,front,back),typeof c==='object'?c:view.material(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;};
   const wheel=(x,z,r=.19)=>{const tire=cylinder(r,.14,x,r,z,rubber);tire.rotation.z=Math.PI/2;const hub=cylinder(r*.48,.151,x,r,z,metal);hub.rotation.z=Math.PI/2;};
   if(!enhancedProp)switch(p.kind){
+    case 'factory_machine': case 'factory_robot': case 'factory_conveyor': case 'factory_rack': case 'factory_forklift':
+      box(.85,1.3,.85,0,.65,0,0x75968c);box(.7,.15,.7,0,1.4,0,metal);break;
+    case 'airport_tug': case 'airport_fuel': case 'airport_cart':
+      box(.8,.6,1.5,0,.5,0,0xd4b459);for(const side of [-1,1])for(const end of [-1,1])wheel(side*.4,end*.5);break;
+    case 'windsock':
+      cylinder(.035,2.5,0,1.25,0,0xc5c8b9);box(.7,.2,.2,.25,2.4,0,0xdd8844);break;
     case 'cow': case 'sheep': case 'pig': {
       const cow=p.kind==='cow',pig=p.kind==='pig',coat=pig?0xc59283:cow?0xe4d9ba:0xd4cbb2;
       const length=cow?1.5:.7,height=cow?.7:.38;
@@ -149,26 +156,27 @@ export function addProp(view, p, parent=view.terrain) {
     case 'ticket_counter': {
       box(1.8,.95,.75,0,.475,0,0x657b78);box(1.95,.08,.85,0,.99,0,view.material(0xc6ad85,'wood'));
       box(.4,.32,.08,.5,1.18,0,glass);box(.12,.15,.12,.5,1.03,0,metal);
-      const sign=view.label('TICKETS','#f1e6cb',1.5);sign.position.set(0,1.55,0);group.add(sign);break;
+      const sign=view.label(view.state?.theme==='airport'?'CHECK IN':'TICKETS','#f1e6cb',1.5);sign.position.set(0,1.55,0);group.add(sign);break;
     }
     case 'trash':
       cylinder(.25,.58,0,.29,0,view.material((p.variant||0)%2?0x4e615e:0x59605c,'metal'));{const lid=new G.Mesh(new G.CylinderGeometry(.27,.27,.045,12),metal);lid.position.y=.60;group.add(lid);}break;
   }
   if(view.renderer==='webgpu'&&!enhancedProp)propFittings(view,p,group);
-  const base={cow:[1,2],sheep:[1,1],pig:[1,1],car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1],ticket_counter:[2,1]}[p.kind]||[1,1];
+  const base={airport_tug:[1,2],airport_fuel:[1,2],airport_cart:[1,2],cow:[1,2],sheep:[1,1],pig:[1,1],car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1],ticket_counter:[2,1]}[p.kind]||[1,1];
   if(!enhancedProp)group.scale.set(localProp.width/base[0],p.kind==='car'?1.3:p.kind==='aircraft'?2:p.kind==='train'?1.5:1,localProp.depth/base[1]);
   if(p.growth)group.scale.set(group.scale.x*1.25,group.scale.y*p.growth,group.scale.z*1.25);
   group.traverse(o=>{if(o.isMesh){o.userData.structure=p.id;view.pickables.push(o);}});
   const labelY={aircraft:3,train:4,tree:3,tree_oak:3.2,tree_pine:3.7,tree_birch:3.1,bush:1.2,flowerbed:.9,sign:2,lamp:3,traffic_light:3.1,cafe_table:1.1,trash:1.1}[p.kind]||2.6;
-  const health=view.healthLabel(p.kind.replaceAll('_',' '),p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,group.userData.transportHeight?group.userData.transportHeight+.45:labelY*(p.growth||1),z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
+  const health=view.healthLabel(p.kind.replaceAll('_',' '),p.hp,p.max_hp,'#d8c99c',Math.min(3,p.width+1));health.position.set(x,(p.z||0)*3+(group.userData.transportHeight?group.userData.transportHeight+.45:labelY*(p.growth||1)),z);health.userData.structure=p.id;parent.add(health);view.pickables.push(health);
   return group;
 }
 
 /** Add one building, its floors, portals, and details to the battlefield. */
 export function addBuilding(view,b,state){
+  if(b.factory)return factoryBuilding(view,b,state);
   const parent=view.terrain,start=parent.children.length;
   if(b.destroyed){view.box(parent,b.width,.14,b.depth,b.x+(b.width-1)/2,.07,b.y+(b.depth-1)/2,0x66625b);return;}
-  if(b.station){const hall=view.label('WAITING HALL','#e7dfc7',Math.min(4,b.width-1));hall.position.set(b.x+(b.width-1)/2,.10,b.y+2);hall.rotation.x=-Math.PI/2;parent.add(hall);}
+  if(b.station||b.airport_role==='terminal'){const hall=view.label(b.station?'WAITING HALL':'DEPARTURES · WAITING AREA','#e7dfc7',Math.min(4,b.width-1));hall.position.set(b.x+(b.width-1)/2,.10,b.y+2);hall.rotation.x=-Math.PI/2;parent.add(hall);}
   const timber=b.facade==='timber'||(!b.facade&&['woods','farm'].includes(state.theme));
   const finish=timber?'wood':b.facade==='metal'?'metal':b.facade==='brick'?'brick':b.facade==='concrete'?'concrete':'paint';
   const wallMaterial=view.material(b.color||state.scenery.wall,view.renderer==='webgpu'?(finish==='paint'?profileFor(state.theme).finish:finish==='metal'?'cladding':finish):finish),trim=b.accent|| (state.theme==='airport'?0x708f9a:state.theme==='factory'?0x69817e:0xbab6a1);
@@ -247,12 +255,17 @@ export function addBuilding(view,b,state){
     if(['urban','train_station'].includes(state.theme)){
       view.box(parent,1.6,.08,.60,b.x+1,2.58,b.y+b.depth-.26,state.theme==='train_station'?0x6e8a82:0x9b6652);
     }
+    if(b.airport_role==='terminal'){
+      view.box(parent,1.3,.12,b.depth,b.x+b.width+.05,2.85,cy,0x607b89);
+    }
     if(b.station){
       const edge=b.x+b.width-.5;
       view.box(parent,2.7,.16,b.depth,edge+1.3,3.25,cy,0x667f7b);
       const sign=view.label('CENTRAL STATION','#eee5cb',Math.min(6,b.width));sign.position.set(cx,3.65,cy);parent.add(sign);
     }
-    if(state.theme==='airport'&&b.id==='b2'){
+    if(b.airport_role==='tower'){
+      view.box(parent,.10,1.8,.10,cx,roofY+.9,cy,0x65767c);
+      view.box(parent,1.5,.20,.25,cx,roofY+1.7,cy,0xc5cecc);
       // Glazed upper control-room facade; real operable window stays in its wall slot.
       for(const side of [-1,1])view.box(parent,b.width-.12,.52,.015,cx,roofY-.8,cy+side*b.depth/2,0x4c7687);
     }

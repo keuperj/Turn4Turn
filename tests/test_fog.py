@@ -92,21 +92,24 @@ class FogTests(unittest.TestCase):
                 g=Game(seed,theme)
                 self.assertEqual(g.size,30)
                 self.assertGreaterEqual(len(g.buildings),4)
-                signatures.add(tuple((b['x'],b['y'],b['width'],b['depth']) for b in g.buildings))
+                # The factory uses a constrained hall/mezzanine plan, tested over more seeds separately.
+                if theme!='factory':signatures.add(tuple((b['x'],b['y'],b['width'],b['depth']) for b in g.buildings))
                 walk=g.paths(g.units[0],999,True,True)
                 for u in g.alive():self.assertIn(g.position(u),walk)
                 for p in g.props:
                     footprint=PROP_SIZE[p['kind']]
                     if p.get('quarter_turn',0)%2:footprint=footprint[::-1]
-                    self.assertEqual((p['width'],p['depth']),footprint)
+                    if theme=='airport' and p['kind']=='aircraft':
+                        self.assertTrue(0<p['width']<=footprint[0] and 0<p['depth']<=footprint[1])
+                    else:self.assertEqual((p['width'],p['depth']),footprint)
                     if p.get('interior'):
                         building=next(b for b in g.buildings if b['id']==p['interior'])
-                        self.assertTrue(building.get('station'))
-                        self.assertIn(p['kind'],('bench','ticket_counter','cafe_table','trash'))
-                        self.assertTrue(all(g.building_at(x,y,0)==building for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
+                        self.assertTrue(building.get('station') or building.get('airport_role')=='terminal' or building.get('factory'))
+                        self.assertIn(p['kind'],('bench','ticket_counter','cafe_table','trash','factory_machine','factory_robot','factory_conveyor','factory_rack','factory_forklift'))
+                        self.assertTrue(all(g.building_at(x,y,p.get('z',0))==building for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
                     else:
                         self.assertFalse(any(g.heights[y][x] for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
-        self.assertEqual(len(signatures),21)
+        self.assertEqual(len(signatures),3*(len(THEMES)-1))
         self.assertGreaterEqual(PROP_SIZE['aircraft'][0],10)
         self.assertGreaterEqual(PROP_SIZE['car'][1],5)
 
