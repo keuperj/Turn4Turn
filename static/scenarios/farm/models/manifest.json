@@ -1,0 +1,90 @@
+{
+  "author": "Kenney; Quaternius",
+  "license": "CC0-1.0",
+  "packs": {
+    "farmVehicles": "https://kenney.nl/assets/car-kit",
+    "farmAnimals": "https://quaternius.com/packs/farmanimal.html"
+  },
+  "models": [
+    {
+      "id": "FarmTractor",
+      "kind": "tractor",
+      "pack": "farmVehicles",
+      "file": "FarmTractor.glb",
+      "dimensions": [
+        1.6754464400513565,
+        1.9999999999999998,
+        2.7484137959374433
+      ],
+      "sha256": "7da0d7af0f83e212fdcb5771dd335d6457e3a5571cf16588f1abbd5c2e711a96",
+      "sourceSha256": "48b30b3e4bb0adb48378c473dc27ee5ae4d9296ec758c85816f17121a3ce8371",
+      "source": "https://kenney.nl/assets/car-kit",
+      "author": "Kenney",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "FarmLoader",
+      "kind": "tractor",
+      "pack": "farmVehicles",
+      "file": "FarmLoader.glb",
+      "dimensions": [
+        1.8799999999999997,
+        1.7118363686405258,
+        2.796475819766662
+      ],
+      "sha256": "9e029191cd04e1c0f01d7b1d9d6bdac4bae7055895196cd11682f0964978a47c",
+      "sourceSha256": "1bc67bcc36dc563baf7b5060e2a790f67a5a0b42fbdf17c18ab933fcc8a4aa53",
+      "source": "https://kenney.nl/assets/car-kit",
+      "author": "Kenney",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "FarmCow",
+      "kind": "cow",
+      "pack": "farmAnimals",
+      "file": "FarmCow.glb",
+      "dimensions": [
+        0.4646315827856225,
+        1.0550670992724085,
+        1.8800000000000001
+      ],
+      "sha256": "5ac443309f16b7271bd97c3d80c4239c94701363020b22b934a6d62063729f49",
+      "sourceSha256": "0202789cad8c1debb8ae5b4a47d1a5d2e5f93a0875878bc0b05a80e42ae37e8d",
+      "source": "https://opengameart.org/content/lowpoly-animated-farm-animal-pack",
+      "author": "Quaternius",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "FarmSheep",
+      "kind": "sheep",
+      "pack": "farmAnimals",
+      "file": "FarmSheep.glb",
+      "dimensions": [
+        0.3533354733023251,
+        0.6930954852800078,
+        0.94
+      ],
+      "sha256": "7c3cf07e60977625524fb51676242464ad892a3b3346ea7b65657032554bb07b",
+      "sourceSha256": "4a3fc559cc9f37e3e3f216af1dab30cb411ec9b268eb98676f1d5c18a430d33e",
+      "source": "https://opengameart.org/content/lowpoly-animated-farm-animal-pack",
+      "author": "Quaternius",
+      "license": "CC0-1.0"
+    },
+    {
+      "id": "FarmPig",
+      "kind": "pig",
+      "pack": "farmAnimals",
+      "file": "FarmPig.glb",
+      "dimensions": [
+        0.31783206938364467,
+        0.44015095963058826,
+        0.94
+      ],
+      "sha256": "829f3176f2e2a51aefe3410f64fae20c183fffa127a89d594c7902234ece06f8",
+      "sourceSha256": "bdf5e149a974ffc2431546f30ea568d7c41f916d7bd87187f1532c45778a9a23",
+      "source": "https://opengameart.org/content/lowpoly-animated-farm-animal-pack",
+      "author": "Quaternius",
+      "license": "CC0-1.0"
+    }
+  ]
+}

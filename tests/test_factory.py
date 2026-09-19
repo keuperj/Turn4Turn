@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from game import Game
 from world import generate
-from factory import validate_factory_access
+from scenarios.factory.layout import validate_factory_access
 
 
 class FactoryTests(unittest.TestCase):

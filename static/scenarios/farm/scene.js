@@ -1,6 +1,6 @@
 /** Batched soil, crop rows and connecting farmyard paths for both renderers. */
-import * as G from './rendering.js';
-import {surfaceBatch} from './street-crossing.js';
+import * as G from '../../rendering.js';
+import {surfaceBatch} from '../../surfaces.js';
 export function farmGround(view,state){
  const soil=[],rows=[],paths=[],positions=[],indices=[];
  for(let z=0;z<state.size;z++)for(let x=0;x<state.size;x++){

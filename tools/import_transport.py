@@ -23,8 +23,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source_dir', type=Path)
     parser.add_argument('--download', action='store_true')
+    parser.add_argument('--scenario', choices=['train_station'], help='Rebuild a scenario-owned transport pack')
     args = parser.parse_args()
-    manifest = json.loads((DEST / 'manifest.json').read_text())
+    dest = ROOT/'static/scenarios'/args.scenario/'models' if args.scenario else DEST
+    manifest = json.loads((dest / 'manifest.json').read_text())
     args.source_dir.mkdir(parents=True, exist_ok=True)
     if args.download:
         sources = [(e['id'] + '.fbx', e['source']) for e in manifest['models']]
@@ -67,13 +69,13 @@ def main():
             for entry in manifest['models']:
                 result = page.evaluate("async entry=>(await import('/transport-convert.js')).convertTransport(entry)", entry)
                 data = base64.b64decode(result['data'])
-                (DEST / entry['file']).write_bytes(data)
+                (dest / entry['file']).write_bytes(data)
                 entry['dimensions'] = result['dimensions']
                 entry['sha256'] = hashlib.sha256(data).hexdigest()
                 entry['sourceSha256'] = hashlib.sha256((args.source_dir / (entry['id'] + '.fbx')).read_bytes()).hexdigest()
                 print(entry['id'], [round(v, 3) for v in entry['dimensions']], flush=True)
             browser.close()
-        (DEST / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        (dest / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     finally:
         server.shutdown()
 

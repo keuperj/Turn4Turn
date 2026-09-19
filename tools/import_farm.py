@@ -7,7 +7,7 @@ from pathlib import Path
 from functools import partial
 from http.server import SimpleHTTPRequestHandler,ThreadingHTTPServer
 from playwright.sync_api import sync_playwright
-root=Path(__file__).resolve().parents[1];src=Path(sys.argv[1]);dest=root/'static/assets/models/transport'
+root=Path(__file__).resolve().parents[1];src=Path(sys.argv[1]);dest=root/'static/scenarios/farm/models'
 src.mkdir(parents=True,exist_ok=True)
 from urllib.request import urlopen
 for file,url in [('cars.zip','https://kenney.nl/media/pages/assets/car-kit/1a312ec241-1775131960/kenney_car-kit.zip'),('animals.zip','https://opengameart.org/sites/default/files/Farm%20Animals%20by%20%40Quaternius.zip')]:

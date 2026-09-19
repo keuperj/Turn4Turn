@@ -7,6 +7,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote
 from game import Game
+from scenarios import registry as scenario_registry
+from scenarios.assets import model_catalog
 from audio_assets import discover, PATTERN
 
 ROOT=Path(__file__).parent/'static';CAMPAIGN_FILE=Path(__file__).parent/'campaigns'/'operation_turning_point.json';CERTIFICATE_DIR=Path(__file__).parent/'.certs'
@@ -129,6 +131,8 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/comparison':self.send_response(302);self.send_header('Location','/comparison/');self.end_headers();return
         if path=='/comparison/':self.serve_file(ROOT/'comparison'/'index.html',ROOT/'comparison');return
         if path.startswith('/comparison/'):self.serve_file(ROOT/path.lstrip('/'),ROOT/'comparison');return
+        if path=='/api/scenarios':self.send(200,json.dumps(scenario_registry.client_catalog()).encode());return
+        if path=='/api/models':self.send(200,json.dumps(model_catalog()).encode());return
         if path=='/api/audio':self.send(200,json.dumps(discover()).encode());return
         if path=='/api/campaign':self.send(200,CAMPAIGN_FILE.read_bytes());return
         if path=='/api/state':
@@ -141,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
             if PATTERN.fullmatch(name) and file.is_file() and not file.is_symlink():self.serve_file(file)
             else:self.send(404,b'Not found','text/plain')
             return
-        if path.startswith(('/assets/','/vendor/')) or path in ('/scene.js','/urban.js','/street-crossing.js','/woodland.js','/farm.js','/airport.js','/factory.js','/railway.js','/background.js','/transport.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/loading-guide.js','/audio.js','/webgpu-check.js','/webgpu-quality.js','/webgpu-nature.js','/webgpu-vehicles.js','/webgpu-scenery.js'):
+        if path.startswith(('/assets/','/vendor/','/scenarios/')) or path in ('/scene.js','/surfaces.js','/vegetation.js','/background.js','/transport.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/loading-guide.js','/audio.js','/webgpu-check.js','/webgpu-quality.js','/webgpu-nature.js','/webgpu-vehicles.js','/webgpu-scenery.js'):
             self.serve_file(ROOT/path.lstrip('/'));return
         if path in ('/gpu-test','/gpu-test/'):path='/gpu-test.html'
         files={'/':('index.html','text/html; charset=utf-8'),'/style.css':('style.css','text/css'),'/campaign.css':('campaign.css','text/css'),'/app.js':('app.js','text/javascript'),

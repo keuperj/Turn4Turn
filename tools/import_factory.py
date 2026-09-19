@@ -29,7 +29,7 @@ SELECTION=[('27724','FactoryLathe','factory_machine',2.82,1.88),
 
 def main():
     source=Path(sys.argv[1]);source.mkdir(parents=True,exist_ok=True)
-    dest=ROOT/'static/assets/models/transport'
+    dest=ROOT/'static/scenarios/factory/models'
     entries={}
     for slug in PACKS:
         pack=json.loads(subprocess.check_output(['curl','-fsSL','--max-time','60','https://3dassets.dev/api/v1/packs/'+slug]))['data']

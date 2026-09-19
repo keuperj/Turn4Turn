@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import server
 from game import Game
 from world import THEMES, PROP_SIZE
+from scenarios.assets import model_catalog
 from playwright.sync_api import sync_playwright
 
 
@@ -46,7 +47,7 @@ def main():
                 return {renderer:field.renderer,failures:field.transport.failures,count:field.transport.sources.size};
             }''', gpu)
             assert result['renderer'] == ('webgpu' if gpu else 'webgl'), result
-            assert not result['failures'] and result['count'] == len(json.loads((server.ROOT/'assets/models/transport/manifest.json').read_text())['models']), result
+            assert not result['failures'] and result['count'] == len(model_catalog()['models']), result
             for index, theme in enumerate(THEMES):
                 game = Game(41 + index, theme, size=24)
                 state = game.state()
@@ -58,11 +59,20 @@ def main():
                 report = page.evaluate('''state=>{
                     field.sync(state,state.units[0]?.id,null,'move');
                     field.engine.beginFrame();field.nativeScene.render();field.engine.endFrame();
-                    const models=state.props.filter(p=>p.model);
+                    const models=state.props.filter(p=>p.model&&(p.z===undefined||field.surfaceVisible(p.x,p.y,p.z)));
                     return {theme:state.theme,expected:models.length,actual:field.pickables.filter(o=>o.userData.transport).length};
                 }''', state)
                 assert report['expected'] == report['actual'], report
                 print(report, flush=True)
+            # Test the catalog in a fresh scene, releasing all seven map renderings.
+            page.reload()
+            page.add_script_tag(url='/vendor/babylon.js')
+            page.add_script_tag(url='/vendor/babylonjs.loaders.min.js')
+            page.evaluate('''async ({gpu,state})=>{
+                const {Battlefield}=await import('/scene.js');
+                window.field=await Battlefield.create(document.querySelector('canvas'),()=>{},()=>{},{ok:gpu});
+                await field.ready;field.engine.stopRenderLoop();field.state=state;
+            }''',dict(gpu=gpu,state=state))
             dimensions = page.evaluate('''async sizes=>{
                 const {addProp}=await import('/environment.js');
                 field.clear(field.terrain);field.clear(field.actors);field.clear(field.overlay);field.pickables=[];
@@ -75,7 +85,8 @@ def main():
                     const hit=field.nativeScene.pickWithRay(ray,m=>m.metadata?.pickOwner===owner);
                     reports.push({id:entry.id,span:span.asArray(),bottom:bounds.min.y,uniform:Math.max(...span.asArray().map((v,j)=>v/entry.dimensions[j]))-Math.min(...span.asArray().map((v,j)=>v/entry.dimensions[j])),fits:span.x<=width*.94+.01&&span.z<=depth*.94+.01,picked:!!hit?.hit});
                     const unit={...field.state.units[0],id:'scale-human'+i,x:x+width+1,y:y+depth/2,z:0,stance:'standing',team:'soldier',hp:100};
-                    field.actors.add(field.figure(unit));
+                    // One scale reference per row keeps the expanded addon catalog affordable.
+                    if(i%4===0)field.actors.add(field.figure(unit));
                     i++;
                 }
                 field.sky.intensity=.85;field.sun.intensity=2.6;field.sun.diffuse=BABYLON.Color3.FromHexString('#fff1db');
@@ -128,8 +139,8 @@ def main():
             assert cleanup['baseline'] == cleanup['after'] and cleanup['fallback'], cleanup
             assert cleanup['materials'] == cleanup['afterMaterials'], cleanup
             # A missing asset must finish loading and leave the procedural path usable.
-            page.route('**/assets/models/transport/manifest.json', lambda route: route.fulfill(
-                content_type='application/json', body=json.dumps({'models':[{'id':'missing-bus','kind':'bus','file':'missing-bus.glb'}]})))
+            page.route('**/api/models', lambda route: route.fulfill(
+                content_type='application/json', body=json.dumps({'models':[{'id':'missing-bus','kind':'bus','file':'missing-bus.glb','url':'/scenarios/missing/models/missing-bus.glb'}]})))
             failed = page.evaluate('''async()=>{
                 const {TransportAssets}=await import('/transport.js'),{addProp}=await import('/environment.js');
                 const assets=new TransportAssets(field);await assets.load();field.transport=assets;

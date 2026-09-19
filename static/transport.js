@@ -5,12 +5,12 @@ export class TransportAssets {
  constructor(view){this.view=view;this.sources=new Map();this.models=[];this.failures=[];}
  async load(){
   try{
-   const response=await fetch('/assets/models/transport/manifest.json');
+   const response=await fetch('/api/models');
    if(!response.ok)throw new Error(`Transport manifest: HTTP ${response.status}`);
    this.models=(await response.json()).models;
    await Promise.all(this.models.map(async entry=>{
     try{
-     const source=await B.SceneLoader.LoadAssetContainerAsync('/assets/models/transport/',entry.file,this.view.nativeScene);
+     const source=await B.SceneLoader.LoadAssetContainerAsync(entry.url.slice(0,entry.url.lastIndexOf('/')+1),entry.url.slice(entry.url.lastIndexOf('/')+1),this.view.nativeScene);
      source.animationGroups.forEach(g=>g.stop());
      this.sources.set(entry.id,source);
     }catch(error){this.failures.push(entry.id);console.warn(`Transport ${entry.id} unavailable; using procedural fallback.`,error);}

@@ -1,4 +1,5 @@
 /** @fileoverview Build, synchronize, interact with, and animate the tactical battlefield. */
+import {ScenarioRenderers} from './scenarios/registry.js';
 import * as G from './rendering.js';
 import {B,OrbitControls} from './rendering.js';
 import {CharacterAssets} from './characters.js';
@@ -8,13 +9,7 @@ import {actionAudio} from './audio.js';
 import {qualityLighting,qualityMaterials} from './webgpu-quality.js';
 import {smokeCanvas,detailedEffects} from './webgpu-nature.js';
 
-import {urbanStreets} from './urban.js';
-import {streetCrossing} from './street-crossing.js';
 import {BackgroundAssets} from './background.js';
-import {woodlandGround} from './woodland.js';
-import {farmGround} from './farm.js';
-import {airportGround} from './airport.js';
-import {railwayGround} from './railway.js';
 
 // Geometry is genuinely three-dimensional; Python supplies all walkable surfaces.
 /** Manage the Babylon battlefield and its WebGPU or WebGL engine. */
@@ -73,7 +68,7 @@ export class Battlefield {
     G.configure(this.nativeScene,this.shadows);this.scene=new G.Scene(this.nativeScene);
     this.camera=new G.PerspectiveCamera(42,1,.1,500);this.camera.position.set(26,27,32);
     this.controls=new OrbitControls(this.camera,canvas);this.controls.target.set(8.5,0,8.5);
-    this.characters=new CharacterAssets(this);this.transport=new TransportAssets(this);this.background=new BackgroundAssets(this);this.ready=Promise.all([this.characters.load(),this.transport.load(),this.background.load()]);this.nativeScene.onAfterAnimationsObservable.add(()=>this.characters.afterAnimations());
+    this.characters=new CharacterAssets(this);this.transport=new TransportAssets(this);this.background=new BackgroundAssets(this);this.scenarios=new ScenarioRenderers();this.ready=Promise.all([this.scenarios.load(),this.characters.load(),this.transport.load(),this.background.load()]);this.nativeScene.onAfterAnimationsObservable.add(()=>this.characters.afterAnimations());
     this.terrain=new G.Group();this.actors=new G.Group();this.overlay=new G.Group();this.fx=new G.Group();this.flames=[];this.elapsed=0;
     this.scene.add(this.terrain,this.actors,this.overlay,this.fx);this.models=new Map();this.pickables=[];this.portalModels=new Map();this.viewMode='auto';
     this.loader=new G.TextureLoader();
@@ -249,12 +244,7 @@ export class Battlefield {
     }
     if(roads.length)this.tiles(this.terrain,roads,this.material(theme.road,state.theme==='farm'?'soil':'asphalt'),1);
     if(laneMarkers.length)this.tiles(this.terrain,laneMarkers,this.material(0xc8bd86),.055);
-    if(state.theme==='urban')urbanStreets(this,state);
-    if(state.theme==='streets')streetCrossing(this,state);
-    if(state.theme==='farm')farmGround(this,state);
-    if(state.theme==='woods')woodlandGround(this,state);
-    if(state.theme==='train_station')railwayGround(this,state);
-    if(state.theme==='airport')airportGround(this,state);
+    this.scenarios.get(state.theme).ground?.(this,state);
 
     if(state.civilians.total){const evac=this.label('CIVILIAN EVACUATION →','#ace9c0',4);evac.position.set(c,.12,n-.3);this.terrain.add(evac);}
     const grid=new G.GridHelper(n,n,0x9aaca3,0x6e8074);grid.position.set(c,.035,c);grid.material.transparent=true;grid.material.opacity=.16;this.terrain.add(grid);

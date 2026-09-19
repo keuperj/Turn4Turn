@@ -1,5 +1,5 @@
 /** Continuous runway surfaces and batched airfield markings for both renderers. */
-import {surfaceBatch} from './street-crossing.js';
+import {surfaceBatch} from '../../surfaces.js';
 
 export function runwayStrip(view,parent,state,start,end,prefix='airport'){
  const x=state.scenery.runway_x,w=state.scenery.runway_width,white=[];

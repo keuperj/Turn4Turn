@@ -1,5 +1,5 @@
 /** Shared double-track geometry for the station and its city surroundings. */
-import {surfaceBatch} from './street-crossing.js';
+import {surfaceBatch} from '../../surfaces.js';
 export function railTracks(view,parent,tracks,start,end,prefix='railway'){
  const ballast=[],sleepers=[],rails=[];
  for(const x of tracks){

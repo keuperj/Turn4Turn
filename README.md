@@ -305,7 +305,9 @@ order is executed.
 | `visibility.py` | Fog of war and public-state filtering |
 | `fieldcraft.py` | Facing, peeking, healing, and nearby interactions |
 | `arsenal.py` | Loadouts, ammunition, explosives, and destruction |
-| `world.py` | Seeded map and building generation |
+| `scenarios/` | Scenario base classes, registry, generators and shared building logic |
+| `static/scenarios/` | Per-scenario renderers, backgrounds and exclusive model assets |
+| `world.py` | Compatibility exports for scenario generation |
 | `static/app.js` | Browser state, session consent, controls, and preparation UI |
 | `static/scene.js` | Babylon.js battlefield and effects |
 | `static/characters.js` | glTF character models, animation, and poses |
@@ -419,3 +421,8 @@ services during play.
 
 Turn4Turn is licensed under the [GNU General Public License version 2](LICENSE)
 (`GPL-2.0-only`).
+
+### Scenario addons
+
+See [Adding a scenario](docs/scenarios.md) for the folder structure, base-class hooks,
+a working addon example, asset registration and verification steps.

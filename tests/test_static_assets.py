@@ -1,5 +1,6 @@
 """Static asset compression, conditional caching, and API isolation."""
 import gzip
+import json
 import http.client
 import re
 import tempfile
@@ -32,7 +33,9 @@ class StaticAssetTests(unittest.TestCase):
         connection.close();return result
 
     def test_scene_module_dependencies_are_served(self):
-        pending=['/scene.js'];visited=set()
+        status,_,catalog=self.get('/api/scenarios')
+        self.assertEqual(status,200)
+        pending=['/scene.js']+[s['module'] for s in json.loads(catalog)['scenarios']];visited=set()
         while pending:
             path=pending.pop()
             if path in visited:continue
@@ -44,9 +47,21 @@ class StaticAssetTests(unittest.TestCase):
                               ('text/javascript','application/javascript'))
                 self.assertEqual(body,(server.ROOT/path.lstrip('/')).read_bytes())
                 # Follow the renderer's static relative imports transitively.
-                imports=re.findall(r"^import\s+(?:[^;\n]*?\s+from\s+)?['\"]([^'\"]+)['\"]",
+                imports=re.findall(r"^(?:import|export)\s+(?:[^;\n]*?\s+from\s+)?['\"]([^'\"]+)['\"]",
                                    body.decode(),re.MULTILINE)
                 pending.extend(urljoin(path,name) for name in imports if name.startswith('.'))
+
+    def test_registry_assets_and_private_paths(self):
+        status,_,body=self.get('/api/models')
+        self.assertEqual(status,200)
+        models=json.loads(body)['models']
+        self.assertTrue(any(m['url'].startswith('/scenarios/factory/') for m in models))
+        for entry in models:
+            status,_,body=self.get(entry['url'])
+            self.assertEqual(status,200,entry['url'])
+            self.assertEqual(body[:4],b'glTF')
+        for path in ['/scenarios/../../server.py','/scenarios/factory/scenario.py']:
+            self.assertEqual(self.get(path)[0],404)
 
     def test_gzip_assets_are_identical_after_decompression(self):
         for path in ['/vendor/babylon.js','/assets/models/Ninja_Male.glb','/app.js']:

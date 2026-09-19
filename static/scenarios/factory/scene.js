@@ -1,5 +1,5 @@
 /** Open factory platforms, stair wells and two outer walls for both renderers. */
-import {surfaceBatch} from './street-crossing.js';
+import {surfaceBatch} from '../../surfaces.js';
 
 export function factoryBuilding(view,b,state){
  const parent=view.terrain,limit=view.buildingLevel(b),cx=b.x+(b.width-1)/2,cy=b.y+(b.depth-1)/2;

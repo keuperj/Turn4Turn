@@ -1,7 +1,5 @@
 /** @fileoverview Build visual props, buildings, portals, and architectural details. */
 import * as G from './rendering.js';
-import {factoryBuilding} from './factory.js';
-import {woodlandProp} from './woodland.js';
 import {detailedProp,propFittings,profileFor,furnish} from './webgpu-scenery.js';
 
 // Theme props share the footprints used by Python collision/pathfinding.
@@ -14,7 +12,7 @@ export function addProp(view, p, parent=view.terrain) {
   if(['tree','tree_oak','tree_pine','tree_birch','bush','flowerbed','sign','lamp','trash','bench'].includes(p.kind))group.rotation.y=(p.variant||0)*Math.PI/2;
   if(p.quarter_turn)group.rotation.y=p.quarter_turn*Math.PI/2;
   const localProp=p.quarter_turn%2?{...p,width:p.depth,depth:p.width}:p;
-  const enhancedProp=(p.woodland&&woodlandProp(view,p,group))||view.transport?.add(p,group)||(view.renderer==='webgpu'&&detailedProp(view,localProp,group));
+  const enhancedProp=view.scenarios.get(view.state.theme).prop?.(view,p,group)||view.transport?.add(p,group)||(view.renderer==='webgpu'&&detailedProp(view,localProp,group));
   const box=(w,h,d,x,y,z,c)=>view.box(group,w,h,d,x,y,z,c);
   const color=p.color||'#91a5a1',metal=view.material(0x566164,'metal'),glass=view.material(0x294957,'glass'),rubber=view.material(0x202524,'rubber');
   const cylinder=(r,h,x,y,z,c,finish='paint')=>{const m=new G.Mesh(new G.CylinderGeometry(r,r,h,12),typeof c==='object'?c:view.material(c,finish));m.position.set(x,y,z);m.receiveShadow=true;if(r>.16&&h>.2)m.castShadow=true;group.add(m);return m;};
@@ -173,7 +171,7 @@ export function addProp(view, p, parent=view.terrain) {
 
 /** Add one building, its floors, portals, and details to the battlefield. */
 export function addBuilding(view,b,state){
-  if(b.factory)return factoryBuilding(view,b,state);
+  if(view.scenarios.get(state.theme).building?.(view,b,state))return;
   const parent=view.terrain,start=parent.children.length;
   if(b.destroyed){view.box(parent,b.width,.14,b.depth,b.x+(b.width-1)/2,.07,b.y+(b.depth-1)/2,0x66625b);return;}
   if(b.station||b.airport_role==='terminal'){const hall=view.label(b.station?'WAITING HALL':'DEPARTURES · WAITING AREA','#e7dfc7',Math.min(4,b.width-1));hall.position.set(b.x+(b.width-1)/2,.10,b.y+2);hall.rotation.x=-Math.PI/2;parent.add(hall);}

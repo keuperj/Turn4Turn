@@ -26,7 +26,7 @@ SELECTION=[('32563','AirportLightPlane','aircraft',9.4,9.4),
 
 def main():
     source=Path(sys.argv[1]);source.mkdir(parents=True,exist_ok=True)
-    dest=ROOT/'static/assets/models/transport'
+    dest=ROOT/'static/scenarios/airport/models'
     pack=json.loads(subprocess.check_output(['curl','-fsSL','--max-time','60',PACK]))['data']
     entries={str(e['id']):e for e in pack['assets']}
     for asset_id,name,*_ in SELECTION:

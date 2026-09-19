@@ -1,7 +1,7 @@
 """Free orientation, short corner exposures, and adjacent medical treatment."""
 import copy
 import math
-from world import edge_key
+from scenarios.common import edge_key
 
 
 class Fieldcraft:

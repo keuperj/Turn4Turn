@@ -2,7 +2,8 @@
 import math
 import random
 from collections import deque
-from world import THEMES, edge_key, generate
+from scenarios import THEMES, generate
+from scenarios.common import edge_key
 from visibility import FogOfWar
 from arsenal import Arsenal
 from targeting import Targeting

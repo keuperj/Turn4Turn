@@ -1,0 +1,95 @@
+{
+  "author": "Quaternius; Kenney (farm vehicles)",
+  "license": "CC0-1.0",
+  "packs": {
+    "public": "https://quaternius.com/packs/publictransport.html",
+    "train": "https://quaternius.com/packs/modulartrain.html"
+  },
+  "textureSource": "https://drive.google.com/uc?export=download&id=1t2OBnWpp2pRV-eaV_vt6weiHN4vlEHwi",
+  "models": [
+    {
+      "id": "CargoTrain_Front",
+      "kind": "train",
+      "pack": "train",
+      "file": "CargoTrain_Front.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1pV5zv8WKX6TzWdBT6XM8x6lp3o8MK1af",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.7,
+      "length": 9.4,
+      "dimensions": [
+        1.9519886717047878,
+        2.4352039087019013,
+        9.400000000000002
+      ],
+      "sha256": "afe1ddc6326c8ebd36274adb7a8fe6bcc6468d2bad8be44f63a0d15679520ba5",
+      "sourceSha256": "b1c2e8d065dc31c1c01948d0c5def58a30e3cff2083f3e8f48575aba755bc154"
+    },
+    {
+      "id": "Locomotive_Front",
+      "kind": "train",
+      "pack": "train",
+      "file": "Locomotive_Front.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1jBZINoo8C2fhkBPWJm2nNxmX0Ic9cYRn",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.7,
+      "length": 9.4,
+      "dimensions": [
+        2.7000000000000006,
+        3.3746319965672513,
+        7.617680442441803
+      ],
+      "sha256": "4ebc1f2e59de59ebd7e4e02d7d0164935c515754dcbdf6fbec47dd5e5c1baa60",
+      "sourceSha256": "034742ced0ef46177f37b9dae5888f4da486b6f0fb4e1d75e5af154385feb208"
+    },
+    {
+      "id": "CargoTrain_Container",
+      "kind": "train",
+      "pack": "train",
+      "file": "CargoTrain_Container.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1SvRWuVZVHQr11rdue6t571zkxHzjFGFX",
+      "rotation": [
+        0,
+        90,
+        0
+      ],
+      "width": 2.7,
+      "length": 9.4,
+      "dimensions": [
+        2.093948411023627,
+        2.6180904458473635,
+        9.4
+      ],
+      "sha256": "a20462153bd989e9dee5cf893c4f28bfd34252698e4d8dc871bf4a8299df65bc",
+      "sourceSha256": "bef6ee7b8e2cff2fb987da6a1d8d5160fdf036c56c8ed66b1ed9b226013f9972"
+    },
+    {
+      "id": "Train",
+      "kind": "train",
+      "pack": "public",
+      "file": "Train.glb",
+      "source": "https://drive.google.com/uc?export=download&id=1lO9YwlVAWTmiilWC9vsd1aH7ab0UlznV",
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "width": 2.6,
+      "length": 9.4,
+      "dimensions": [
+        2.6,
+        2.6887498275578054,
+        8.580100770461668
+      ],
+      "sha256": "43327fc4399bf696a0b3de106b55fb3aa58cf4a760fcac86dcb054754bb01466",
+      "sourceSha256": "973b738a99406ba369153836c20223a4ffa21a307a1357ce4c520fd2b4b442ca"
+    }
+  ]
+}
