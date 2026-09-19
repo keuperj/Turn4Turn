@@ -49,9 +49,10 @@ export class BackgroundAssets {
   this.key=key;this.root?.dispose(false,false);this.placements=[];
   this.root=new B.TransformNode('scenario-background-'+state.theme,this.view.nativeScene);
   const p=backgroundProfiles[state.theme]||backgroundProfiles.urban,n=state.size,c=(n-1)/2,rng=randomFor(state.seed+state.theme.length*797);
-  this.plane('background-ground',c,c,900,900,this.material(state.theme+'-ground',p.color,p.texture,90),['urban','streets','woods','train_station'].includes(state.theme)?-.025:-.64);
+  this.plane('background-ground',c,c,900,900,this.material(state.theme+'-ground',p.color,p.texture,90),['urban','streets','woods','train_station','farm'].includes(state.theme)?-.025:-.64);
   if(state.theme==='urban'){this.urban(state,rng);return;}
   if(state.theme==='streets'){this.suburban(state,rng);return;}
+  if(state.theme==='farm'){this.farm(state,rng);return;}
   if(state.theme==='woods'){this.woodland(state,rng);return;}
   if(state.theme==='train_station'){this.railway(state,rng);return;}
   const road=this.material(state.theme+'-road',['farm','woods'].includes(state.theme)?'#8d7958':'#525b5b','concrete-weathered-v2.webp',12);
@@ -68,10 +69,6 @@ export class BackgroundAssets {
    this.plane('background-rail-yard',c,-25,n+100,10,ballast,-.59);
    for(const z of [-28,-26.8,-23,-21.8])this.plane('background-rail',c,z,n+100,.10,steel,-.57);
   }
-  if(state.theme==='farm'){
-   const earth=this.material('furrow-soil','#79603f','terrain-mixed-v2.webp',8),crop=this.material('crop-rows','#a2a064','terrain-mixed-v2.webp',8);
-   for(const side of [-1,1])for(let row=0;row<18;row++)this.plane('background-crop-row',c,c+side*(n/2+8+row*1.2),n+26,.9,row%3?crop:earth,-.60);
-  }
   // Buildings sit on three staggered rings, beyond the roads/fields. Spacing
   // uses the largest model footprint so nothing crosses into playable tiles.
   for(let i=0;i<p.buildCount;i++){
@@ -87,6 +84,33 @@ export class BackgroundAssets {
    if(['airport','train_station'].includes(state.theme)&&z<0){x=n+12+ring*10;z=along;}
    const list=i%3===0?shrubs:trees;this.add(list[Math.floor(i/3)%list.length],x,z,.7+rng()*.55,rng()*Math.PI*2);
   }
+ }
+ /** Field strips and the farm lane share the playable board's exact boundaries. */
+ farm(state,rng){
+  const n=state.size,c=(n-1)/2,rx=state.scenery.road_x,edge=state.scenery.field_edge||Math.max(3,Math.floor(n/6)),extent=100;
+  const road=this.view.material(state.scenery.road,'soil'),soil=this.view.material(0x79603f,'soil'),crop=this.view.material(0xa5a05c,'soil');
+  const rows=[],fields=[],roads=[];
+  for(const [start,end] of [[-extent,-.5],[n-.5,n+extent]])roads.push({x:rx,z:(start+end)/2,w:3,d:end-start});
+  // Wide side fields reach the horizon; rows align at all four board edges.
+  for(const [left,right] of [[-extent,edge-.5],[n-edge-.5,n+extent]]){
+   const outside=left<0?[[-extent,-.5,-extent,n+extent],[-.5,right,-extent,-.5],[-.5,right,n-.5,n+extent]]:[[n-.5,n+extent,-extent,n+extent],[left,n-.5,-extent,-.5],[left,n-.5,n-.5,n+extent]];
+   for(const [l,r,t,b] of outside){
+    fields.push({x:(l+r)/2,z:(t+b)/2,w:r-l,d:b-t});
+    for(let x=Math.ceil(l);x<r;x++)for(const off of [-.3,0,.3])rows.push({x:x+off,z:(t+b)/2,w:.12,d:b-t});
+   }
+  }
+  surfaceBatch(this.view,this.root,'background-farm-fields',fields,soil,.014);
+  surfaceBatch(this.view,this.root,'background-farm-crop-rows',rows,crop,.065);
+  surfaceBatch(this.view,this.root,'background-farm-road',roads,road,.012);
+  // A few distant farms punctuate the open landscape, connected to the lane.
+  const paths=[];
+  for(const z of [-30,n+34]){
+   this.add('House2',rx-10,z,.8,Math.PI/2,0);this.add('BigBarn',rx+11,z+5,.9,-Math.PI/2,0);
+   this.add('Silo',rx+17,z+5,.8,0,0);
+   paths.push({x:rx-5,z,w:10,d:1.5},{x:rx+5,z:z+5,w:10,d:1.5});
+   for(const side of [-1,1])this.add(trees[Math.floor(rng()*trees.length)],rx+side*7,z-7,.65+rng()*.15,0,0);
+  }
+  surfaceBatch(this.view,this.root,'background-farm-paths',paths,road,.018);
  }
  /** Dense, irregular mixed forest continues beyond every board edge. */
  woodland(state,rng){

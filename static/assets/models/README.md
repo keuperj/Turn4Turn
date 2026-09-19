@@ -119,3 +119,19 @@ Rebuild and validate:
 .venv/bin/python tests/browser_background.py
 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json .venv/bin/python tests/browser_background.py --webgpu
 ```
+
+
+### Farm equipment and livestock
+
+The farm uses two tractors (standard and front-loader) from [Kenney Car Kit](https://kenney.nl/assets/car-kit)
+and a cow, sheep, and pig from [Quaternius Farm Animal Pack](https://quaternius.com/packs/farmanimal.html).
+Both packs are CC0; original licenses are preserved as `transport/LICENSE-farm-vehicles.txt`
+and `transport/LICENSE-farm-animals.txt`. The animal download is also available on
+[the creator's OpenGameArt page](https://opengameart.org/content/lowpoly-animated-farm-animal-pack).
+The bundled GLBs are centered, grounded and uniformly scaled to their collision footprints.
+Animals are baked to static rest poses for scenery. They do not wander or simulate livestock behavior.
+The transport manifest records per-model authors, sources, dimensions and SHA-256 hashes.
+Models load locally, with procedural fallback geometry if loading fails.
+
+Rebuild these models with `.venv/bin/python tools/import_farm.py /tmp/farm-sources`.
+The importer downloads the original CC0 archives if they are absent.

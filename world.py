@@ -4,6 +4,7 @@ from pathlib import Path
 from suburbs import street_plan, street_props
 from woodlands import woodland_plan, woodland_props
 from railway import railway_plan, railway_props
+from farm import farm_plan, farm_props
 
 # One catalog drives server-side seeded selection and the browser's asset loader.
 _TRANSPORT_CATALOG = json.loads((Path(__file__).parent / 'static/assets/models/transport/manifest.json').read_text())['models']
@@ -28,7 +29,7 @@ def edge_key(a, b):
 
 # Footprints use the same approximate one-metre scale as the 1.7m fighters.
 PROP_SIZE={'car':(2,5),'truck':(2,6),'bus':(3,7),'ambulance':(2,5),'tractor':(2,3),'aircraft':(10,10),
-           'train':(3,10),'container':(3,6),'tank':(2,2),'silo':(2,2),
+           'cow':(1,2),'sheep':(1,1),'pig':(1,1),'train':(3,10),'container':(3,6),'tank':(2,2),'silo':(2,2),
            'pipes':(2,3),'bench':(2,1),'hay':(2,2),'tree':(1,1),
            'tree_oak':(1,1),'tree_pine':(1,1),'tree_birch':(1,1),'bush':(1,1),
            'flowerbed':(2,1),'sign':(1,1),'lamp':(1,1),'trash':(1,1),'traffic_light':(1,1),'cafe_table':(1,1),'ticket_counter':(2,1)}
@@ -160,7 +161,8 @@ def generate(game):
     street_lots=street_plan(game) if game.theme=='streets' else None
     woodland_lots=woodland_plan(game) if game.theme=='woods' else None
     railway_lots=railway_plan(game) if game.theme=='train_station' else None
-    planned_lots=urban_lots if urban_lots is not None else street_lots if street_lots is not None else woodland_lots if woodland_lots is not None else railway_lots
+    farm_lots=farm_plan(game) if game.theme=='farm' else None
+    planned_lots=urban_lots if urban_lots is not None else street_lots if street_lots is not None else woodland_lots if woodland_lots is not None else railway_lots if railway_lots is not None else farm_lots
     if planned_lots is not None:road_x,cross_y=game.road_x,game.cross_y
     game.heights=[[0]*n for _ in range(n)]
     game.surfaces={(x,y,0) for y in range(n) for x in range(n)}
@@ -199,6 +201,7 @@ def generate(game):
         levels=r.choice([2,2,3,4]) if archetype=='residential' and game.theme not in ('woods','farm') else r.choice([1,1,2]) if archetype in ('commercial','industrial','rural') else r.choice([1,2,2,3])
         if game.theme in ('woods','farm'):levels=r.choice([1,1,2])
         if woodland_lots is not None:levels=1
+        if farm_lots is not None:levels=2 if lot['name']=='FARMHOUSE' else 1
         if urban_lots is not None:levels=r.choice([3,4,4,5,6])
         if i==0 and game.theme not in ('woods','farm'):levels=max(2,levels)
         if street_lots is not None:levels=2 if i==0 else r.choice([1,1,2])
@@ -218,6 +221,9 @@ def generate(game):
             b.update(archetype='rural',roof='gable',facade='timber',color=r.choice(['#806044','#96734e','#70563e']),accent='#625845')
         if railway_lots is not None:
             b.update(station=lot['station'],name='CENTRAL STATION' if lot['station'] else r.choice(['TOWNHOUSE','CORNER SHOP','APARTMENTS']),archetype='civic' if lot['station'] else 'residential',front='east' if x<road_x else 'west',roof='gable',facade='brick',color=r.choice(['#a58970','#b6aa90','#9e8575']))
+            front=b['front'];archetype=b['archetype']
+        if farm_lots is not None:
+            b.update(name=lot['name'],archetype='residential' if i==0 else 'rural',front=lot['front'],roof='gable',facade='stucco' if i==0 else 'timber',color='#d5c6a5' if i==0 else '#a15342',accent='#e2d5b7')
             front=b['front'];archetype=b['archetype']
         game.buildings.append(b)
         for by in range(y,y+depth):
@@ -279,6 +285,10 @@ def generate(game):
     if railway_lots is not None:
         railway_props(game,PROP_SIZE,TRANSPORT_MODELS)
         game.scenery=dict(theme=game.theme,road_x=road_x,cross_y=cross_y,tracks=game.track_centers,road_width=2,**theme)
+        return
+    if farm_lots is not None:
+        farm_props(game)
+        game.scenery=dict(theme=game.theme,road_x=road_x,cross_y=cross_y,road_width=3,field_edge=game.field_edge,**theme)
         return
     kinds=list(theme['props'])
     streetscape=['bench','sign','lamp','trash','bush','flowerbed']

@@ -20,6 +20,15 @@ export function addProp(view, p, parent=view.terrain) {
   const shape=(w,h,d,x,y,z,c,inset=.06,front=inset,back=inset)=>{const m=new G.Mesh(new G.BeveledBoxGeometry(w,h,d,inset,front,back),typeof c==='object'?c:view.material(c));m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;group.add(m);return m;};
   const wheel=(x,z,r=.19)=>{const tire=cylinder(r,.14,x,r,z,rubber);tire.rotation.z=Math.PI/2;const hub=cylinder(r*.48,.151,x,r,z,metal);hub.rotation.z=Math.PI/2;};
   if(!enhancedProp)switch(p.kind){
+    case 'cow': case 'sheep': case 'pig': {
+      const cow=p.kind==='cow',pig=p.kind==='pig',coat=pig?0xc59283:cow?0xe4d9ba:0xd4cbb2;
+      const length=cow?1.5:.7,height=cow?.7:.38;
+      box(.38,height,length,0,height*.9,0,coat);
+      box(.28,height*.65,.30,0,height*1.25,-length*.48,coat);
+      for(const side of [-1,1])for(const end of [-1,1])box(.07,height*.65,.07,side*.13,height*.32,end*length*.32,0x635448);
+      if(cow)box(.39,.3,.42,0,height,0,0x443e37);
+      break;
+    }
     case 'car': case 'truck': case 'ambulance': case 'tractor': {
       const truck=['truck','ambulance'].includes(p.kind),tractor=p.kind==='tractor';
       const body=view.material(color,'paint'),accent=view.material(((p.x*31+p.y*17)%2)?0xd7d0b4:0x596b6d,'paint');
@@ -146,7 +155,7 @@ export function addProp(view, p, parent=view.terrain) {
       cylinder(.25,.58,0,.29,0,view.material((p.variant||0)%2?0x4e615e:0x59605c,'metal'));{const lid=new G.Mesh(new G.CylinderGeometry(.27,.27,.045,12),metal);lid.position.y=.60;group.add(lid);}break;
   }
   if(view.renderer==='webgpu'&&!enhancedProp)propFittings(view,p,group);
-  const base={car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1],ticket_counter:[2,1]}[p.kind]||[1,1];
+  const base={cow:[1,2],sheep:[1,1],pig:[1,1],car:[1,2],truck:[1,2],ambulance:[1,2],bus:[3,7],tractor:[1,1],aircraft:[3,4],train:[2,5],container:[1,3],tank:[1,1],silo:[1,1],pipes:[1,2],bench:[1,1],hay:[1,1],flowerbed:[2,1],ticket_counter:[2,1]}[p.kind]||[1,1];
   if(!enhancedProp)group.scale.set(localProp.width/base[0],p.kind==='car'?1.3:p.kind==='aircraft'?2:p.kind==='train'?1.5:1,localProp.depth/base[1]);
   if(p.growth)group.scale.set(group.scale.x*1.25,group.scale.y*p.growth,group.scale.z*1.25);
   group.traverse(o=>{if(o.isMesh){o.userData.structure=p.id;view.pickables.push(o);}});

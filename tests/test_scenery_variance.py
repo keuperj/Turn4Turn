@@ -28,7 +28,7 @@ class SceneryVarianceTests(unittest.TestCase):
     def test_transport_assets_fit_human_scale_and_collision_footprints(self):
         directory=Path(__file__).resolve().parents[1]/'static/assets/models/transport'
         catalog=json.loads((directory/'manifest.json').read_text())
-        height_ranges={'car':(1.15,1.7),'truck':(1.4,2.8),'train':(2.3,3.5),'bus':(2.4,3.2),'ambulance':(1.8,2.4)}
+        height_ranges={'tractor':(1.5,2.2),'cow':(.9,1.5),'sheep':(.5,1),'pig':(.35,.8),'car':(1.15,1.7),'truck':(1.4,2.8),'train':(2.3,3.5),'bus':(2.4,3.2),'ambulance':(1.8,2.4)}
         for entry in catalog['models']:
             data=(directory/entry['file']).read_bytes()
             self.assertEqual(data[:4],b'glTF')
