@@ -52,7 +52,7 @@ class Fieldcraft:
         if not point:raise ValueError('Stand or kneel directly beside a cover corner with a free side step.')
         origin=self.position(u);u['ap']-=1
         try:
-            u.update(point);self.refresh_visibility()
+            u.update(point);self.refresh_visibility();self.observe_ai()
             contacts=[copy.deepcopy(v) for v in self.alive() if v['team']!='soldier' and self.detected(v)]
             self.events.append(dict(type='peek_out',unit=u['id'],origin=origin,point=self.position(u),contacts=contacts))
             self.log.append(f"{u['name']} peeks around the corner.")

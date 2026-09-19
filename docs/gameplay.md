@@ -23,6 +23,15 @@ Rescue missions randomize both groups while keeping every civilian at least
 10 tiles from every enemy at deployment and outside every enemy’s initial view.
 This gives the squad room to intervene before enemies close in.
 
+Enemies share sightings and coordinate supporting fire and flanking routes. Once
+spotted, breaking one enemy's line of sight may not be enough: another enemy can
+keep the team informed. Lost contacts are remembered briefly, not tracked through
+walls. In rescue missions, enemies must discover civilians before pursuing them.
+
+Civilians act independently and plan several turns ahead. They weigh escape
+progress against exposed routes and may take a detour or hide until danger eases.
+Clearing threats and opening escape doors helps them reach the evacuation edge.
+
 ### Theater and scale
 
 - **Theaters:** Random, Urban District, Factory, Train Station, Airport, Streets,

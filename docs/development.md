@@ -11,7 +11,8 @@ The engine, models, textures and sounds are bundled; gameplay uses no runtime CD
 | Path | Responsibility |
 | --- | --- |
 | `server.py` | Threaded HTTP server, cookies, capacity, and per-player sessions |
-| `game.py` | Authoritative turns, AI, missions, movement, and damage |
+| `game.py` | Authoritative turns, missions, movement, and damage |
+| `tactical_ai.py` | Shared enemy intelligence, coordinated routes, independent civilian planning |
 | `deployment.py` | Seeded rescue placement with enemy separation and initial concealment |
 | `targeting.py` | Attack previews and coordinate targeting |
 | `visibility.py` | Fog of war and public-state filtering |
@@ -39,6 +40,41 @@ character-owned texture clones while preserving shared source textures.
 Maintained Python modules, classes, and functions use docstrings. Maintained
 browser modules and named APIs use JSDoc. Bundled third-party libraries under
 `static/vendor/` and `static/comparison/vendor/` retain their upstream comments.
+
+## Tactical AI
+
+Enemy sightings are shared in a mission-local contact memory. Observations update
+at movement steps, player actions, peeks, and between hostile actions. Contacts
+store snapshots rather than references to live units; unseen movement and deaths
+do not update them. A contact is discarded when its old position is visibly empty
+or after more than three rounds without another sighting. Shared information
+helps movement and target assignment; shooting still requires the shooter's own
+visibility and weapon range.
+
+Enemies allocate contacts with a distance and commitment score, then assign
+support, left-flank and right-flank positions with distinct reserved destinations.
+Rescue objectives favor known civilians, but soldiers can also be attacked. Flag
+attackers advance on the squad flag; defenders without contacts guard their flag.
+Whole-map routes account for walls, doors, fire, stairs and ladders. A bounded
+three-phase lookahead compares staging positions and exposure at intermediate
+turn endpoints. Objectives persist with a stability bonus and are reconsidered
+as teammates discover contacts or change the battlefield. Execution respects AP,
+door costs, collisions and reaction-fire deaths. This is heuristic route planning,
+not a full adversarial simulation of future player turns.
+
+Each civilian has a separate contact memory populated only by personal sightings.
+A width-16 beam search examines three future turns, with up to two movement steps
+per turn and waiting as an explicit option. It balances actual path distance to a
+ground-level evacuation edge against weapon danger along the route, using sight,
+cover and aging remembered threats. Civilians can retreat, detour or wait in
+concealment, and reconsider every turn. They cannot open doors. Neither civilian
+memories nor enemy assignments are stored on public unit records or sent to the
+browser. Terrain is available to both planners; hidden unit positions are not used
+as objectives or threat data.
+
+Behavior tests in `tests/test_tactical_ai.py` cover team sightings, hidden contact
+memory, independent civilian knowledge, flanking assignments, route detours,
+doors, vertical links, hiding, evacuation and public-state privacy.
 
 ## Engine comparison
 

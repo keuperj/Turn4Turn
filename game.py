@@ -9,6 +9,7 @@ from arsenal import Arsenal
 from targeting import Targeting
 from fieldcraft import Fieldcraft
 from deployment import place_rescue_civilians
+from tactical_ai import TacticalAI
 
 WEAPONS = {
     'M4A1': dict(damage=4, capacity=6, accuracy=82, range=10, kind='rifle'),
@@ -45,7 +46,7 @@ MISSIONS = {
 }
 
 
-class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
+class Game(TacticalAI, Fieldcraft, Targeting, Arsenal, FogOfWar):
     """Own authoritative mission state and enforce all tactical game rules."""
     size = 30
 
@@ -117,6 +118,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.flag=dict(x=x,y=y,z=z,team='soldier',label='SQUAD FLAG')
         self.init_structures()
         self.init_fog()
+        self.init_ai()
 
     def make_unit(self, uid, name, team, x, y, weapon, role, z=0):
         """Create a normalized unit record for a mission participant."""
@@ -312,6 +314,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
 
     def move(self, unit, path):
         """Move a unit along a validated path and spend action points."""
+        self.observe_ai()
         for x, y, z in path:
             if any(self.position(u)==(x,y,z) for u in self.alive() if u!=unit):break
             was_visible=self.detected(unit)
@@ -319,6 +322,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if unit['team']=='alien' and was_visible:self.remember_enemy(unit)
             if (x,y)!=(unit['x'],unit['y']):unit['facing']=math.atan2(unit['x']-x,unit['y']-y)
             unit.update(x=x,y=y,z=z)
+            self.observe_ai()
             if unit['team']=='soldier':self.refresh_visibility()
             if unit['team']=='alien' and self.detected(unit):self.remember_enemy(unit)
             if self.detected(unit):self.emit(dict(type='move',unit=unit['id'],x=x,y=y,z=z,origin=origin if was_visible else (x,y,z)),unit)
@@ -409,6 +413,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.events=[]
         self._los_cache.clear()
         self.refresh_visibility()
+        self.observe_ai()
         kind = data.get('action')
         if kind == 'end_turn':
             self.enemy_turn()
@@ -495,60 +500,14 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.log.append(f"{unit['name']} is on overwatch.")
         else:
             raise ValueError('Unknown action.')
+        self.observe_ai()
         self.check_end()
         self.refresh_visibility()
 
     def enemy_turn(self):
         """Run the authoritative hostile phase within its time budget."""
         self.log.append(f'— Hostile phase / round {self.round} —')
-        for enemy in self.alive('alien'):
-            if not self.alive('soldier'): break
-            enemy['overwatch'],enemy['ap']=False,self.enemy_time
-            if not enemy['ammo']:
-                self.spend_ammo(enemy,-WEAPONS[enemy['weapon']]['capacity'])
-                enemy['ap']-=1
-            if self.mission=='defend_flag':
-                self.advance_enemy(enemy,(self.flag['x'],self.flag['y'],self.flag['z']))
-                if self.position(enemy)==(self.flag['x'],self.flag['y'],self.flag['z']):break
-            civilians=[t for t in self.alive('civilian') if self.sees(enemy,t)] if self.mission=='rescue' else []
-            targets=civilians if self.mission=='rescue' else [t for t in self.alive('soldier') if self.sees(enemy,t)]
-            if targets:enemy['last_seen']=self.position(targets[0])
-            if not targets:
-                self.patrol(enemy)
-                continue
-            best=max(targets,key=lambda t:self.chance(enemy,t))
-            if self.chance(enemy,best)<55 and enemy['ap']>1:
-                paths=self.paths(enemy,self.speed(enemy)*(enemy['ap']-1),ignore_doors=True)
-                def score(p):
-                    """Score a candidate enemy action against mission priorities."""
-                    hypothetical=dict(enemy,x=p[0],y=p[1],z=p[2])
-                    distance=min(abs(p[0]-t['x'])+abs(p[1]-t['y'])+abs(p[2]-t['z'])*3 for t in targets)
-                    return max(self.chance(hypothetical,t) for t in targets)+self.cover(best,hypothetical)*.25-distance*4
-                destination=max(paths,key=score)
-                path=paths[destination]
-                prefix=[]
-                previous=self.position(enemy)
-                door=None
-                for p in path:
-                    wall=self.walls.get(edge_key(previous,p))
-                    if wall and wall['kind']=='door' and not wall['open']:
-                        door=wall
-                        break
-                    prefix.append(p)
-                    previous=p
-                if prefix:
-                    self.move(enemy,prefix)
-                    enemy['ap']-=math.ceil(len(prefix)/self.speed(enemy))
-                if enemy['hp']<=0: continue
-                if door and enemy['ap']:
-                    self.toggle_portal(enemy,door)
-            if enemy['hp']<=0 or not enemy['ap']: continue
-            civilians=[t for t in self.alive('civilian') if self.sees(enemy,t)] if self.mission=='rescue' else []
-            targets=civilians if self.mission=='rescue' else [t for t in self.alive('soldier') if self.sees(enemy,t)]
-            if not targets:enemy['overwatch'],enemy['ap']=True,0;continue
-            best=max(targets,key=lambda t:self.chance(enemy,t))
-            if self.chance(enemy,best): self.fire(enemy,best)
-            else: enemy['overwatch'],enemy['ap']=True,0
+        self.coordinated_enemy_turn()
         self.tick_utilities()
         self.civilian_turn()
         self.check_end()
@@ -559,51 +518,6 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 soldier['ap'],soldier['overwatch']=self.player_time,False
             self.log.append(f'— Squad phase / round {self.round} —')
         self.refresh_visibility()
-
-    def civilian_turn(self):
-        """Move civilians toward safe evacuation positions."""
-        for civilian in self.alive('civilian'):
-            paths=self.paths(civilian,2)
-            def safety(p):
-                """Score how safe a coordinate is for civilian movement."""
-                danger=min((abs(p[0]-e['x'])+abs(p[1]-e['y']) for e in self.alive('alien')),default=20)
-                return p[1]*3+min(danger,8)
-            dest=max(paths,key=safety)
-            self.move(civilian,paths[dest])
-            if civilian['y']==self.size-1:
-                civilian['evacuated']=True
-                self.emit(dict(type='evacuate',unit=civilian['id']),civilian)
-                self.log.append(f"{civilian['name']} reaches the evacuation boundary.")
-
-    def patrol(self,enemy):
-        """Choose and perform movement for a non-player unit."""
-        for portal in self.interactions(enemy):
-            if portal['kind']=='door' and not portal['open'] and self.rng.random()<.4:
-                self.toggle_portal(enemy,next(p for p in self.portals if p['id']==portal['id']))
-                break
-        paths=self.paths(enemy,self.speed(enemy)*enemy['ap'])
-        civilians=self.alive('civilian') if self.mission=='rescue' else []
-        nearest=min(civilians,key=lambda u:abs(u['x']-enemy['x'])+abs(u['y']-enemy['y'])+abs(u['z']-enemy['z'])*3) if civilians else None
-        goal=self.position(nearest) if nearest else enemy.get('last_seen')
-        if not goal or self.position(enemy)==tuple(goal):
-            goal=self.rng.choice(sorted(paths))
-        dest=min(paths,key=lambda p:abs(p[0]-goal[0])+abs(p[1]-goal[1])+abs(p[2]-goal[2])*3)
-        self.move(enemy,paths[dest])
-        if enemy['hp']>0:enemy['overwatch'],enemy['ap']=True,0
-
-    def advance_enemy(self,enemy,goal):
-        """Spend the hostile's phase advancing directly on a mission objective."""
-        if not enemy['ap']:return
-        paths=self.paths(enemy,self.speed(enemy)*enemy['ap'],ignore_doors=True)
-        destination=min(paths,key=lambda p:abs(p[0]-goal[0])+abs(p[1]-goal[1])+abs(p[2]-goal[2])*3)
-        prefix=[];previous=self.position(enemy);door=None
-        for p in paths[destination]:
-            wall=self.walls.get(edge_key(previous,p))
-            if wall and wall['kind']=='door' and not wall['open']:door=wall;break
-            prefix.append(p);previous=p
-        if prefix:
-            self.move(enemy,prefix);enemy['ap']-=math.ceil(len(prefix)/self.speed(enemy))
-        if door and enemy['hp']>0 and enemy['ap']:self.toggle_portal(enemy,door)
 
     def state(self):
         """Return the privacy-filtered game state sent to the browser."""
