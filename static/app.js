@@ -1,4 +1,5 @@
 /** @fileoverview Coordinate sessions, UI state, rendering, input, and campaign navigation. */
+import {recordMission, statisticsMarkup, showStatistics} from './statistics.js';
 import {actionAudio} from './audio.js';
 import {icon,button,hydrate} from './icons.js';
 import {Minimap} from './minimap.js';
@@ -153,6 +154,7 @@ async function request(path,data){
     const result=await response.json();if(!response.ok)throw Error(result.error||'Request failed');
     if(path==='/api/preview'){pending={...result,payload:data};message('Goal selected. Double-click the same point to execute; Escape cancels.');}
     else{
+      recordMission(result);
       pending=null;
       if(missionLoad){
         loading('Loading equipment previews…',7);loadingGuide.start(result.weapons);
@@ -202,7 +204,7 @@ function render(){
   $('log').replaceChildren(...state.log.map(line=>{const el=document.createElement('div');el.textContent=line;return el;}));$('log').scrollTop=$('log').scrollHeight;
   $('end').disabled=state.status!=='active';
   $('outcome').hidden=['active','loadout'].includes(state.status);
-  if(!$('outcome').hidden){if(campaignRun&&state.status==='victory')recordCampaignVictory();const label=campaignRun?(state.status==='victory'?'Campaign overview':'Retry mission'):'Prepare another mission';$('outcome').innerHTML=`<h2>${state.status==='victory'?'Mission accomplished':'Mission failed'}</h2><p>${state.mission.objective}</p>${button('again','new',label)}`;$('again').onclick=campaignRun?(state.status==='victory'?showCampaign:startCampaignMission):newMission;}
+  if(!$('outcome').hidden){if(campaignRun&&state.status==='victory')recordCampaignVictory();const label=campaignRun?(state.status==='victory'?'Campaign overview':'Retry mission'):'Prepare another mission';$('outcome').innerHTML=`<h2>${state.status==='victory'?'Mission accomplished':'Mission failed'}</h2><p>${escape(state.mission.objective)}</p>${statisticsMarkup(state.summary)}${button('again','new',label)}`;$('again').onclick=campaignRun?(state.status==='victory'?showCampaign:startCampaignMission):newMission;}
   if(state.status==='loadout'&&screen==='game'){renderPreparation();if(!$('preparation').open)$('preparation').showModal();}
   else if($('preparation').open)$('preparation').close();
   const aim=pending?.action==='attack'?pending:null;
@@ -318,7 +320,7 @@ function loadCampaignSave(){const p=cookieJSON('turn4turn_campaign');return p?.i
 /** Close dialogs. */
 function closeDialogs(){for(const d of document.querySelectorAll('dialog[open]'))d.close();}
 /** Show landing. */
-function showLanding(){screen='landing';closeDialogs();$('campaign-screen').hidden=true;$('landing').hidden=false;}
+function showLanding(){$('statistics-screen').hidden=true;screen='landing';closeDialogs();$('campaign-screen').hidden=true;$('landing').hidden=false;}
 /** Show game. */
 function showGame(){$('startup-error').hidden=true;screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state)render();}
 /** Render campaign progress and available actions. */
@@ -342,13 +344,14 @@ $('preparation').addEventListener('cancel',e=>e.preventDefault());
 $('welcome').addEventListener('cancel',e=>e.preventDefault());
 $('close-equipment').onclick=()=>$('equipment').close();$('close-help').onclick=()=>$('manual').close();
 $('armory').onclick=()=>{if(!state)return;editSlot=null;openEquipment();};$('help').onclick=()=>$('manual').showModal();
+$('statistics-mode').onclick=()=>{screen='statistics';showStatistics();};$('statistics-home').onclick=showLanding;
 $('home').onclick=showLanding;$('campaign-home').onclick=showLanding;$('campaign-mode').onclick=showCampaign;$('single-game').onclick=startSingle;$('new').onclick=()=>campaignRun?startCampaignMission():newMission();$('end').onclick=()=>act('end_turn');$('focus').onclick=()=>battlefield?.focus(soldier());$('reset-camera').onclick=()=>battlefield?.home();
 $('view-level').onchange=()=>{if(busy)return;pending=null;battlefield.setView($('view-level').value);render();};
 $('sound').checked=actionAudio.enabled;$('volume').value=actionAudio.volume;$('sound').onchange=()=>actionAudio.setEnabled($('sound').checked);$('volume').oninput=()=>actionAudio.setVolume($('volume').value);
 document.addEventListener('pointerdown',()=>actionAudio.unlock(),{once:true});document.addEventListener('keydown',()=>actionAudio.unlock(),{once:true});
 document.addEventListener('click',e=>{if(e.target.closest('button'))actionAudio.play({type:'button'});});
 document.addEventListener('change',e=>{if(e.target.matches('select'))actionAudio.play({type:'button'});});
-document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
+document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||screen!=='game'||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
 // The landing page needs no mission state, renderer, models, textures or audio.
 showLanding();
 if(new URLSearchParams(location.search).get('mode')==='single'){

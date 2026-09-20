@@ -109,6 +109,7 @@ class Arsenal:
         for _ in range(rounds):
             self.spend_ammo(u)
             hit=self.rng.randint(1,100)<=(65 if rounds>1 else 95)
+            self.record_shot(u,hit and not p.get('destroyed'))
             self.events.append(dict(type='shot',unit=u['id'],origin=self.position(u),point=t['point'],hit=hit,structure=True,burst=rounds>1,weapon=u['weapon']))
             if hit:self.damage_structure(p,max(1,w['damage']//2))
         u['ap']=max(0,u['ap']-1) if w['kind']=='handgun' else 0

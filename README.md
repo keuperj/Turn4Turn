@@ -33,6 +33,11 @@ Follow the [setup guide](docs/setup.md), then choose **Campaign** or **Single Mi
 Pick your loadout and deploy. Select a fighter, click to preview an order, and
 double-click to execute it. Spend your action points, then end the squad's turn.
 
+Each completed mission shows casualties, civilian rescues, squad firearm hits and
+misses, and turns played. Open **Statistics & mission history** from the main menu
+to see your name, lifetime totals, and up to 20 recent missions. The record is
+stored in a browser cookie; older history is trimmed to fit while totals remain.
+
 See the [gameplay guide](docs/gameplay.md) for controls and tactics, or the
 [documentation](docs/README.md) for hosting, development and adding scenarios.
 

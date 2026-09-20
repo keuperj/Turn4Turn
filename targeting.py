@@ -87,6 +87,7 @@ class Targeting:
         for _ in range(solution['rounds']):
             self.spend_ammo(u)
             hit=self.rng.randint(1,100)<=solution['chance']
+            self.record_shot(u,hit and ((target and target['hp']>0) or (structure and not structure.get('destroyed'))))
             blood=bool(hit and target and self.detected(target))
             self.events.append(dict(type='shot',unit=u['id'],origin=self.position(u),point=[x,y,z],hit=blood,
                                     structure=bool(structure),burst=solution['rounds']>1,weapon=u['weapon']))

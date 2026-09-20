@@ -1,6 +1,7 @@
 """Authoritative tactical simulation; rendering never determines combat outcomes."""
 import math
 import random
+import uuid
 from collections import deque
 from scenarios import THEMES, generate
 from scenarios.common import edge_key
@@ -58,6 +59,8 @@ class Game(TacticalAI, Fieldcraft, Targeting, Arsenal, FogOfWar):
         if lighting not in ('day','night'):raise ValueError('Lighting must be day or night.')
         if title is not None and (not isinstance(title,str) or not 0<len(title)<=80):raise ValueError('Invalid mission title.')
         if objective is not None and (not isinstance(objective,str) or not 0<len(objective)<=240):raise ValueError('Invalid mission objective.')
+        self.mission_id=uuid.uuid4().hex
+        self.shots_fired=0;self.shots_hit=0
         self.size=size
         self.difficulty=difficulty
         self.mission=mission
@@ -283,6 +286,21 @@ class Game(TacticalAI, Fieldcraft, Targeting, Arsenal, FogOfWar):
         unit['ammo'] -= amount
         unit['inventory'][unit['weapon']]['ammo'] = unit['ammo']
 
+    def record_shot(self, shooter, hit):
+        """Count squad firearm rounds, including bursts and overwatch."""
+        if shooter['team']=='soldier':
+            self.shots_fired+=1
+            self.shots_hit+=int(bool(hit))
+
+    def mission_statistics(self):
+        """Summarize all casualties, including explosion and fire damage."""
+        return dict(enemies_killed=sum(u['team']=='alien' and u['hp']<=0 for u in self.units),
+                    fighters_killed=sum(u['team']=='soldier' and u['hp']<=0 for u in self.units),
+                    civilians_rescued=sum(u['team']=='civilian' and u.get('evacuated',False) for u in self.units),
+                    civilians_killed=sum(u['team']=='civilian' and u['hp']<=0 for u in self.units),
+                    shots_fired=self.shots_fired,shots_hit=self.shots_hit,shots_missed=self.shots_fired-self.shots_hit,
+                    turns=0 if self.status=='loadout' else self.round)
+
     def fire(self, shooter, target, reaction=False):
         """Resolve a weapon attack and emit its public combat events."""
         rounds=min(3,shooter["ammo"]) if not reaction and shooter.get("fire_mode")=="auto" and WEAPONS[shooter["weapon"]].get("automatic") else 1
@@ -299,6 +317,7 @@ class Game(TacticalAI, Fieldcraft, Targeting, Arsenal, FogOfWar):
         hit_chance=max(1,chance-(15 if reaction else 0))
         if hit_cap is not None:hit_chance=min(hit_cap,hit_chance)
         hit = self.rng.randint(1, 100) <= hit_chance
+        self.record_shot(shooter,hit)
         visible_shooter=self.detected(shooter)
         event=dict(type='shot' if visible_shooter else 'impact',unit=shooter['id'] if visible_shooter else None,target=target['id'],hit=hit,weapon=shooter['weapon'],burst=shooter.get('fire_mode')=='auto' and not reaction,origin=self.position(shooter) if visible_shooter else None,point=self.position(target))
         self.events.append(event) if visible_shooter or self.detected(target) else None
@@ -536,7 +555,7 @@ class Game(TacticalAI, Fieldcraft, Targeting, Arsenal, FogOfWar):
         civilians=[u for u in self.units if u['team']=='civilian']
         mission={**MISSIONS[self.mission],'key':self.mission,'label':self.operation_title,'objective':self.mission_objective,'flag':self.flag}
         casualties=dict(enemy=sum(u['team']=='alien' and u['hp']<=0 for u in self.units),friendly=sum(u['team']=='soldier' and u['hp']<=0 for u in self.units))
-        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,casualties=casualties,
+        return dict(summary=dict(id=self.mission_id,**self.mission_statistics()) if self.status in ('victory','defeat') else None,size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,casualties=casualties,
                     corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,fires=self.fires,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
                     shots=shots,blast_targets=blast_targets,interactions=interactions,transitions=transitions,weapons=WEAPONS,stances=STANCES,
                     civilians=dict(alive=sum(u['hp']>0 for u in civilians),evacuated=sum(u['evacuated'] for u in civilians),total=len(civilians)),
