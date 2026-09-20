@@ -8,12 +8,14 @@ from pathlib import Path
 from urllib.parse import quote, unquote
 from game import Game
 from tutorial import TutorialGame
+from server_statistics import ServerStatistics
 from campaign_catalog import campaign_catalog, campaign_mission
 from scenarios import registry as scenario_registry
 from scenarios.assets import model_catalog
 from audio_assets import discover, PATTERN
 
 ROOT=Path(__file__).parent/'static';CERTIFICATE_DIR=Path(__file__).parent/'.certs'
+STATISTICS_FILE=Path(__file__).parent/'.server-data'/'statistics.json'
 MAX_PLAYERS=10;SESSION_TIMEOUT=30*60;COOKIE_AGE=365*24*60*60
 USER_COOKIE='turn4turn_user';NAME_COOKIE='turn4turn_name';USER_ID=re.compile(r'^[0-9a-f]{32}$')
 game=Game(deployed=False)  # Compatibility alias for local development tools.
@@ -49,9 +51,10 @@ class PlayerSession:
 
 class SessionRegistry:
     """Create, retrieve, and expire isolated player sessions safely."""
-    def __init__(self):
-        """Initialize an empty thread-safe session registry."""
+    def __init__(self,statistics=None):
+        """Initialize sessions and optional persistent usage counters."""
         self.sessions={};self.lock=threading.RLock()
+        self.statistics=statistics if statistics is not None else ServerStatistics()
     def prune(self,now=None):
         """Remove sessions that have exceeded the inactivity timeout."""
         now=time.monotonic() if now is None else now
@@ -69,14 +72,14 @@ class SessionRegistry:
         with self.lock:
             self.prune()
             if requested_id in self.sessions:
-                s=self.sessions[requested_id];s.username=username;s.last_seen=time.monotonic();return s
+                s=self.sessions[requested_id];s.username=username;s.last_seen=time.monotonic();self.statistics.record(username);return s
             if len(self.sessions)>=MAX_PLAYERS:return None
             uid=requested_id if requested_id and USER_ID.fullmatch(requested_id) else uuid.uuid4().hex
             session_game=Game(deployed=False) if self.sessions or fresh else game
             if not self.sessions:game=session_game  # Keep the local-development alias in sync.
-            s=PlayerSession(uid,username,session_game);self.sessions[uid]=s;return s
+            s=PlayerSession(uid,username,session_game);self.sessions[uid]=s;self.statistics.record(username);return s
 
-registry=SessionRegistry()
+registry=SessionRegistry(ServerStatistics(STATISTICS_FILE))
 
 class Handler(BaseHTTPRequestHandler):
     """Serve static assets and the authoritative JSON game API."""
@@ -198,7 +201,11 @@ class Handler(BaseHTTPRequestHandler):
                     s.game=Game(seed,data.get('theme','random'),deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'),mission=data.get('mission','rescue'),lighting=data.get('lighting','day'),title=data.get('title'),objective=data.get('objective'))
                     if campaign_id is not None:s.game.campaign=dict(id=campaign_id,index=mission_index)
                     if len(registry.sessions)==1:game=s.game
-                else:s.game.action(data)
+                else:
+                    was_loadout=s.game.status=='loadout'
+                    s.game.action(data)
+                    if was_loadout and s.game.status=='active' and not isinstance(s.game,TutorialGame):
+                        registry.statistics.record(s.username,played=True)
                 self.send(200,json.dumps(s.game.state()).encode())
         except (ValueError,TypeError,json.JSONDecodeError) as exc:self.send(400,json.dumps({'error':str(exc)}).encode())
 

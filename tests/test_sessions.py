@@ -7,6 +7,9 @@ from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer
 from urllib.parse import quote
 import time
+import tempfile
+from pathlib import Path
+from server_statistics import ServerStatistics
 import unittest
 import server
 
@@ -81,6 +84,53 @@ class PersistentConsentTests(unittest.TestCase):
         for key,value in headers:
             if key.lower()=='set-cookie':cookies.load(value)
         return '; '.join(f'{key}={value.value}' for key,value in cookies.items()),cookies[server.USER_COOKIE].value
+
+    def test_private_usage_counts_deployment_only_and_persists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'statistics.json'
+            server.registry=server.SessionRegistry(ServerStatistics(path))
+            cookie,uid=self.consent(' Alice ')
+            self.assertEqual(server.registry.statistics.snapshot()['unique_users'],1)
+            for theme in ('farm','woods'):
+                self.assertEqual(self.request('POST',cookie,dict(theme=theme,size=24),'/api/new')[0],200)
+            self.assertEqual(server.registry.statistics.snapshot()['games_played'],0)
+            self.assertEqual(self.request('POST',cookie,dict(action='deploy'),'/api/action')[0],400)
+            loadouts={f's{i}':dict(primary='M4A1',sidearm='M9',utility1='Frag grenade',utility2='RPG-7') for i in range(4)}
+            deploy=dict(action='deploy',loadouts=loadouts)
+            self.assertEqual(self.request('POST',cookie,deploy,'/api/action')[0],200)
+            self.assertEqual(self.request('POST',cookie,deploy,'/api/action')[0],400)
+            self.request(cookie=cookie,path='/api/state')
+            self.request(cookie=cookie)
+            self.assertEqual(server.registry.statistics.snapshot()['games_played'],1)
+            self.request('POST',cookie,dict(campaign='operation-first-light',mission_index=0),'/api/new')
+            self.assertEqual(self.request('POST',cookie,deploy,'/api/action')[0],200)
+            self.request('POST',cookie,{},'/api/tutorial')
+            self.assertEqual(server.registry.statistics.snapshot()['games_played'],2)
+            # A second browser with the same name is still one unique user.
+            self.consent('ALICE')
+            self.assertEqual(server.registry.statistics.snapshot()['unique_users'],1)
+            server.registry=server.SessionRegistry(ServerStatistics(path))
+            self.assertTrue(self.request(cookie=cookie)[1]['accepted'])
+            self.assertEqual(server.registry.statistics.snapshot()['games_played'],2)
+
+    def test_server_statistics_are_not_public(self):
+        self.assertFalse(server.STATISTICS_FILE.resolve().is_relative_to(server.ROOT.resolve()))
+        with tempfile.TemporaryDirectory(dir=server.ROOT.parent) as directory:
+            path=Path(directory)/'statistics.json'
+            server.registry=server.SessionRegistry(ServerStatistics(path))
+            cookie,_=self.consent('Private Player')
+            for route in ('/api/server-statistics','/.server-data/statistics.json',
+                          '/'+path.parent.name+'/statistics.json',
+                          '/assets/../../'+path.parent.name+'/statistics.json',
+                          '/comparison/../../'+path.parent.name+'/statistics.json'):
+                connection=http.client.HTTPConnection('127.0.0.1',self.httpd.server_port)
+                connection.request('GET',route,headers={'Cookie':cookie})
+                response=connection.getresponse();body=response.read();connection.close()
+                self.assertEqual(response.status,404,route)
+                self.assertNotIn(b'Private Player',body)
+            state=self.request(cookie=cookie,path='/api/state')[1]
+            self.assertNotIn('users',state)
+            self.assertNotIn('unique_users',state)
 
     def test_campaign_launch_uses_authoritative_settings(self):
         cookie,_=self.consent()

@@ -136,3 +136,29 @@ Cookies are scoped to the game path and are not sent to third-party services.
 The loadout cookie is created only when **Use this equipment selection as my
 default loadout** is enabled during mission preparation. Clearing site data
 resets the browser identity and saved preferences.
+
+
+## Private server usage statistics
+
+The server automatically maintains `.server-data/statistics.json` beside
+`server.py`. It records the number of unique usernames, total games played,
+and each username's game count. Usernames are Unicode-normalized and matched
+case-insensitively after trimming surrounding spaces; the first display spelling
+is retained. Different devices using the same name share one entry.
+
+A game counts when squad deployment succeeds, including campaign missions and
+retries. Opening a session, changing mission settings, reconnecting, and refreshing
+do not add games. Tutorials are excluded. A registered player who has not deployed
+yet appears with zero games. Collection starts when this feature is installed;
+previous browser history is not imported.
+
+The file survives server restarts, is excluded from Git, and is outside the web
+server's static root. There is no HTTP endpoint for these statistics. New files
+use owner-only permissions (0600), and the new data directory uses 0700.
+Administrators can inspect the JSON directly on the server. Back up this directory
+with other local server data. Use one server process per statistics file; updates
+from that process's HTTP threads are serialized and written using atomic replacement.
+
+Write failures are logged on the server; gameplay continues and in-memory counters
+are retried on the next update. An invalid existing file stops startup rather than
+silently discarding historical counts.
