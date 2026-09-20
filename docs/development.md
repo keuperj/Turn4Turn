@@ -11,6 +11,8 @@ The engine, models, textures and sounds are bundled; gameplay uses no runtime CD
 | Path | Responsibility |
 | --- | --- |
 | `server.py` | Threaded HTTP server, cookies, capacity, and per-player sessions |
+| `tutorial.py` | Fixed training mission, server-validated lessons and harmless targets |
+| `static/tutorial.js` | Guided lesson panel and highlighted gameplay controls |
 | `game.py` | Authoritative turns, missions, movement, and damage |
 | `tactical_ai.py` | Shared enemy intelligence, coordinated routes, independent civilian planning |
 | `deployment.py` | Seeded rescue placement with enemy separation and initial concealment |
@@ -152,6 +154,10 @@ interiors, loadout validation, campaign persistence, session isolation, player
 capacity, WebGPU and WebGL rendering, animation, and audio fallback behavior.
 
 ## Assets and credits
+
+- Port uses bundled CC0 models from [Marina and Yacht Club](https://3dassets.dev/packs/marina-and-yacht-club).
+  Source URLs, licenses and hashes are in [the Port manifest](../static/scenarios/port/models/manifest.json);
+  rebuild them with `.venv/bin/python tools/import_port.py /tmp/port-sources`.
 
 - Babylon.js is bundled under the [Apache 2.0 license](../static/vendor/BABYLON-LICENSE.txt).
 - Character source and conversion notes are documented in

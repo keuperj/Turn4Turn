@@ -54,7 +54,7 @@ class ScenarioTests(unittest.TestCase):
 
     def test_discovery_preserves_seeded_theme_order(self):
         found=discover()
-        self.assertEqual([s.id for s in found],['urban','factory','train_station','airport','streets','woods','farm'])
+        self.assertEqual([s.id for s in found],['urban','factory','train_station','airport','streets','woods','farm','port'])
         self.assertTrue(all(isinstance(s,Scenario) for s in found))
         self.assertEqual(found.themes(),THEMES)
 

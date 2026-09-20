@@ -92,8 +92,8 @@ class FogTests(unittest.TestCase):
                 g=Game(seed,theme)
                 self.assertEqual(g.size,30)
                 self.assertGreaterEqual(len(g.buildings),4)
-                # The factory uses a constrained hall/mezzanine plan, tested over more seeds separately.
-                if theme!='factory':signatures.add(tuple((b['x'],b['y'],b['width'],b['depth']) for b in g.buildings))
+                # Factory and Port use constrained plans, tested over more seeds separately.
+                if theme not in ('factory','port'):signatures.add(tuple((b['x'],b['y'],b['width'],b['depth']) for b in g.buildings))
                 walk=g.paths(g.units[0],999,True,True)
                 for u in g.alive():self.assertIn(g.position(u),walk)
                 for p in g.props:
@@ -109,7 +109,7 @@ class FogTests(unittest.TestCase):
                         self.assertTrue(all(g.building_at(x,y,p.get('z',0))==building for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
                     else:
                         self.assertFalse(any(g.heights[y][x] for y in range(p['y'],p['y']+p['depth']) for x in range(p['x'],p['x']+p['width'])))
-        self.assertEqual(len(signatures),3*(len(THEMES)-1))
+        self.assertEqual(len(signatures),3*(len(THEMES)-2))
         self.assertGreaterEqual(PROP_SIZE['aircraft'][0],10)
         self.assertGreaterEqual(PROP_SIZE['car'][1],5)
 

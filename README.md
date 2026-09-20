@@ -14,8 +14,8 @@ Move through cover, clear buildings floor by floor, and make every action point 
 
 - Take on a **ten-mission campaign** or create a custom mission: eliminate
   hostiles, rescue civilians, capture a flag, or defend your position.
-- Choose from **seven battlefields**: city blocks, factories, train stations,
-  airports, suburban streets, woodlands and farms—with day or night missions.
+- Choose from **eight battlefields**: city blocks, factories, train stations,
+  airports, suburban streets, woodlands, farms and a port—with day or night missions.
 - Equip your squad with rifles, sniper weapons, rockets, grenades, smoke and
   medical supplies. Use overwatch, high ground and flanking to gain the advantage.
 - Blow open a route through destructible scenery, but watch your blast radius:
@@ -29,7 +29,9 @@ Move through cover, clear buildings floor by floor, and make every action point 
 
 ## Start playing
 
-Follow the [setup guide](docs/setup.md), then choose **Campaign** or **Single Mission**.
+Follow the [setup guide](docs/setup.md). New players can choose **Tutorial** on
+the landing page for guided movement and weapon practice, then try **Campaign**
+or **Single Mission**.
 Pick your loadout and deploy. Select a fighter, click to preview an order, and
 double-click to execute it. Spend your action points, then end the squad's turn.
 

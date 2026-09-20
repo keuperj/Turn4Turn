@@ -121,6 +121,7 @@ and background `height`, default `-0.025`). All other exports are optional:
 
 | Export | Contract |
 | --- | --- |
+| `baseGround(view, state)` | Replace the default solid board and paving (used by Port for water) |
 | `ground(view, state)` | Add scenario ground details |
 | `building(view, building, state)` | Return true after fully rendering a custom building; otherwise use the shared renderer |
 | `prop(view, prop, group)` | Return truthy after rendering a custom prop; otherwise use imported models or the shared fallback |
@@ -132,6 +133,9 @@ hooks from sibling files. The browser loads registered modules before
 cleanup, and support both Babylon WebGL and WebGPU. Background decoration must
 stay outside the playable grid and must not be pickable. The airport's ground and
 background modules demonstrate geometry continuing across the board boundary.
+Port also sets `profile.grid` to `false` and publishes static `[x,y]` water cells
+in `state.scenery.water`. Those cells are absent from authoritative walkable
+surfaces; the renderer and minimap display water without a permanent fog mask.
 
 ## Models and other assets
 
@@ -142,6 +146,10 @@ catalog schema: globally unique `id`, `kind`, local `file`, metre-scale
 fields. Keep license files beside the assets. Copy a current manifest as a
 schema reference. GLBs should be Y-up, centered horizontally, grounded at zero
 and scaled to fit the prop footprint.
+
+For decorative models with no tactical collision footprint, set `scenery_only: true`
+in the manifest. They remain available to the browser but are excluded from
+server-side prop variant selection. Port uses this for pontoons and watercraft.
 
 `/api/models` combines shared and registered scenario catalogs and adds each
 model's resolved `url`. Both server-side variant selection and the browser use

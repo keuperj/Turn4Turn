@@ -31,5 +31,6 @@ def model_catalog():
 def transport_models():
     result = {}
     for model in model_catalog()['models']:
+        if model.get('scenery_only'):continue
         result.setdefault(model['kind'], []).append(model['id'])
     return result

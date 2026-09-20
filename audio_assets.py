@@ -32,6 +32,7 @@ for theme, description in {
     'airport':'Quiet regional airfield, open runway wind, faint terminal ventilation and distant hangar rattles',
     'streets':'Deserted street intersection, wind between buildings, soft distant city hum and paper rustling',
     'woods':'Woodland, light wind in leaves, scattered birds and quiet insects',
+    'port':'Working harbour, gentle water lapping against pontoons, rigging tapping and distant industrial ventilation',
     'farm':'Rural farmstead, wind in grass, quiet insects, distant birds and wooden barn creaks',
 }.items():
     entry('ambient_'+theme, description+'. Subtle continuous environmental ambience, seamless loop, no speech, music, gunfire, explosions or dramatic changes.',12,True)

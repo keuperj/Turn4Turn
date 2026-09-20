@@ -45,7 +45,7 @@ def main(base,gpu):
                   floor:meshes.find(m=>m.name==='background-ground').material.albedoColor.asArray(),fog:[f.nativeScene.fogStart,f.nativeScene.fogEnd]};
                 }''',state)
                 assert result['outside'] and result['isolated'] and result['stable'],result
-                assert result['variants']=={'urban':10,'factory':11,'train_station':11,'airport':11,'streets':9,'woods':6,'farm':12}[state['theme']],result
+                assert result['variants']=={'urban':10,'factory':11,'train_station':11,'airport':11,'streets':9,'woods':6,'farm':12,'port':3}[state['theme']],result
                 assert 0<result['fog'][0]<result['fog'][1]<180,result
                 page.wait_for_function('field.nativeScene.isReady()')
                 page.evaluate('field.engine.beginFrame();field.nativeScene.render();field.engine.endFrame()')
@@ -59,7 +59,7 @@ def main(base,gpu):
         assert page.evaluate('''()=>{const bg=field.background;field.sync({...field.state,lighting:'night'},null,null,'move');return field.nativeScene.fogColor.r<.1&&bg.root===field.background.root;}''')
         assert page.evaluate('''()=>['House','House2','House3','Flat','Flat2','Shop'].every(id=>field.background.sources.get(id).materials.some(m=>m.albedoTexture))''')
         assert not errors,errors
-        print('PASS background assets, all seven themes, outside-grid bounds, picking isolation, fog and stable cleanup',flush=True)
+        print('PASS background assets, all registered themes, outside-grid bounds, picking isolation, fog and stable cleanup',flush=True)
         browser.close()
 
 if __name__=='__main__':

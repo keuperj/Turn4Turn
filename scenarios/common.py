@@ -7,6 +7,7 @@ def edge_key(a, b):
 # Footprints use the same approximate one-metre scale as the 1.7m fighters.
 PROP_SIZE={'car':(2,5),'truck':(2,6),'bus':(3,7),'ambulance':(2,5),'tractor':(2,3),'aircraft':(10,10),
            'factory_machine':(3,2),'factory_robot':(2,2),'factory_conveyor':(3,2),'factory_rack':(3,1),'factory_forklift':(2,3),
+           'port_box':(1,1),'port_pedestal':(1,1),
            'airport_tug':(2,3),'airport_fuel':(2,3),'airport_cart':(2,2),'windsock':(2,2),
            'cow':(1,2),'sheep':(1,1),'pig':(1,1),'train':(3,10),'container':(3,6),'tank':(2,2),'silo':(2,2),
            'pipes':(2,3),'bench':(2,1),'hay':(2,2),'tree':(1,1),

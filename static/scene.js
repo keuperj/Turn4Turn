@@ -59,6 +59,9 @@ export class Battlefield {
     // edge. Cap pixel density and leave headroom for input and animation work.
     this.engine.setHardwareScalingLevel(1/Math.min(devicePixelRatio,1.25));
     this.nativeScene=new B.Scene(this.engine);this.nativeScene.useRightHandedSystem=true;
+    // Keep a tall battlefield from scrolling between pointer-down and picking.
+    this.nativeScene.preventDefaultOnPointerDown=false;this.nativeScene.preventDefaultOnPointerUp=false;
+    canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.focus({preventScroll:true});});
     this.nativeScene.clearColor=B.Color4.FromHexString('#26383fff');
     this.nativeScene.fogMode=B.Scene.FOGMODE_LINEAR;this.nativeScene.fogColor=B.Color3.FromHexString('#26383f');this.nativeScene.fogStart=100;this.nativeScene.fogEnd=350;
     const image=this.nativeScene.imageProcessingConfiguration;image.toneMappingEnabled=true;image.toneMappingType=B.ImageProcessingConfiguration.TONEMAPPING_ACES;image.exposure=1.08;
@@ -228,10 +231,14 @@ export class Battlefield {
     const natural=['woods','farm','airport'].includes(state.theme),groundMaterial=natural?this.groundMat:this.pavedGroundMat;
     this.groundMat.color.set(natural?theme.ground:0xffffff);this.pavedGroundMat.color.set(natural?0xc6c0b4:theme.ground);this.groundAccentMat.color.set(0xffffff);
     const n=state.size,c=(n-1)/2;
-    this.box(this.terrain,n+(['urban','streets','woods','train_station','farm','airport'].includes(state.theme)?0:2),.4,n+(['urban','streets','woods','train_station','farm','airport'].includes(state.theme)?0:2),c,-.4,c,0x18282b);
-    const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
-    const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
-    if(!natural&&!['urban','streets'].includes(state.theme))this.tiles(this.terrain,groundPatches,this.groundAccentMat,.985);
+    const scenario=this.scenarios.get(state.theme);
+    if(scenario.baseGround)scenario.baseGround(this,state);
+    else{
+      this.box(this.terrain,n+(['urban','streets','woods','train_station','farm','airport'].includes(state.theme)?0:2),.4,n+(['urban','streets','woods','train_station','farm','airport'].includes(state.theme)?0:2),c,-.4,c,0x18282b);
+      const ground=new G.Mesh(new G.PlaneGeometry(state.size,state.size),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(c,-.01,c);ground.receiveShadow=true;this.terrain.add(ground);
+      const groundPatches=[];for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(state.tiles[y][x]!=='road'&&(x*37+y*61+state.seed)%17===0)groundPatches.push({x,y:.006,z:y});
+      if(!natural&&!['urban','streets'].includes(state.theme))this.tiles(this.terrain,groundPatches,this.groundAccentMat,.985);
+    }
     const roads=[],laneMarkers=[];
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){
       const t=state.tiles[y][x];
@@ -247,7 +254,7 @@ export class Battlefield {
     this.scenarios.get(state.theme).ground?.(this,state);
 
     if(state.civilians.total){const evac=this.label('CIVILIAN EVACUATION →','#ace9c0',4);evac.position.set(c,.12,n-.3);this.terrain.add(evac);}
-    const grid=new G.GridHelper(n,n,0x9aaca3,0x6e8074);grid.position.set(c,.035,c);grid.material.transparent=true;grid.material.opacity=.16;this.terrain.add(grid);
+    if(scenario.profile.grid!==false){const grid=new G.GridHelper(n,n,0x9aaca3,0x6e8074);grid.position.set(c,.035,c);grid.material.transparent=true;grid.material.opacity=.16;this.terrain.add(grid);}
   }
   /** Rebuild only the ladder affected by discovery or a building cutaway. */
   buildLadder(state,a,b){
@@ -266,7 +273,8 @@ export class Battlefield {
   buildFog(state){
     const n=state.size;
     const explored=new Set(state.fog.explored.map(p=>p.join(','))),visible=new Set(state.fog.visible.map(p=>p.join(','))),fogTiles={explored:[],unseen:[]};
-    for(let y=0;y<n;y++)for(let x=0;x<n;x++){const z=this.surfaceLevel(x,y),key=`${x},${y},${z}`;if(!visible.has(key))fogTiles[explored.has(key)?'explored':'unseen'].push({x,y:z*3+.17,z:y});}
+    const water=new Set((state.scenery.water||[]).map(p=>p.join(',')));
+    for(let y=0;y<n;y++)for(let x=0;x<n;x++){if(water.has(`${x},${y}`))continue;const z=this.surfaceLevel(x,y),key=`${x},${y},${z}`;if(!visible.has(key))fogTiles[explored.has(key)?'explored':'unseen'].push({x,y:z*3+.17,z:y});}
     this.tiles(this.terrain,fogTiles.explored,this.fogMaterials.explored,1.015);this.tiles(this.terrain,fogTiles.unseen,this.fogMaterials.unseen,1.015);
   }
   /** Objective ownership never invalidates buildings or terrain. */
@@ -362,6 +370,11 @@ export class Battlefield {
     this.clear(this.overlay);this.flames=[];
     const points=mode==='attack'?[]:state.movement[selected]||[];
     if(state.status==='active')for(const cost of [1,2])this.tiles(this.overlay,points.filter(p=>p.cost===cost&&this.surfaceVisible(p.x,p.y,p.z)).map(p=>({x:p.x,y:p.z*3+.05,z:p.y})),this.moveMaterials[cost-1],.91);
+    if(state.tutorial?.lesson?.x!==undefined){
+      const lesson=state.tutorial.lesson,marker=new G.Mesh(new G.RingGeometry(.48,.58,48),new G.MeshBasicMaterial({color:0xffd26f,side:G.DoubleSide,depthTest:false}));
+      marker.rotation.x=-Math.PI/2;marker.position.set(lesson.x,.16,lesson.y);marker.native.isPickable=false;this.overlay.add(marker);
+      const label=this.label(lesson.marker,'#ffdc88',2.3);label.position.set(lesson.x,2.1,lesson.y);label.native.isPickable=false;this.overlay.add(label);
+    }
     if(this.renderer==='webgpu')this.syncAtmosphere(state);
     for(const smoke of state.smoke||[]){if(this.renderer!=='webgpu')for(let i=0;i<9;i++){const m=new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color:0xaab0ad,opacity:.6,depthWrite:false}));m.position.set(smoke.x+Math.sin(i*2.4)*smoke.radius*.6,smoke.z*3+.6+(i%3)*.4,smoke.y+Math.cos(i*2.4)*smoke.radius*.6);m.scale.set(smoke.radius*1.7,smoke.radius*1.7,1);this.overlay.add(m);}const label=this.label(`SMOKE ${smoke.turns}`,'#e2e5e2',1.5);label.position.set(smoke.x,smoke.z*3+2.3,smoke.y);this.overlay.add(label);}
     for(const fire of state.fires||[]){if(this.renderer!=='webgpu'){for(let i=0;i<4;i++){const flame=new G.Mesh(new G.IcosahedronGeometry(.25+i*.035,1),new G.MeshBasicMaterial({color:i%2?0xffb12b:0xf04a19,transparent:true,opacity:.82,depthWrite:false}));flame.position.set(fire.x+(i%2-.5)*.28,fire.z*3+.28+(i%3)*.14,fire.y+(Math.floor(i/2)-.5)*.25);this.overlay.add(flame);this.flames.push({mesh:flame,base:flame.position.y,phase:i*1.7+fire.x});}for(let i=0;i<5;i++){const smoke=new G.Sprite(new G.SpriteMaterial({map:this.smokeMap,color:0x4f5655,opacity:.52,depthWrite:false}));smoke.position.set(fire.x+Math.sin(i*2.3)*.38,fire.z*3+.9+(i%3)*.42,fire.y+Math.cos(i*2.3)*.38);smoke.scale.set(1.4+i*.16,1.4+i*.16,1);this.overlay.add(smoke);}}const label=this.label(`FIRE · ${fire.turns}`,'#ffb16e',1.35);label.position.set(fire.x,fire.z*3+2.7,fire.y);this.overlay.add(label);}

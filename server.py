@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote, unquote
 from game import Game
+from tutorial import TutorialGame
 from scenarios import registry as scenario_registry
 from scenarios.assets import model_catalog
 from audio_assets import discover, PATTERN
@@ -158,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
             if PATTERN.fullmatch(name) and file.is_file() and not file.is_symlink():self.serve_file(file)
             else:self.send(404,b'Not found','text/plain')
             return
-        if path.startswith(('/assets/','/vendor/','/scenarios/')) or path in ('/statistics.js','/scene.js','/surfaces.js','/vegetation.js','/background.js','/transport.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/loading-guide.js','/audio.js','/webgpu-check.js','/webgpu-quality.js','/webgpu-nature.js','/webgpu-vehicles.js','/webgpu-scenery.js'):
+        if path.startswith(('/assets/','/vendor/','/scenarios/')) or path in ('/tutorial.js','/statistics.js','/scene.js','/surfaces.js','/vegetation.js','/background.js','/transport.js','/rendering.js','/characters.js','/environment.js','/icons.js','/minimap.js','/loading-guide.js','/audio.js','/webgpu-check.js','/webgpu-quality.js','/webgpu-nature.js','/webgpu-vehicles.js','/webgpu-scenery.js'):
             self.serve_file(ROOT/path.lstrip('/'));return
         if path in ('/gpu-test','/gpu-test/'):path='/gpu-test.html'
         files={'/':('index.html','text/html; charset=utf-8'),'/style.css':('style.css','text/css'),'/campaign.css':('campaign.css','text/css'),'/app.js':('app.js','text/javascript'),
@@ -179,13 +180,16 @@ class Handler(BaseHTTPRequestHandler):
                 native_tls=isinstance(self.connection,ssl.SSLSocket)
                 secure='; Secure' if native_tls or self.headers.get('X-Forwarded-Proto')=='https' else '';attrs=f'; Path=/; Max-Age={COOKIE_AGE}; SameSite=Lax{secure}'
                 self.send(200,json.dumps({'accepted':True,'username':username}).encode(),cookies=[f'{USER_COOKIE}={s.user_id}{attrs}; HttpOnly',f'{NAME_COOKIE}={quote(username)}{attrs}']);return
-            if path not in ('/api/action','/api/new','/api/preview'):self.send(404,b'{}');return
+            if path not in ('/api/action','/api/new','/api/tutorial','/api/preview'):self.send(404,b'{}');return
             s=self.require_player()
             if not s:return
             data=self.read_json()
             with s.lock:
                 if path=='/api/preview':self.send(200,json.dumps(s.game.preview(data)).encode());return
-                if path=='/api/new':
+                if path=='/api/tutorial':
+                    if not (data.get('resume') is True and isinstance(s.game,TutorialGame) and s.game.status=='active'):s.game=TutorialGame()
+                    if len(registry.sessions)==1:game=s.game
+                elif path=='/api/new':
                     seed=data.get('seed')
                     if seed is not None and (type(seed) is not int or not 0<=seed<=999999999):raise ValueError('Seed must be an integer from 0 to 999999999.')
                     s.game=Game(seed,data.get('theme','random'),deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'),mission=data.get('mission','rescue'),lighting=data.get('lighting','day'),title=data.get('title'),objective=data.get('objective'))

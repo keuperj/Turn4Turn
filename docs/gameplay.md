@@ -5,6 +5,23 @@
 Command four fighters through a campaign or a custom mission. Plan around action
 points, cover and visibility; protect civilians and check blast areas before firing.
 
+## New-player tutorial
+
+Choose **Tutorial** on the landing page to enter a fixed training range with VEGA
+already equipped. Nine lessons guide you through movement previews, rifle fire,
+ending turns, reloading, switching to a pistol and throwing a grenade. Follow
+the gold map marker and highlighted controls; each lesson advances after its
+required action succeeds. **Show target** recenters the camera.
+
+Practice targets stay still and never fire. Valid firearm shots are guaranteed
+for this exercise; real missions use the displayed hit chance. Training keeps
+normal action-point and ammunition costs and does not add to mission statistics.
+
+Use **Restart tutorial** to begin again or **Exit tutorial** to return to the
+landing page. Reopening the tutorial or refreshing resumes the current lesson
+while your server session is active. The completion screen offers a replay or
+a single mission.
+
 ## Mission configuration
 
 Single Mission mode exposes the following settings before deployment. Campaign

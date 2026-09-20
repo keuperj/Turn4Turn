@@ -1,4 +1,5 @@
 /** @fileoverview Coordinate sessions, UI state, rendering, input, and campaign navigation. */
+import {renderTutorial} from './tutorial.js';
 import {recordMission, statisticsMarkup, showStatistics} from './statistics.js';
 import {actionAudio} from './audio.js';
 import {icon,button,hydrate} from './icons.js';
@@ -143,7 +144,7 @@ async function ensureBattlefield(){
 /** Send one state request and reconcile its authoritative response. */
 async function request(path,data){
   if(busy)return;activeRequest=path;setBusy(true);
-  const missionLoad=(['/api/state','/api/new'].includes(path)||path==='/api/action'&&data?.action==='deploy');
+  const missionLoad=(['/api/state','/api/new','/api/tutorial'].includes(path)||path==='/api/action'&&data?.action==='deploy');
   try{
     if(missionLoad){
       if(!await ensureSession())return;
@@ -164,6 +165,7 @@ async function request(path,data){
       }
       if(state&&path==='/api/action')try{await battlefield.animate(result.events,data?.action==='end_turn');}catch(error){console.warn('Animation failed; applying authoritative state.',error);}
       state=result;await actionAudio.prepare(state,missionLoad?(done,total)=>loading(`Loading sounds · ${done} / ${total}`,50+30*done/Math.max(1,total)):undefined);
+      if(state.tutorial)selected='s0';
       if(!state.units.some(u=>u.id===selected&&u.hp>0))selected=state.units.find(u=>u.team==='soldier'&&u.hp>0)?.id;
       message(state.status==='loadout'?'Choose the mission and equip your squad.':state.status==='active'?'Single-click a goal to preview; double-click it to execute.':'Mission complete. Prepare another operation.');
     }
@@ -204,7 +206,11 @@ function render(){
   $('log').replaceChildren(...state.log.map(line=>{const el=document.createElement('div');el.textContent=line;return el;}));$('log').scrollTop=$('log').scrollHeight;
   $('end').disabled=state.status!=='active';
   $('outcome').hidden=['active','loadout'].includes(state.status);
-  if(!$('outcome').hidden){if(campaignRun&&state.status==='victory')recordCampaignVictory();const label=campaignRun?(state.status==='victory'?'Campaign overview':'Retry mission'):'Prepare another mission';$('outcome').innerHTML=`<h2>${state.status==='victory'?'Mission accomplished':'Mission failed'}</h2><p>${escape(state.mission.objective)}</p>${statisticsMarkup(state.summary)}${button('again','new',label)}`;$('again').onclick=campaignRun?(state.status==='victory'?showCampaign:startCampaignMission):newMission;}
+  if(!$('outcome').hidden&&state.tutorial){
+    $('outcome').innerHTML='<h2>Training complete</h2><p>You learned to move, preview attacks, manage action points, reload, switch weapons and use grenades.</p><p>Real enemies move and shoot, and firearm attacks can miss. Check your hit chance and watch for friendly fire.</p><div class="tutorial-complete-actions"><button id="tutorial-play">Play a single mission</button><button id="tutorial-replay">Replay tutorial</button><button id="tutorial-menu">Main menu</button></div>';
+    $('tutorial-play').onclick=startSingle;$('tutorial-replay').onclick=()=>startTutorial(true);$('tutorial-menu').onclick=exitTutorial;
+  }
+  else if(!$('outcome').hidden){if(campaignRun&&state.status==='victory')recordCampaignVictory();const label=campaignRun?(state.status==='victory'?'Campaign overview':'Retry mission'):'Prepare another mission';$('outcome').innerHTML=`<h2>${state.status==='victory'?'Mission accomplished':'Mission failed'}</h2><p>${escape(state.mission.objective)}</p>${statisticsMarkup(state.summary)}${button('again','new',label)}`;$('again').onclick=campaignRun?(state.status==='victory'?showCampaign:startCampaignMission):newMission;}
   if(state.status==='loadout'&&screen==='game'){renderPreparation();if(!$('preparation').open)$('preparation').showModal();}
   else if($('preparation').open)$('preparation').close();
   const aim=pending?.action==='attack'?pending:null;
@@ -212,6 +218,7 @@ function render(){
   battlefield.showPreview(pending);
   actionAudio.setListener(state,battlefield.camera);
   minimap.draw(state,selected,battlefield.controls.target);
+  renderTutorial(state,busy,{restart:()=>startTutorial(true),exit:exitTutorial,focus:focusTutorial});
 }
 /** Render controls and equipment for the selected fighter. */
 function renderDetails(){
@@ -334,18 +341,27 @@ function renderCampaign(){
 /** Show campaign. */
 async function showCampaign(){if(busy)return;try{campaignData??=await fetch('/api/campaign').then(r=>{if(!r.ok)throw Error('Could not load campaign. Please try again.');return r.json();});}catch(error){$('startup-error').hidden=false;$('startup-error').textContent=error.message;return;}screen='campaign';campaignRun=true;closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=false;campaignProgress=loadCampaignSave()||{id:campaignData.id,index:0,activeSeed:null};renderCampaign();}
 /** Start campaign mission. */
-function startCampaignMission(){if(busy||campaignProgress.index>=campaignData.missions.length)return;const m=campaignData.missions[campaignProgress.index];campaignRun=true;campaignProgress.activeSeed=m.seed;campaignSave();draft=null;selected='s0';mode='move';configTheme=m.theme;configSize=m.size;configDifficulty=m.difficulty;configMission=m.mission;configLighting=m.lighting;showGame();request('/api/new',m);}
+function startCampaignMission(){if(busy||campaignProgress.index>=campaignData.missions.length)return;tutorialURL(false);const m=campaignData.missions[campaignProgress.index];campaignRun=true;campaignProgress.activeSeed=m.seed;campaignSave();draft=null;selected='s0';mode='move';configTheme=m.theme;configSize=m.size;configDifficulty=m.difficulty;configMission=m.mission;configLighting=m.lighting;showGame();request('/api/new',m);}
 /** Advance and persist campaign progress after victory. */
 function recordCampaignVictory(){if(!campaignProgress||campaignProgress.activeSeed!==state.seed)return;campaignProgress.index=Math.min(campaignData.missions.length,campaignProgress.index+1);campaignProgress.activeSeed=null;campaignSave();}
 /** Start single. */
-function startSingle(){if(busy)return;campaignRun=false;showGame();newMission();}
+function startSingle(){if(busy)return;tutorialURL(false);campaignRun=false;showGame();newMission();}
+/** Keep reloads in the current training session without changing campaign saves. */
+function tutorialURL(enabled){const url=new URL(location.href);if(enabled)url.searchParams.set('mode','tutorial');else if(url.searchParams.get('mode')==='tutorial')url.searchParams.delete('mode');history.replaceState(null,'',url);}
+/** Launch or resume the fixed practice mission. */
+function startTutorial(restart=false){if(busy)return;campaignRun=false;draft=null;selected='s0';mode='move';tutorialURL(true);closeDialogs();showGame();return request('/api/tutorial',{resume:!restart});}
+/** Leave training through the normal landing page. */
+function exitTutorial(){if(busy)return;tutorialURL(false);showLanding();}
+/** Bring both the trainee and the lesson target into view. */
+function focusTutorial(lesson){const u=soldier();if(u)battlefield.focus({x:(u.x+lesson.x)/2,y:(u.y+lesson.y)/2,z:0});}
 hydrate();
+$('tutorial-mode').onclick=()=>startTutorial();
 $('preparation').addEventListener('cancel',e=>e.preventDefault());
 $('welcome').addEventListener('cancel',e=>e.preventDefault());
 $('close-equipment').onclick=()=>$('equipment').close();$('close-help').onclick=()=>$('manual').close();
 $('armory').onclick=()=>{if(!state)return;editSlot=null;openEquipment();};$('help').onclick=()=>$('manual').showModal();
 $('statistics-mode').onclick=()=>{screen='statistics';showStatistics();};$('statistics-home').onclick=showLanding;
-$('home').onclick=showLanding;$('campaign-home').onclick=showLanding;$('campaign-mode').onclick=showCampaign;$('single-game').onclick=startSingle;$('new').onclick=()=>campaignRun?startCampaignMission():newMission();$('end').onclick=()=>act('end_turn');$('focus').onclick=()=>battlefield?.focus(soldier());$('reset-camera').onclick=()=>battlefield?.home();
+$('home').onclick=()=>state?.tutorial?exitTutorial():showLanding();$('campaign-home').onclick=showLanding;$('campaign-mode').onclick=showCampaign;$('single-game').onclick=startSingle;$('new').onclick=()=>state?.tutorial?startTutorial(true):campaignRun?startCampaignMission():newMission();$('end').onclick=()=>act('end_turn');$('focus').onclick=()=>battlefield?.focus(soldier());$('reset-camera').onclick=()=>battlefield?.home();
 $('view-level').onchange=()=>{if(busy)return;pending=null;battlefield.setView($('view-level').value);render();};
 $('sound').checked=actionAudio.enabled;$('volume').value=actionAudio.volume;$('sound').onchange=()=>actionAudio.setEnabled($('sound').checked);$('volume').oninput=()=>actionAudio.setVolume($('volume').value);
 document.addEventListener('pointerdown',()=>actionAudio.unlock(),{once:true});document.addEventListener('keydown',()=>actionAudio.unlock(),{once:true});
@@ -354,7 +370,8 @@ document.addEventListener('change',e=>{if(e.target.matches('select'))actionAudio
 document.addEventListener('keydown',e=>{if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||screen!=='game'||!state||busy||state.status!=='active'||document.querySelector('dialog[open]')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='Escape')cancel();else if('1234'.includes(e.key)){const u=state.units.filter(u=>u.team==='soldier')[+e.key-1];if(u?.hp>0)select(u.id);}else if(e.key.toLowerCase()==='f')battlefield.focus(soldier());else if(e.key.toLowerCase()==='r')act('reload');else if(e.key.toLowerCase()==='o')act('overwatch');else if(e.key==='Enter'&&document.activeElement.tagName!=='BUTTON'){e.preventDefault();if(pending)chooseGoal(pending.payload,true);else act('end_turn');}});
 // The landing page needs no mission state, renderer, models, textures or audio.
 showLanding();
-if(new URLSearchParams(location.search).get('mode')==='single'){
+if(new URLSearchParams(location.search).get('mode')==='tutorial')startTutorial();
+else if(new URLSearchParams(location.search).get('mode')==='single'){
   showGame();request('/api/state');
 }
 // Expose the renderer instance for integration tests and local development tools.

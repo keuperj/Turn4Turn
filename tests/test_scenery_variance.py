@@ -14,7 +14,7 @@ class SceneryVarianceTests(unittest.TestCase):
     """Group automated checks for sceneryvariance behavior."""
     def test_transport_selection_is_seeded_and_all_variants_are_reachable(self):
         seen={kind:set() for kind in TRANSPORT_MODELS}
-        for theme in ('urban','streets','airport','train_station','farm','factory'):
+        for theme in ('urban','streets','airport','train_station','farm','factory','port'):
             for seed in range(12):
                 game=Game(seed,theme)
                 self.assertEqual(game.props,Game(seed,theme).props)
@@ -29,12 +29,15 @@ class SceneryVarianceTests(unittest.TestCase):
 
     def test_transport_assets_fit_human_scale_and_collision_footprints(self):
         catalog=model_catalog()
-        height_ranges={'factory_machine':(1.8,2.6),'factory_robot':(1,2),'factory_conveyor':(.4,1),'factory_rack':(2,2.6),'factory_forklift':(1.8,2.6),'aircraft':(2,3),'airport_tug':(.8,1.5),'airport_fuel':(.8,1.5),'airport_cart':(.8,1.5),'windsock':(3,4),'tractor':(1.5,2.2),'cow':(.9,1.5),'sheep':(.5,1),'pig':(.35,.8),'car':(1.15,1.7),'truck':(1.4,2.8),'train':(2.3,3.5),'bus':(2.4,3.2),'ambulance':(1.8,2.4)}
+        height_ranges={'port_box':(.4,.8),'port_pedestal':(1.5,2),'factory_machine':(1.8,2.6),'factory_robot':(1,2),'factory_conveyor':(.4,1),'factory_rack':(2,2.6),'factory_forklift':(1.8,2.6),'aircraft':(2,3),'airport_tug':(.8,1.5),'airport_fuel':(.8,1.5),'airport_cart':(.8,1.5),'windsock':(3,4),'tractor':(1.5,2.2),'cow':(.9,1.5),'sheep':(.5,1),'pig':(.35,.8),'car':(1.15,1.7),'truck':(1.4,2.8),'train':(2.3,3.5),'bus':(2.4,3.2),'ambulance':(1.8,2.4)}
         for entry in catalog['models']:
             data=(STATIC/entry['url'].lstrip('/')).read_bytes()
             self.assertEqual(data[:4],b'glTF')
             self.assertEqual(hashlib.sha256(data).hexdigest(),entry['sha256'])
             width,height,length=entry['dimensions']
+            if entry.get('scenery_only'):
+                self.assertTrue(all(d>0 for d in entry['dimensions']))
+                continue  # Decorative watercraft and pontoons have no tactical footprint.
             footprint=PROP_SIZE[entry['kind']]
             self.assertLessEqual(width,footprint[0]*.94+.001)
             self.assertLessEqual(length,footprint[1]*.94+.001)

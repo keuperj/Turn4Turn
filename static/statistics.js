@@ -17,7 +17,7 @@ export function loadStatistics(){
 let saveFailed=false;
 /** Add each completed attempt once and retain totals when history is trimmed. */
 export function recordMission(state){
-  if(!state.summary||!['victory','defeat'].includes(state.status)||!cookie('turn4turn_name'))return;
+  if(state.tutorial||!state.summary||!['victory','defeat'].includes(state.status)||!cookie('turn4turn_name'))return;
   const s=loadStatistics(),id=state.summary.id;
   if(s.history.some(r=>r[0]===id))return;
   const values=keys.map(k=>state.summary[k]);

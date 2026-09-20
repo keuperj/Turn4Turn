@@ -19,6 +19,15 @@ The script requires Playwright and its Chromium browser (see
 [development setup](../setup.md#setup)). It starts an isolated local server and
 closes it after capture; it does not modify a running player's session.
 
+`port.jpg` is a revealed-geometry preview of the Port scenario from the actual
+WebGL renderer. Run `.venv/bin/python tests/browser_port.py` to recreate it at
+`/tmp/port.jpg`. It includes the connected piers, marina models, water and
+industrial surroundings without the game interface.
+
+`tutorial.jpg` shows the guided grenade lesson in the normal game interface.
+Run `.venv/bin/python tests/browser_tutorial.py` to recreate the preview at
+`/tmp/tutorial.jpg` while exercising the complete tutorial.
+
 `gameplay.png` is an older capture retained for reference.
 
 [Documentation](../README.md) · [Game overview](../../README.md)
