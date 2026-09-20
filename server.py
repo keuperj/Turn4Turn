@@ -8,11 +8,12 @@ from pathlib import Path
 from urllib.parse import quote, unquote
 from game import Game
 from tutorial import TutorialGame
+from campaign_catalog import campaign_catalog, campaign_mission
 from scenarios import registry as scenario_registry
 from scenarios.assets import model_catalog
 from audio_assets import discover, PATTERN
 
-ROOT=Path(__file__).parent/'static';CAMPAIGN_FILE=Path(__file__).parent/'campaigns'/'operation_turning_point.json';CERTIFICATE_DIR=Path(__file__).parent/'.certs'
+ROOT=Path(__file__).parent/'static';CERTIFICATE_DIR=Path(__file__).parent/'.certs'
 MAX_PLAYERS=10;SESSION_TIMEOUT=30*60;COOKIE_AGE=365*24*60*60
 USER_COOKIE='turn4turn_user';NAME_COOKIE='turn4turn_name';USER_ID=re.compile(r'^[0-9a-f]{32}$')
 game=Game(deployed=False)  # Compatibility alias for local development tools.
@@ -148,7 +149,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/api/scenarios':self.send(200,json.dumps(scenario_registry.client_catalog()).encode());return
         if path=='/api/models':self.send(200,json.dumps(model_catalog()).encode());return
         if path=='/api/audio':self.send(200,json.dumps(discover()).encode());return
-        if path=='/api/campaign':self.send(200,CAMPAIGN_FILE.read_bytes());return
+        if path=='/api/campaign':self.send(200,json.dumps(campaign_catalog()).encode());return
         if path=='/api/state':
             s=self.require_player()
             if s:
@@ -190,9 +191,12 @@ class Handler(BaseHTTPRequestHandler):
                     if not (data.get('resume') is True and isinstance(s.game,TutorialGame) and s.game.status=='active'):s.game=TutorialGame()
                     if len(registry.sessions)==1:game=s.game
                 elif path=='/api/new':
+                    campaign_id=data.get('campaign');mission_index=data.get('mission_index')
+                    if campaign_id is not None:data=campaign_mission(campaign_id,mission_index)
                     seed=data.get('seed')
                     if seed is not None and (type(seed) is not int or not 0<=seed<=999999999):raise ValueError('Seed must be an integer from 0 to 999999999.')
                     s.game=Game(seed,data.get('theme','random'),deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'),mission=data.get('mission','rescue'),lighting=data.get('lighting','day'),title=data.get('title'),objective=data.get('objective'))
+                    if campaign_id is not None:s.game.campaign=dict(id=campaign_id,index=mission_index)
                     if len(registry.sessions)==1:game=s.game
                 else:s.game.action(data)
                 self.send(200,json.dumps(s.game.state()).encode())

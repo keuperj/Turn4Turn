@@ -12,7 +12,7 @@ Move through cover, clear buildings floor by floor, and make every action point 
 
 ## Play your way
 
-- Take on a **ten-mission campaign** or create a custom mission: eliminate
+- Take on one of **three ten-mission campaigns (Easy, Medium, Hard)**, each covering all eight scenarios and four mission modes on 40 × 40 maps, or create a custom mission: eliminate
   hostiles, rescue civilians, capture a flag, or defend your position.
 - Choose from **eight battlefields**: city blocks, factories, train stations,
   airports, suburban streets, woodlands, farms and a port—with day or night missions.

@@ -82,6 +82,22 @@ class PersistentConsentTests(unittest.TestCase):
             if key.lower()=='set-cookie':cookies.load(value)
         return '; '.join(f'{key}={value.value}' for key,value in cookies.items()),cookies[server.USER_COOKIE].value
 
+    def test_campaign_launch_uses_authoritative_settings(self):
+        cookie,_=self.consent()
+        status,catalog,_=self.request(path='/api/campaign')
+        self.assertEqual(status,200)
+        for campaign in catalog['campaigns']:
+            status,state,_=self.request('POST',cookie,dict(campaign=campaign['id'],mission_index=0,
+                size=24,difficulty='invalid',seed=1,theme='invalid'),'/api/new')
+            self.assertEqual(status,200)
+            self.assertEqual((state['size'],state['difficulty']),(40,campaign['difficulty']))
+            self.assertEqual(state['seed'],campaign['missions'][0]['seed'])
+            self.assertEqual(state['campaign'],dict(id=campaign['id'],index=0))
+        status,_,_=self.request('POST',cookie,dict(campaign='missing',mission_index=0),'/api/new')
+        self.assertEqual(status,400)
+        status,state,_=self.request('POST',cookie,dict(size=24,difficulty='easy'),'/api/new')
+        self.assertEqual(status,200);self.assertIsNone(state['campaign'])
+
     def test_active_profile_reconnects_without_reset_or_duplicate_slot(self):
         cookie,uid=self.consent();session=server.registry.sessions[uid]
         for _ in range(2):

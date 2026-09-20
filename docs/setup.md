@@ -129,7 +129,7 @@ the identifying cookies have expired, been cleared, or are invalid.
 | --- | --- |
 | `turn4turn_user` | Random player ID; marked `HttpOnly` and `SameSite=Lax`. |
 | `turn4turn_name` | The chosen display name. |
-| `turn4turn_campaign` | Current campaign index and active mission seed. |
+| `turn4turn_campaign` | Selected campaign and independent mission index / active seed for all three campaigns. Legacy Turning Point progress migrates to Medium. |
 | `turn4turn_loadout` | Optional default equipment selection. |
 
 Cookies are scoped to the game path and are not sent to third-party services.

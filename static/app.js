@@ -11,7 +11,7 @@ const itemOrder=['M4A1','HK416','M110','M249','M9','RPG-7','Frag grenade','M24 s
 const photographs={'Shotgun':'shotgun.png','Medikit':'medikit.png','M24 sniper':'m24.png','Smoke grenade':'smoke-grenade.png','Demolition charge':'demolition-charge.png'};
 let state,battlefield,minimap,selected='s0',mode='move',busy=false,pending=null,draft=null,editSlot=null,configTheme='random',configSize=30,configDifficulty='medium',configMission='rescue',configLighting='day';
 let activeRequest=null,previewTask=null,goalKey=null,goalVersion=0,executedVersion=-1;
-let screen='landing',campaignData=null,campaignProgress=null,campaignRun=false;
+let screen='landing',campaignCatalog=null,campaignSaves=null,campaignData=null,campaignProgress=null,campaignRun=false;
 const bodyCount=document.createElement('span');bodyCount.id='body-count';$('seed').before(bodyCount);
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cookie=name=>document.cookie.split('; ').find(v=>v.startsWith(name+'='))?.slice(name.length+1);
@@ -321,29 +321,59 @@ function openEquipment(){
 /** Request a new configurable standalone mission. */
 function newMission(){if(busy)return;draft=null;selected='s0';mode='move';configTheme=state?.theme||'random';configSize=state?.size||30;configDifficulty=state?.difficulty||'medium';configMission=state?.mission?.key||'rescue';configLighting=state?.lighting||'day';request('/api/new',{theme:configTheme,size:configSize,difficulty:configDifficulty,mission:configMission,lighting:configLighting});}
 /** Persist current campaign progress in the browser. */
-function campaignSave(){if(campaignProgress&&cookie('turn4turn_name'))setCookie('turn4turn_campaign',campaignProgress);}
+function campaignSave(){
+  if(!campaignProgress)return;
+  campaignSaves.campaigns[campaignData.id]=campaignProgress;campaignSaves.selected=campaignData.id;
+  if(cookie('turn4turn_name'))setCookie('turn4turn_campaign',campaignSaves);
+}
 /** Load campaign save. */
-function loadCampaignSave(){const p=cookieJSON('turn4turn_campaign');return p?.id===campaignData.id&&Number.isInteger(p.index)&&p.index>=0&&p.index<=campaignData.missions.length?p:null;}
+function loadCampaignSave(){return campaignSaves?.campaigns[campaignData.id]||null;}
+/** Migrate the original campaign cookie and validate each independent save. */
+function restoreCampaigns(){
+  const raw=cookieJSON('turn4turn_campaign'),entries=raw?.v===2?raw.campaigns:{[raw?.id]:raw};
+  campaignSaves={v:2,selected:campaignCatalog[0].id,campaigns:{}};
+  for(const c of campaignCatalog){
+    const p=entries?.[c.id];
+    if(p?.id===c.id&&Number.isInteger(p.index)&&p.index>=0&&p.index<=c.missions.length)
+      campaignSaves.campaigns[c.id]={id:c.id,index:p.index,activeSeed:p.activeSeed===c.missions[p.index]?.seed?p.activeSeed:null};
+  }
+  const selected=raw?.v===2?raw.selected:raw?.id;
+  if(campaignCatalog.some(c=>c.id===selected))campaignSaves.selected=selected;
+}
+/** Change campaign without resetting another operation's progress. */
+function selectCampaign(id){
+  campaignData=campaignCatalog.find(c=>c.id===id);
+  campaignProgress=loadCampaignSave()||{id,index:0,activeSeed:null};
+  campaignSaves.selected=id;
+  if(cookie('turn4turn_name'))setCookie('turn4turn_campaign',campaignSaves);
+  renderCampaign();
+}
 /** Close dialogs. */
 function closeDialogs(){for(const d of document.querySelectorAll('dialog[open]'))d.close();}
 /** Show landing. */
 function showLanding(){$('statistics-screen').hidden=true;screen='landing';closeDialogs();$('campaign-screen').hidden=true;$('landing').hidden=false;}
 /** Show game. */
-function showGame(){$('startup-error').hidden=true;screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state)render();}
+function showGame(renderState=true){$('startup-error').hidden=true;screen='game';$('landing').hidden=true;$('campaign-screen').hidden=true;if(state&&renderState)render();}
 /** Render campaign progress and available actions. */
 function renderCampaign(){
+  $('campaign-screen').style.backgroundImage='url("'+campaignData.background+'")';
+  $('campaign-selector').innerHTML=campaignCatalog.map(c=>'<button class="campaign-choice" data-campaign="'+c.id+'" aria-pressed="'+(c.id===campaignData.id)+'" style="background-image:linear-gradient(#06101955,#061019ee),url('+c.background+')"><small>'+c.difficulty.toUpperCase()+' · 40 × 40</small><b>'+escape(c.title)+'</b><span>'+(campaignSaves.campaigns[c.id]?.index||0)+' / 10 missions completed</span></button>').join('');
+  document.querySelectorAll('[data-campaign]').forEach(b=>b.onclick=()=>selectCampaign(b.dataset.campaign));
   const p=campaignProgress||{id:campaignData.id,index:0};$('campaign-title').textContent=campaignData.title;$('campaign-description').textContent=campaignData.description;
-  $('campaign-progress').innerHTML=campaignData.missions.map((m,i)=>`<button class="campaign-node ${i<p.index?'complete':i===p.index?'current':'locked'}" data-campaign-mission="${i}" ${i!==p.index?'disabled':''}><small>${String(i+1).padStart(2,'0')} · ${i<p.index?'COMPLETE':i===p.index?'CURRENT':'LOCKED'}</small><b>${escape(m.title)}</b><span>${escape(m.objective)}</span></button>`).join('');
+  $('campaign-progress').innerHTML=campaignData.missions.map((m,i)=>`<button class="campaign-node ${i<p.index?'complete':i===p.index?'current':'locked'}" data-campaign-mission="${i}" ${i!==p.index?'disabled':''}><small>${String(i+1).padStart(2,'0')} · ${i<p.index?'COMPLETE':i===p.index?'CURRENT':'LOCKED'}</small><b>${escape(m.title)}</b><span>${escape(m.theme.replaceAll("_"," "))} · ${escape(m.mission.replaceAll("_"," "))} · ${m.lighting}</span><span>${escape(m.objective)}</span></button>`).join('');
   const complete=p.index>=campaignData.missions.length,hasSave=!!loadCampaignSave();$('campaign-actions').innerHTML=`<button id="new-campaign">Start new campaign</button>${hasSave&&!complete?'<button id="resume-campaign" class="primary">Resume current mission</button>':''}${complete?'<button id="replay-campaign" class="primary">Play campaign again</button>':''}`;
   document.querySelector('[data-campaign-mission]:not([disabled])')?.addEventListener('click',startCampaignMission);$('new-campaign').onclick=()=>{campaignProgress={id:campaignData.id,index:0,activeSeed:null};campaignSave();renderCampaign();};
   $('resume-campaign')?.addEventListener('click',startCampaignMission);$('replay-campaign')?.addEventListener('click',()=>{campaignProgress={id:campaignData.id,index:0,activeSeed:null};campaignSave();startCampaignMission();});
 }
 /** Show campaign. */
-async function showCampaign(){if(busy)return;try{campaignData??=await fetch('/api/campaign').then(r=>{if(!r.ok)throw Error('Could not load campaign. Please try again.');return r.json();});}catch(error){$('startup-error').hidden=false;$('startup-error').textContent=error.message;return;}screen='campaign';campaignRun=true;closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=false;campaignProgress=loadCampaignSave()||{id:campaignData.id,index:0,activeSeed:null};renderCampaign();}
+async function showCampaign(){if(busy)return;try{
+  if(!campaignCatalog){const response=await fetch('/api/campaign');if(!response.ok)throw Error('Could not load campaigns. Please try again.');campaignCatalog=(await response.json()).campaigns;restoreCampaigns();}
+}catch(error){$('startup-error').hidden=false;$('startup-error').textContent=error.message;return;}
+screen='campaign';campaignRun=true;closeDialogs();$('landing').hidden=true;$('campaign-screen').hidden=false;selectCampaign(campaignSaves.selected);}
 /** Start campaign mission. */
-function startCampaignMission(){if(busy||campaignProgress.index>=campaignData.missions.length)return;tutorialURL(false);const m=campaignData.missions[campaignProgress.index];campaignRun=true;campaignProgress.activeSeed=m.seed;campaignSave();draft=null;selected='s0';mode='move';configTheme=m.theme;configSize=m.size;configDifficulty=m.difficulty;configMission=m.mission;configLighting=m.lighting;showGame();request('/api/new',m);}
+function startCampaignMission(){if(busy||campaignProgress.index>=campaignData.missions.length)return;tutorialURL(false);const m=campaignData.missions[campaignProgress.index];campaignRun=true;campaignProgress.activeSeed=m.seed;campaignSave();draft=null;selected='s0';mode='move';configTheme=m.theme;configSize=m.size;configDifficulty=m.difficulty;configMission=m.mission;configLighting=m.lighting;showGame(false);request('/api/new',{campaign:campaignData.id,mission_index:campaignProgress.index});}
 /** Advance and persist campaign progress after victory. */
-function recordCampaignVictory(){if(!campaignProgress||campaignProgress.activeSeed!==state.seed)return;campaignProgress.index=Math.min(campaignData.missions.length,campaignProgress.index+1);campaignProgress.activeSeed=null;campaignSave();}
+function recordCampaignVictory(){if(!campaignProgress||campaignProgress.activeSeed!==state.seed||state.campaign?.id!==campaignData.id||state.campaign?.index!==campaignProgress.index)return;campaignProgress.index=Math.min(campaignData.missions.length,campaignProgress.index+1);campaignProgress.activeSeed=null;campaignSave();}
 /** Start single. */
 function startSingle(){if(busy)return;tutorialURL(false);campaignRun=false;showGame();newMission();}
 /** Keep reloads in the current training session without changing campaign saves. */

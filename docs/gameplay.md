@@ -160,3 +160,19 @@ Opening doors and windows costs 1 AP. Changing stance costs 1 AP. Peeking costs
 1 AP and briefly exposes the fighter to reaction fire. The interface reports AP
 cost, hit chance, target health, blast victims, and friendly-fire risk before an
 order is executed.
+
+## Campaigns
+
+Choose Easy (Operation First Light), Medium (Operation Turning Point), or Hard
+(Operation Iron Tide) from the campaign overview. Each contains ten missions
+covering all eight scenarios and all four mission modes. Every map is 40 × 40,
+and every mission uses its campaign’s difficulty. Mission settings are fixed;
+you can customize your squad’s equipment before deployment.
+
+Victories unlock the next mission. Progress is saved independently for each
+campaign in the profile cookie. Resuming starts the current mission again;
+battlefield state is not stored in cookies. Starting a new campaign resets only
+the selected campaign. Existing Turning Point progress carries over to Medium.
+
+Each campaign has a separate generated background. The generation prompts and
+asset paths are recorded in [campaign-art-prompts.md](campaign-art-prompts.md).
