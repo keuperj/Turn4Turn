@@ -28,6 +28,14 @@ Move through cover, clear buildings floor by floor, and make every action point 
 *Use barns, equipment and vegetation as cover in the farmyard.*
 
 ## Start playing
+[Play the game online now](https://92.205.18.100:8080/)
+
+#### Notes:
+* Test server uses self-signed certs, so you have to acknowledge the security exception
+* game is tested mainly with firefox
+* please report any issues you might find [here](https://github.com/keuperj/Turn4Turn/issues/new)
+
+## Setup Own Server
 
 Follow the [setup guide](docs/setup.md). New players can choose **Tutorial** on
 the landing page for guided movement and weapon practice, then try **Campaign**
