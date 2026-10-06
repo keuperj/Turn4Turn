@@ -192,7 +192,13 @@ class Handler(BaseHTTPRequestHandler):
             data=self.read_json()
             with s.lock:
                 if path=='/api/preview':body=json.dumps(s.game.preview(data)).encode()
+                elif path=='/api/tutorial':
+                    if not (data.get('resume') is True and isinstance(s.game,TutorialGame) and s.game.status=='active'):s.game=TutorialGame()
+                    if len(registry.sessions)==1:game=s.game
+                    body=json.dumps(s.game.state()).encode()
                 elif path=='/api/new':
+                    campaign_id=data.get('campaign');mission_index=data.get('mission_index')
+                    if campaign_id is not None:data=campaign_mission(campaign_id,mission_index)
                     seed=data.get('seed')
                     if seed is not None and (type(seed) is not int or not 0<=seed<=999999999):raise ValueError('Seed must be an integer from 0 to 999999999.')
                     s.game=Game(seed,data.get('theme','random'),deployed=False,size=data.get('size',30),difficulty=data.get('difficulty','medium'),mission=data.get('mission','rescue'),lighting=data.get('lighting','day'),title=data.get('title'),objective=data.get('objective'))
@@ -200,7 +206,10 @@ class Handler(BaseHTTPRequestHandler):
                     if len(registry.sessions)==1:game=s.game
                     body=json.dumps(s.game.state()).encode()
                 else:
+                    was_loadout=s.game.status=='loadout'
                     s.game.action(data)
+                    if was_loadout and s.game.status=='active' and not isinstance(s.game,TutorialGame):
+                        registry.statistics.record(s.username,played=True)
                     body=json.dumps(s.game.state()).encode()
             self.send(200,body)
         except (ValueError,TypeError,json.JSONDecodeError) as exc:self.send(400,json.dumps({'error':str(exc)}).encode())
