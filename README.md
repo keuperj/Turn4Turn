@@ -98,6 +98,11 @@ with the same user-ID cookie without consuming another slot.
 The in-memory game sessions do not survive a Python server restart. Browser
 cookies for identity, campaign progress, and preferred loadout remain available.
 
+HTTP connections have a 30-second socket timeout so incomplete requests and
+stalled transfers release their worker threads. Responses are serialized under
+the player's lock and sent after releasing it, so a slow transfer does not block
+that player's other game requests.
+
 ## Browser storage and privacy
 
 Turn4Turn asks for consent before creating its player cookies.
