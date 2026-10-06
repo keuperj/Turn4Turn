@@ -1,3 +1,5 @@
+"""Test audio behavior."""
+
 import io
 import json
 import tempfile
@@ -12,7 +14,9 @@ from world import THEMES
 
 
 class AudioTests(unittest.TestCase):
+    """Group automated checks for audio behavior."""
     def test_rocket_launch_has_public_origin_and_target_before_blast(self):
+        """Verify that rocket launch has public origin and target before blast."""
         from test_fog import FogTests
         g=FogTests().field();u=g.units[0]
         g.action(dict(action='equip',unit=u['id'],weapon='RPG-7'))
@@ -24,6 +28,7 @@ class AudioTests(unittest.TestCase):
         self.assertLess(g.events.index(launch),g.events.index(blast))
 
     def test_every_theme_and_weapon_has_a_sample_group(self):
+        """Verify that every theme and weapon has a sample group."""
         self.assertEqual({a.removeprefix('ambient_') for a in CATALOG if a.startswith('ambient_')},set(THEMES))
         with tempfile.TemporaryDirectory() as root:
             folder=Path(root);ensure_placeholders(folder)
@@ -38,6 +43,7 @@ class AudioTests(unittest.TestCase):
             self.assertEqual(before,{p.name:p.stat().st_mtime_ns for p in folder.glob('*.wav')})
 
     def test_numbered_variants_replace_placeholders_and_ignore_unrelated_files(self):
+        """Verify that numbered variants replace placeholders and ignore unrelated files."""
         with tempfile.TemporaryDirectory() as root:
             folder=Path(root);ensure_placeholders(folder)
             (folder/'shot_m4a1_002.mp3').write_bytes(b'recorded sample')
@@ -52,6 +58,7 @@ class AudioTests(unittest.TestCase):
             self.assertFalse(discover(folder)['hurt'][0]['placeholder'])
 
     def test_quota_exhaustion_keeps_all_missing_actions_playable(self):
+        """Verify that quota exhaustion keeps all missing actions playable."""
         with tempfile.TemporaryDirectory() as root:
             folder=Path(root)
             error=urllib.error.HTTPError('https://api.elevenlabs.io/v1/sound-generation',429,'quota',{},None)
@@ -62,7 +69,9 @@ class AudioTests(unittest.TestCase):
             self.assertEqual(len(discover(folder)),len(CATALOG))
 
     def test_generation_resumes_without_spending_credits_on_existing_sounds(self):
+        """Verify that generation resumes without spending credits on existing sounds."""
         class Response(io.BytesIO):
+            """Provide a minimal HTTP response double for audio-generation tests."""
             headers={'Content-Type':'audio/mpeg'}
         with tempfile.TemporaryDirectory() as root:
             folder=Path(root)
@@ -77,7 +86,9 @@ class AudioTests(unittest.TestCase):
                 call.assert_not_called()
 
     def test_invalid_response_and_missing_key_preserve_fallbacks(self):
+        """Verify that invalid response and missing key preserve fallbacks."""
         class Response(io.BytesIO):
+            """Provide a minimal HTTP response double for audio-generation tests."""
             headers={'Content-Type':'application/json'}
         with tempfile.TemporaryDirectory() as root:
             folder=Path(root)

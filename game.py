@@ -1,12 +1,16 @@
 """Authoritative tactical simulation; rendering never determines combat outcomes."""
 import math
 import random
+import uuid
 from collections import deque
-from world import THEMES, edge_key, generate
+from scenarios import THEMES, generate
+from scenarios.common import edge_key
 from visibility import FogOfWar
 from arsenal import Arsenal
 from targeting import Targeting
 from fieldcraft import Fieldcraft
+from deployment import place_rescue_civilians
+from tactical_ai import TacticalAI
 
 WEAPONS = {
     'M4A1': dict(damage=4, capacity=6, accuracy=82, range=10, kind='rifle'),
@@ -43,16 +47,20 @@ MISSIONS = {
 }
 
 
-class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
+class Game(TacticalAI, Fieldcraft, Targeting, Arsenal, FogOfWar):
+    """Own authoritative mission state and enforce all tactical game rules."""
     size = 30
 
     def __init__(self, seed=None, theme='random', deployed=True, size=30, difficulty='medium', mission='rescue', lighting='day', title=None, objective=None):
+        """Create a deterministic mission with the requested scenario settings."""
         if type(size) is not int or size not in (24,30,40):raise ValueError('Map size must be 24, 30, or 40.')
         if not isinstance(difficulty,str) or difficulty not in DIFFICULTIES:raise ValueError('Difficulty must be easy, medium, or hard.')
         if not isinstance(mission,str) or mission not in MISSIONS:raise ValueError('Unknown mission type.')
         if lighting not in ('day','night'):raise ValueError('Lighting must be day or night.')
         if title is not None and (not isinstance(title,str) or not 0<len(title)<=80):raise ValueError('Invalid mission title.')
         if objective is not None and (not isinstance(objective,str) or not 0<len(objective)<=240):raise ValueError('Invalid mission objective.')
+        self.mission_id=uuid.uuid4().hex
+        self.shots_fired=0;self.shots_hit=0
         self.size=size
         self.difficulty=difficulty
         self.mission=mission
@@ -101,9 +109,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.units.append(enemy)
         occupied={self.position(u) for u in self.units}
         if MISSIONS[mission]['has_civilians']:
-            civilians=[p for p in reachable if p[2]==0 and p not in occupied and 4<p[1]<self.size-6]
-            for i,(x,y,z) in enumerate(self.rng.sample(sorted(civilians),5)):
-                self.units.append(self.make_unit(f'c{i}',f'CIVILIAN {i+1}','civilian',x,y,None,'Noncombatant'))
+            place_rescue_civilians(self,reachable,spawns)
         self.flag=None
         if mission=='capture_flag':
             choices=[p for p in reachable if p[2]==0 and p[1]<self.size//3 and p not in occupied]
@@ -115,8 +121,10 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.flag=dict(x=x,y=y,z=z,team='soldier',label='SQUAD FLAG')
         self.init_structures()
         self.init_fog()
+        self.init_ai()
 
     def make_unit(self, uid, name, team, x, y, weapon, role, z=0):
+        """Create a normalized unit record for a mission participant."""
         hp = 10 if team == 'soldier' else 7 if team == 'alien' else 5
         items = [weapon, 'M9', 'Frag grenade', 'RPG-7'] if team == 'soldier' else [weapon] if weapon else []
         inventory = {w: dict(ammo=WEAPONS[w]['capacity'], reserve=0 if w == 'Frag grenade' else 1 if w == 'RPG-7' else WEAPONS[w]['capacity']*3) for w in items}
@@ -126,23 +134,29 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
 
     @staticmethod
     def position(unit):
+        """Return a unit position as an immutable coordinate tuple."""
         return (unit['x'], unit['y'], unit['z'])
 
     def building_at(self, x, y, z=0):
-        return next((b for b in self.buildings if b['x'] <= x < b['x']+b['width']
-                     and b['y'] <= y < b['y']+b['depth'] and z < b['level']), None)
+        """Return the building containing a world coordinate, if any."""
+        return next((b for b in self.buildings if not b.get('destroyed') and b['x'] <= x < b['x']+b['width']
+                     and b['y'] <= y < b['y']+b['depth'] and (z <= b['level'] if b.get('factory') else z < b['level'])), None)
 
     def alive(self, team=None):
+        """Return living, non-evacuated units, optionally filtered by team."""
         return [u for u in self.units if u['hp'] > 0 and not u.get('evacuated') and (team is None or u['team'] == team)]
 
     def speed(self, unit):
+        """Return the movement allowance for a unit in its current stance."""
         return STANCES[unit['stance']]['speed']
 
     def passable(self, a, b, ignore_doors=False):
+        """Return whether a unit may occupy the requested world position."""
         wall = self.walls.get(edge_key(a,b))
         return not wall or (wall['kind'] == 'door' and (wall['open'] or ignore_doors))
 
     def paths(self, unit, budget, ignore_units=False, ignore_doors=False, known_units=False):
+        """Compute reachable positions and predecessor paths within an AP budget."""
         start = self.position(unit)
         blocked = set() if ignore_units else {self.position(u) for u in self.alive() if u != unit and (not known_units or self.detected(u))}
         blocked |= self.blocked
@@ -171,6 +185,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return found
 
     def cover(self, shooter, target):
+        """Return directional cover between an attacker and target."""
         dx,dy = shooter['x']-target['x'],shooter['y']-target['y']
         adjacent = []
         if dx: adjacent.append((target['x']+(1 if dx>0 else -1),target['y']))
@@ -182,14 +197,15 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             wall=self.walls.get(edge_key(self.position(target),p))
             if wall:
                 values.append(20 if wall['kind']=='window' and wall['open'] else 40 if not wall['open'] else 0)
+            if p in self.blocked:values.append(40)
             if target['z']==0:
                 values.append({'low':20,'high':40}.get(self.tiles[y][x],0))
-                if p in self.blocked: values.append(40)
             elif p not in self.surfaces and shooter['z']<target['z']:
                 values.append(20)
         return max(values)
 
     def line_of_sight(self,a,b,include_cover=True):
+        """Return whether two world positions have an unobstructed sightline."""
         key=(self.geometry_revision,self.position(a),a.get('stance','standing'),self.position(b),b.get('stance','standing'),include_cover)
         if key not in self._los_cache:
             if len(self._los_cache)>40000:self._los_cache.clear()
@@ -197,6 +213,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return self._los_cache[key]
 
     def _trace_sight(self, a, b, include_cover=True, target_structure=None):
+        """Trace a sight ray and report the first blocking world element."""
         if include_cover and self.smoke_blocks(a,b):return False
         dx,dy=b['x']-a['x'],b['y']-a['y']
         za=a['z']*3+STANCES[a.get('stance','standing')]['eye']
@@ -212,7 +229,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if oldz != z:
                 # Floor/roof slabs separate vertically overlapping positions.
                 for bx,by in [(x,y),(oldx,oldy)]:
-                    if 0<=bx<self.size and 0<=by<self.size and self.heights[by][bx]>=max(oldz,z)>0:
+                    if 0<=bx<self.size and 0<=by<self.size and max(oldz,z)>0 and (bx,by,max(oldz,z)) in self.surfaces:
                         return False
             edges=[]
             if x != oldx: edges.append(((oldx,oldy,z),(x,oldy,z)))
@@ -225,9 +242,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                 if wall and (wall['kind']=='wall' or not wall['open'] or
                              (wall['kind']=='window' and not .85 < h-z*3 < 2.4)):
                     return False
+            if include_cover and (x,y,z) in self.blocked and (x,y) not in [(a['x'],a['y']),(b['x'],b['y'])] and h-z*3<2.3:return False
             if include_cover and z==0:
-                if (x,y,0) in self.blocked and (x,y) not in [(a['x'],a['y']),(b['x'],b['y'])]:
-                    if h<2.3: return False
                 t=self.tiles[y][x]
                 height=.8 if t=='low' else 2.2 if t=='high' else 0
                 adjacent=min(abs(x-a['x'])+abs(y-a['y']),abs(x-b['x'])+abs(y-b['y']))<=1
@@ -236,17 +252,23 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return True
 
     def interactions(self, unit):
+        """Return doors and windows the selected unit can operate."""
         p=self.position(unit)
         return [dict(portal) for portal in self.portals if p in (tuple(portal['a']),tuple(portal['b']))]
 
     def toggle_portal(self, unit, portal):
-        portal['open']=not portal['open']
+        """Open or close an adjacent door or window after validation."""
+        opened=not portal['open']
+        leaves=[p for p in self.portals if p.get('door_group')==portal['door_group']] if portal.get('door_group') else [portal]
         unit['ap']-=1
         self.geometry_revision+=1
-        self.emit(dict(type='portal',id=portal['id'],open=portal['open'],kind=portal['kind']),unit)
+        for leaf in leaves:
+            leaf['open']=opened
+            self.emit(dict(type='portal',id=leaf['id'],open=opened,kind=leaf['kind']),unit)
         if self.detected(unit):self.log.append(f"{unit['name']} {'opens' if portal['open'] else 'closes'} a {portal['kind']}.")
 
     def chance(self, shooter, target):
+        """Calculate hit probability from weapon, range, stance, and cover."""
         if not shooter.get('weapon'): return 0
         weapon = WEAPONS[shooter['weapon']]
         if weapon['kind'] in ('grenade', 'rocket', 'smoke', 'charge', 'medical'):
@@ -260,15 +282,33 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                                     - max(0, distance-4)*(1 if weapon['kind']=='sniper' else 4) - (20 if shooter.get('fire_mode')=='auto' and weapon.get('automatic') else 0))))
 
     def spend_ammo(self, unit, amount=1):
+        """Consume ammunition for a shot and normalize the active weapon state."""
         unit['ammo'] -= amount
         unit['inventory'][unit['weapon']]['ammo'] = unit['ammo']
 
+    def record_shot(self, shooter, hit):
+        """Count squad firearm rounds, including bursts and overwatch."""
+        if shooter['team']=='soldier':
+            self.shots_fired+=1
+            self.shots_hit+=int(bool(hit))
+
+    def mission_statistics(self):
+        """Summarize all casualties, including explosion and fire damage."""
+        return dict(enemies_killed=sum(u['team']=='alien' and u['hp']<=0 for u in self.units),
+                    fighters_killed=sum(u['team']=='soldier' and u['hp']<=0 for u in self.units),
+                    civilians_rescued=sum(u['team']=='civilian' and u.get('evacuated',False) for u in self.units),
+                    civilians_killed=sum(u['team']=='civilian' and u['hp']<=0 for u in self.units),
+                    shots_fired=self.shots_fired,shots_hit=self.shots_hit,shots_missed=self.shots_fired-self.shots_hit,
+                    turns=0 if self.status=='loadout' else self.round)
+
     def fire(self, shooter, target, reaction=False):
+        """Resolve a weapon attack and emit its public combat events."""
         rounds=min(3,shooter["ammo"]) if not reaction and shooter.get("fire_mode")=="auto" and WEAPONS[shooter["weapon"]].get("automatic") else 1
         for _ in range(rounds):
             if target["hp"]>0:self.fire_round(shooter,target,reaction)
 
     def fire_round(self, shooter, target, reaction=False, hit_cap=None):
+        """Resolve one projectile against a unit, structure, or ground point."""
         chance = self.chance(dict(shooter,fire_mode='single') if reaction else shooter, target)
         shooter['facing']=math.atan2(shooter['x']-target['x'],shooter['y']-target['y'])
         self.spend_ammo(shooter)
@@ -277,6 +317,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         hit_chance=max(1,chance-(15 if reaction else 0))
         if hit_cap is not None:hit_chance=min(hit_cap,hit_chance)
         hit = self.rng.randint(1, 100) <= hit_chance
+        self.record_shot(shooter,hit)
         visible_shooter=self.detected(shooter)
         event=dict(type='shot' if visible_shooter else 'impact',unit=shooter['id'] if visible_shooter else None,target=target['id'],hit=hit,weapon=shooter['weapon'],burst=shooter.get('fire_mode')=='auto' and not reaction,origin=self.position(shooter) if visible_shooter else None,point=self.position(target))
         self.events.append(event) if visible_shooter or self.detected(target) else None
@@ -291,6 +332,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if visible_shooter or self.detected(target):self.log.append(f"{prefix}{shooter_name} misses {target['name']}.")
 
     def move(self, unit, path):
+        """Move a unit along a validated path and spend action points."""
+        self.observe_ai()
         for x, y, z in path:
             if any(self.position(u)==(x,y,z) for u in self.alive() if u!=unit):break
             was_visible=self.detected(unit)
@@ -298,6 +341,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             if unit['team']=='alien' and was_visible:self.remember_enemy(unit)
             if (x,y)!=(unit['x'],unit['y']):unit['facing']=math.atan2(unit['x']-x,unit['y']-y)
             unit.update(x=x,y=y,z=z)
+            self.observe_ai()
             if unit['team']=='soldier':self.refresh_visibility()
             if unit['team']=='alien' and self.detected(unit):self.remember_enemy(unit)
             if self.detected(unit):self.emit(dict(type='move',unit=unit['id'],x=x,y=y,z=z,origin=origin if was_visible else (x,y,z)),unit)
@@ -310,6 +354,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
                         return
 
     def blast_valid(self, unit, x, y, z=0):
+        """Validate an explosive target and any required corner trajectory."""
         w=WEAPONS[unit['weapon']]
         if w['kind'] not in ('grenade','rocket','smoke','charge') or (x,y,z) not in self.surfaces: return False
         if math.hypot(x-unit['x'],y-unit['y'])>w['range']: return False
@@ -322,12 +367,14 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         return w['kind'] in ('grenade','smoke') or self.line_of_sight(dict(unit,stance='standing'),target,include_cover=False)
 
     def blast_victims(self, unit, x, y, z=0):
+        """Return units and structures affected by an explosion."""
         w=WEAPONS[unit['weapon']]
         source=dict(x=x,y=y,z=z,stance='standing')
         return [u for u in self.alive() if u['z']==z and math.hypot(u['x']-x,u['y']-y)<=w['radius']
                 and self.line_of_sight(source,dict(u,stance='standing'),include_cover=False)]
 
     def explode(self, unit, x, y, z=0):
+        """Resolve explosive damage, destruction, fire, smoke, and events."""
         w=WEAPONS[unit['weapon']]
         if w['kind'] in ('smoke','charge'):
             self.place_utility(unit,x,y,z)
@@ -354,6 +401,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.geometry_revision+=1
 
     def check_end(self):
+        """Update victory or defeat state after a potentially terminal action."""
         if not self.alive('soldier'):
             self.status = 'defeat'
         elif self.mission=='rescue' and any(u['team']=='civilian' and u['hp']<=0 for u in self.units):
@@ -368,6 +416,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.status = 'victory'
 
     def check_round_limit(self):
+        """Resolve objectives whose outcome depends on the round limit."""
         if self.status!='active' or self.round<30:return
         if self.mission=='capture_flag':
             self.status='defeat'
@@ -375,6 +424,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.status='victory'
 
     def action(self, data):
+        """Validate and execute one player-issued action."""
         if data.get('action')=='deploy':
             return self.deploy(data)
         if self.status != 'active':
@@ -382,6 +432,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         self.events=[]
         self._los_cache.clear()
         self.refresh_visibility()
+        self.observe_ai()
         kind = data.get('action')
         if kind == 'end_turn':
             self.enemy_turn()
@@ -468,58 +519,14 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.log.append(f"{unit['name']} is on overwatch.")
         else:
             raise ValueError('Unknown action.')
+        self.observe_ai()
         self.check_end()
         self.refresh_visibility()
 
     def enemy_turn(self):
+        """Run the authoritative hostile phase within its time budget."""
         self.log.append(f'— Hostile phase / round {self.round} —')
-        for enemy in self.alive('alien'):
-            if not self.alive('soldier'): break
-            enemy['overwatch'],enemy['ap']=False,self.enemy_time
-            if not enemy['ammo']:
-                self.spend_ammo(enemy,-WEAPONS[enemy['weapon']]['capacity'])
-                enemy['ap']-=1
-            if self.mission=='defend_flag':
-                self.advance_enemy(enemy,(self.flag['x'],self.flag['y'],self.flag['z']))
-                if self.position(enemy)==(self.flag['x'],self.flag['y'],self.flag['z']):break
-            civilians=[t for t in self.alive('civilian') if self.sees(enemy,t)] if self.mission=='rescue' else []
-            targets=civilians if self.mission=='rescue' else [t for t in self.alive('soldier') if self.sees(enemy,t)]
-            if targets:enemy['last_seen']=self.position(targets[0])
-            if not targets:
-                self.patrol(enemy)
-                continue
-            best=max(targets,key=lambda t:self.chance(enemy,t))
-            if self.chance(enemy,best)<55 and enemy['ap']>1:
-                paths=self.paths(enemy,self.speed(enemy)*(enemy['ap']-1),ignore_doors=True)
-                def score(p):
-                    hypothetical=dict(enemy,x=p[0],y=p[1],z=p[2])
-                    distance=min(abs(p[0]-t['x'])+abs(p[1]-t['y'])+abs(p[2]-t['z'])*3 for t in targets)
-                    return max(self.chance(hypothetical,t) for t in targets)+self.cover(best,hypothetical)*.25-distance*4
-                destination=max(paths,key=score)
-                path=paths[destination]
-                prefix=[]
-                previous=self.position(enemy)
-                door=None
-                for p in path:
-                    wall=self.walls.get(edge_key(previous,p))
-                    if wall and wall['kind']=='door' and not wall['open']:
-                        door=wall
-                        break
-                    prefix.append(p)
-                    previous=p
-                if prefix:
-                    self.move(enemy,prefix)
-                    enemy['ap']-=math.ceil(len(prefix)/self.speed(enemy))
-                if enemy['hp']<=0: continue
-                if door and enemy['ap']:
-                    self.toggle_portal(enemy,door)
-            if enemy['hp']<=0 or not enemy['ap']: continue
-            civilians=[t for t in self.alive('civilian') if self.sees(enemy,t)] if self.mission=='rescue' else []
-            targets=civilians if self.mission=='rescue' else [t for t in self.alive('soldier') if self.sees(enemy,t)]
-            if not targets:enemy['overwatch'],enemy['ap']=True,0;continue
-            best=max(targets,key=lambda t:self.chance(enemy,t))
-            if self.chance(enemy,best): self.fire(enemy,best)
-            else: enemy['overwatch'],enemy['ap']=True,0
+        self.coordinated_enemy_turn()
         self.tick_utilities()
         self.civilian_turn()
         self.check_end()
@@ -531,49 +538,8 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
             self.log.append(f'— Squad phase / round {self.round} —')
         self.refresh_visibility()
 
-    def civilian_turn(self):
-        for civilian in self.alive('civilian'):
-            paths=self.paths(civilian,2)
-            def safety(p):
-                danger=min((abs(p[0]-e['x'])+abs(p[1]-e['y']) for e in self.alive('alien')),default=20)
-                return p[1]*3+min(danger,8)
-            dest=max(paths,key=safety)
-            self.move(civilian,paths[dest])
-            if civilian['y']==self.size-1:
-                civilian['evacuated']=True
-                self.emit(dict(type='evacuate',unit=civilian['id']),civilian)
-                self.log.append(f"{civilian['name']} reaches the evacuation boundary.")
-
-    def patrol(self,enemy):
-        for portal in self.interactions(enemy):
-            if portal['kind']=='door' and not portal['open'] and self.rng.random()<.4:
-                self.toggle_portal(enemy,next(p for p in self.portals if p['id']==portal['id']))
-                break
-        paths=self.paths(enemy,self.speed(enemy)*enemy['ap'])
-        civilians=self.alive('civilian') if self.mission=='rescue' else []
-        nearest=min(civilians,key=lambda u:abs(u['x']-enemy['x'])+abs(u['y']-enemy['y'])+abs(u['z']-enemy['z'])*3) if civilians else None
-        goal=self.position(nearest) if nearest else enemy.get('last_seen')
-        if not goal or self.position(enemy)==tuple(goal):
-            goal=self.rng.choice(sorted(paths))
-        dest=min(paths,key=lambda p:abs(p[0]-goal[0])+abs(p[1]-goal[1])+abs(p[2]-goal[2])*3)
-        self.move(enemy,paths[dest])
-        if enemy['hp']>0:enemy['overwatch'],enemy['ap']=True,0
-
-    def advance_enemy(self,enemy,goal):
-        """Spend the hostile's phase advancing directly on a mission objective."""
-        if not enemy['ap']:return
-        paths=self.paths(enemy,self.speed(enemy)*enemy['ap'],ignore_doors=True)
-        destination=min(paths,key=lambda p:abs(p[0]-goal[0])+abs(p[1]-goal[1])+abs(p[2]-goal[2])*3)
-        prefix=[];previous=self.position(enemy);door=None
-        for p in paths[destination]:
-            wall=self.walls.get(edge_key(previous,p))
-            if wall and wall['kind']=='door' and not wall['open']:door=wall;break
-            prefix.append(p);previous=p
-        if prefix:
-            self.move(enemy,prefix);enemy['ap']-=math.ceil(len(prefix)/self.speed(enemy))
-        if door and enemy['hp']>0 and enemy['ap']:self.toggle_portal(enemy,door)
-
     def state(self):
+        """Return the privacy-filtered game state sent to the browser."""
         self.refresh_visibility()
         movement,shots,blast_targets,interactions,transitions={},{},{},{},{}
         detected=[t for t in self.alive('alien') if self.detected(t)]
@@ -589,7 +555,7 @@ class Game(Fieldcraft, Targeting, Arsenal, FogOfWar):
         civilians=[u for u in self.units if u['team']=='civilian']
         mission={**MISSIONS[self.mission],'key':self.mission,'label':self.operation_title,'objective':self.mission_objective,'flag':self.flag}
         casualties=dict(enemy=sum(u['team']=='alien' and u['hp']<=0 for u in self.units),friendly=sum(u['team']=='soldier' and u['hp']<=0 for u in self.units))
-        return dict(size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,casualties=casualties,
+        return dict(campaign=getattr(self,'campaign',None),summary=dict(id=self.mission_id,**self.mission_statistics()) if self.status in ('victory','defeat') else None,size=self.size,seed=self.seed,round=self.round,status=self.status,theme=self.theme,themes=THEMES,lighting=self.lighting,lighting_options={'day':'Day','night':'Night'},difficulty=self.difficulty,difficulties=DIFFICULTIES,missions=MISSIONS,mission=mission,player_time=self.player_time,enemy_time=self.enemy_time,casualties=casualties,
                     corners={u['id']:self.corner_options(u) for u in self.alive('soldier')},last_seen=self.public_last_seen(),smoke=self.smoke,fires=self.fires,charges=self.charges,map_sizes=[24,30,40],scenery=self.scenery,units=self.public_units(),movement=movement,**self.public_world(),
                     shots=shots,blast_targets=blast_targets,interactions=interactions,transitions=transitions,weapons=WEAPONS,stances=STANCES,
                     civilians=dict(alive=sum(u['hp']>0 for u in civilians),evacuated=sum(u['evacuated'] for u in civilians),total=len(civilians)),

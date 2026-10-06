@@ -4,11 +4,14 @@ from visibility import SIGHT
 
 
 class Targeting:
+    """Validate previews and attacks against units, terrain, and structures."""
     def target_structure(self, data):
+        """Return the damageable structure at a targeted world position."""
         uid=data.get('structure')
         return next((p for p in self.props+self.buildings if p['id']==uid and not p.get('destroyed')),None)
 
     def attack_solution(self,u,data):
+        """Validate an attack and return its resolved targeting data."""
         from game import WEAPONS
         w=WEAPONS[u['weapon']]
         if w['kind']=='medical':raise ValueError('Medikits treat teammates; select a wounded teammate.')
@@ -22,7 +25,7 @@ class Targeting:
         structure=self.target_structure(data)
         if data.get('structure') and not structure:raise ValueError('Structure is no longer available.')
         if structure:
-            if not(structure['x']<=x<structure['x']+structure['width'] and structure['y']<=y<structure['y']+structure['depth'] and (z<=structure.get('level',0))):raise ValueError('Select the structure’s surface.')
+            if not(structure['x']<=x<structure['x']+structure['width'] and structure['y']<=y<structure['y']+structure['depth'] and (0<=z<=structure['level'] if 'level' in structure else z==structure.get('z',0))):raise ValueError('Select the structure’s surface.')
             if structure['id'] not in self.known_buildings and structure['id'] not in self.known_props:raise ValueError('Structure is not visible.')
         elif (x,y,z) not in self.visible and w['kind'] not in ('grenade','smoke'):raise ValueError('That point is outside current squad visibility.')
         vision=20 if u['weapon']=='M24 sniper' and u['stance']=='standing' else SIGHT[u['stance']]
@@ -48,6 +51,7 @@ class Targeting:
                     friendly=bool(target and target['team']!='alien'),weapon=u['weapon'])
 
     def preview(self,data):
+        """Return a non-mutating movement or attack preview for the client."""
         if self.status!='active':raise ValueError('Deploy the squad first.')
         self.refresh_visibility()
         u=next((u for u in self.alive('soldier') if u['id']==data.get('unit')),None)
@@ -70,6 +74,7 @@ class Targeting:
         raise ValueError('Unknown preview action.')
 
     def attack_point(self,u,data):
+        """Resolve an attack against a visible point in the world."""
         from game import WEAPONS
         solution=self.attack_solution(u,data)
         x,y,z=solution['x'],solution['y'],solution['z'];w=WEAPONS[u['weapon']]
@@ -82,6 +87,7 @@ class Targeting:
         for _ in range(solution['rounds']):
             self.spend_ammo(u)
             hit=self.rng.randint(1,100)<=solution['chance']
+            self.record_shot(u,hit and ((target and target['hp']>0) or (structure and not structure.get('destroyed'))))
             blood=bool(hit and target and self.detected(target))
             self.events.append(dict(type='shot',unit=u['id'],origin=self.position(u),point=[x,y,z],hit=blood,
                                     structure=bool(structure),burst=solution['rounds']>1,weapon=u['weapon']))

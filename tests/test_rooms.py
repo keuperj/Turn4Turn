@@ -1,3 +1,5 @@
+"""Test rooms behavior."""
+
 import unittest
 from collections import deque
 from game import Game
@@ -6,7 +8,9 @@ import test_fog
 
 
 class RoomTests(unittest.TestCase):
+    """Group automated checks for room behavior."""
     def test_smoke_allows_preview_and_movement_but_still_hides_enemies(self):
+        """Verify that smoke allows preview and movement but still hides enemies."""
         g=test_fog.FogTests().field();u=g.units[0];enemy=g.alive('alien')[0]
         enemy.update(x=14,y=23,z=0,stance='standing')
         g.refresh_visibility();self.assertTrue(g.detected(enemy))
@@ -22,25 +26,32 @@ class RoomTests(unittest.TestCase):
         with self.assertRaises(ValueError):g.preview(dict(action='attack',unit=u['id'],x=14,y=23,z=0))
 
     def test_rooms_connected_by_operable_internal_doors_all_themes(self):
+        """Verify that rooms connected by operable internal doors all themes."""
         for theme in THEMES:
             g=Game(41,theme)
             for b in g.buildings:
                 for z in range(b['level']):
                     cells={(x,y,z) for x in range(b['x'],b['x']+b['width']) for y in range(b['y'],b['y']+b['depth'])}
+                    cells-=g.blocked
                     def region(open_doors):
+                        """Return connected tiles reachable from the requested starting point."""
                         start=min(cells);seen={start};queue=deque([start])
                         while queue:
                             x,y,z=queue.popleft()
                             for q in [(x-1,y,z),(x+1,y,z),(x,y-1,z),(x,y+1,z)]:
                                 if q in cells and q not in seen and g.passable((x,y,z),q,open_doors):seen.add(q);queue.append(q)
                         return seen
-                    self.assertLess(len(region(False)),len(cells),(theme,b['id'],z))
+                    if b.get('port') or b.get('factory') or b.get('station') or b.get('airport_role') in ('terminal','hangar','tower'):
+                        self.assertEqual(region(False),cells)  # Public hall has no room partitions.
+                    else:
+                        self.assertLess(len(region(False)),len(cells),(theme,b['id'],z))
                     self.assertEqual(region(True),cells,(theme,b['id'],z))
             self.assertGreaterEqual(sum(bool(g.building_at(*g.position(u))) for u in g.alive('alien')),2,theme)
             if theme not in ('farm','woods'):
                 self.assertTrue(any(u['z']>0 and g.building_at(*g.position(u)) for u in g.alive('alien')),theme)
 
     def test_internal_door_blocks_sight_and_path_until_opened(self):
+        """Verify that internal door blocks sight and path until opened."""
         g=Game(41,'urban');p=next(p for p in g.portals if p['side']=='interior' and p['a'][2]==0)
         u=g.units[0];u.update(x=p['a'][0],y=p['a'][1],z=0)
         for other in g.units[1:]:
@@ -53,8 +64,14 @@ class RoomTests(unittest.TestCase):
         self.assertEqual(g.position(u),tuple(p['b']))
 
     def test_upper_windows_observed_from_ground_without_revealing_rooms(self):
-        g=Game(41,'urban');b=g.buildings[0]
-        for u in g.alive('soldier'):u.update(x=b['x']-3 if b['x']>=3 else b['x']+b['width']+3,y=b['y']+1,z=0,stance='standing')
+        """Verify that upper windows observed from ground without revealing rooms."""
+        g=Game(41,'urban')
+        # Dense blocks can occupy the old arbitrary three-tile offset. Observe
+        # from an actual clear street tile outside an upper exterior window.
+        window=next(p for p in g.portals if p['kind']=='window' and p['side']!='interior' and p['a'][2]==1
+                    and 0<=p['b'][0]<g.size and 0<=p['b'][1]<g.size
+                    and not g.heights[p['b'][1]][p['b'][0]] and (p['b'][0],p['b'][1],0) not in g.blocked)
+        for u in g.alive('soldier'):u.update(x=window['b'][0],y=window['b'][1],z=0,stance='standing')
         g.init_fog();state=g.state()
         upper=[w for w in state['walls'] if w['kind']=='window' and w['a'][2]>0]
         self.assertTrue(upper)
@@ -63,6 +80,7 @@ class RoomTests(unittest.TestCase):
         self.assertFalse(any(g.building_at(*tuple(v)) for v in state['fog']['visible']))
 
     def test_inside_and_outside_ladders_exist_and_connect(self):
+        """Verify that inside and outside ladders exist and connect."""
         g=Game(41,'urban');inside=[];outside=[]
         for a,b in g.ladders:
             (inside if a[:2]==b[:2] else outside).append((a,b))

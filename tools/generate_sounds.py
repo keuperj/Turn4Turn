@@ -13,6 +13,7 @@ from audio_assets import CATALOG, SOUND_DIR, discover, digest, ensure_placeholde
 
 
 def api_key():
+    """Return the configured ElevenLabs API key, if available."""
     key=os.environ.get('ELEVENLABS_API_KEY','').strip()
     if key:return key
     env=Path(__file__).resolve().parents[1]/'.env'
@@ -24,6 +25,7 @@ def api_key():
 
 
 def generate(directory=SOUND_DIR, key=None, placeholders_only=False, actions=None):
+    """Generate missing audio variants while retaining local fallbacks."""
     ensure_placeholders(directory)
     if placeholders_only:return dict(generated=0,reason='placeholders_only')
     key=api_key() if key is None else key

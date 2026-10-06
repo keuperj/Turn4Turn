@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright
 
 
 def fixture():
+    """Build a deterministic browser smoke-test mission."""
     g=Game(41,'urban');n=g.size
     g.tiles=[['grass']*n for _ in range(n)];g.heights=[[0]*n for _ in range(n)]
     g.surfaces={(x,y,0) for y in range(n) for x in range(n)}
@@ -27,7 +28,10 @@ def fixture():
 
 parser=argparse.ArgumentParser();parser.add_argument('--browser',default='/snap/bin/chromium');args=parser.parse_args()
 class QuietHandler(server.Handler):
-    def log_message(self,*args):pass
+    """Group automated checks for quiethandler behavior."""
+    def log_message(self,*args):
+        """Suppress HTTP access logging during tests."""
+        pass
 httpd=HTTPServer(('127.0.0.1',0),QuietHandler);threading.Thread(target=httpd.serve_forever,daemon=True).start()
 base=f'http://127.0.0.1:{httpd.server_port}'
 try:
@@ -37,13 +41,16 @@ try:
         errors=[];requests=[]
         page.on('pageerror',lambda e:(errors.append(str(e)),print('BROWSER ERROR:',e,flush=True)))
         page.on('request',lambda r:requests.append(r.url))
-        def ready():page.wait_for_function("!document.body.classList.contains('busy')")
+        def ready():
+            """Wait until the browser has completed its current state update."""
+            page.wait_for_function("!document.body.classList.contains('busy')")
         def click_point(x,y,z=0,height=.1,double=False):
+            """Project a world position to the canvas and click it."""
             page.locator('#map').scroll_into_view_if_needed()
             point=page.evaluate('''async p=>{const {battlefield:b}=await import('/app.js');const T=await import('/rendering.js');b.camera.updateMatrixWorld();const r=b.canvas.getBoundingClientRect(),v=new T.Vector3(p.x,p.z*3+p.height,p.y).project(b.camera);return {x:r.left+(v.x+1)*r.width/2,y:r.top+(1-v.y)*r.height/2};}''',dict(x=x,y=y,z=z,height=height))
             (page.mouse.dblclick(point['x'],point['y'],delay=60) if double else page.mouse.click(point['x'],point['y']));ready()
         server.game=Game(83,'urban',deployed=False)
-        page.goto(base+'/?mode=single');page.wait_for_selector('#welcome[open]');page.locator('#welcome-name').fill('Smoke Tester');page.locator('#cookie-consent').check();page.locator('#welcome-form button').click();page.wait_for_selector('#deploy');ready()
+        page.goto(base+'/?mode=single&renderer=webgl');page.wait_for_selector('#welcome[open]');page.locator('#welcome-name').fill('Smoke Tester');page.locator('#cookie-consent').check();page.locator('#welcome-form button').click();page.wait_for_selector('#deploy');ready()
         assert not any('/software.js' in r or 'three.module' in r or 'OrbitControls.js' in r for r in requests)
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.engine instanceof BABYLON.Engine && b.characters.instances.size>0}")
         page.locator('#mission-theme').select_option('airport');ready()
@@ -150,8 +157,8 @@ try:
         print('PASS WebGL: four unrestricted equipment slots, hover health, sidebar camera focus, visible enemy tracking, expanded zoom bounds, mission configuration, 12 item images, visual loadouts, generated stance icons, minimap, double-click / cancel, automatic fire, smoke, corpses, structure clicks, healing, free facing, peeking, memories, obstacle-clearing throws.',flush=True)
         browser.close()
         disabled=p.chromium.launch(headless=True,executable_path=args.browser,args=['--no-sandbox','--disable-webgl','--disable-gpu'])
-        blocked=disabled.new_page();blocked.goto(base);blocked.wait_for_function("document.getElementById('phase').textContent==='WEBGL REQUIRED'")
-        assert 'WebGL' in blocked.locator('#message').text_content()
+        blocked=disabled.new_page();blocked.goto(base);blocked.wait_for_function("document.getElementById('phase').textContent==='GRAPHICS REQUIRED'")
+        assert 'WebGPU nor WebGL' in blocked.locator('#message').text_content()
         disabled.close()
-        print('PASS WebGL unavailable: clear startup message; no software fallback.',flush=True)
+        print('PASS GPU rendering unavailable: clear startup message; no software fallback.',flush=True)
 finally:httpd.shutdown();httpd.server_close()

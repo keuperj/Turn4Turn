@@ -1,8 +1,12 @@
 __pycache__/
 *.py[cod]
 .venv/
+.certs/
 
 # Local API credentials
 .env
 .env.*
 !.env.example
+
+# Private server usage records
+.server-data/

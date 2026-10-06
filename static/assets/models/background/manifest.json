@@ -1,0 +1,415 @@
+{
+  "license": "CC0-1.0",
+  "packs": {
+    "nature": "https://quaternius.com/packs/ultimatenature.html",
+    "farm": "https://quaternius.com/packs/farmbuildings.html",
+    "simple": "https://quaternius.com/packs/simplebuildings.html"
+  },
+  "textures": [
+    {
+      "id": "Hotel",
+      "source": "https://drive.google.com/uc?export=download&id=1TgU4po1xWDnIOi0J_ifX7g_roC1FekK6",
+      "file": "Hotel.png",
+      "sourceSha256": "b438057bd3340cbf4cb6b069acb746ff964358f16dd90b974138881630212085"
+    },
+    {
+      "id": "HouseTexture1",
+      "source": "https://drive.google.com/uc?export=download&id=1XWpRz2rJvt6xvGAkzxr1zH9Nwnr6leL_",
+      "file": "HouseTexture1.png",
+      "sourceSha256": "3f8f9826d0b6e2ecb5ac59a50a6085253c97667640c77a4b72ee295549c58df3"
+    },
+    {
+      "id": "HouseTexture2",
+      "source": "https://drive.google.com/uc?export=download&id=16rByvZcIw_10qLovRZBgjzP6bDVwANzy",
+      "file": "HouseTexture2.png",
+      "sourceSha256": "e9f175cb5fa2527c176e9d734d939fbd077b91ad03db69d98b6a4e9fb3392cfd"
+    },
+    {
+      "id": "HouseTexture3",
+      "source": "https://drive.google.com/uc?export=download&id=1nI4lVfjYrqtXMk5hR4PXiQHnHWZKQnMD",
+      "file": "HouseTexture3.png",
+      "sourceSha256": "59c847713aee8eb15a9ff1bcb8bcb20d9a4ee2581c4e939b13ace8df2c00f5ef"
+    },
+    {
+      "id": "HouseTexture4",
+      "source": "https://drive.google.com/uc?export=download&id=1hXZ3oaH3fmZFCEJG8QDrE3MFPKt-uCXd",
+      "file": "HouseTexture4.png",
+      "sourceSha256": "f539512e6dd8b93943ac7b4d8d044ba8b47bb673a5eca416f0f93b522f99b4bb"
+    },
+    {
+      "id": "Shop",
+      "source": "https://drive.google.com/uc?export=download&id=1O2jw7GjgWS18EBPWQHHHndiBB7u8qSKf",
+      "file": "Shop.png",
+      "sourceSha256": "b438057bd3340cbf4cb6b069acb746ff964358f16dd90b974138881630212085"
+    }
+  ],
+  "models": [
+    {
+      "id": "BirchTree_1",
+      "source": "https://drive.google.com/uc?export=download&id=1fdbn3OzQHP3fDXz0THHln9gMhr07SDK5",
+      "file": "BirchTree_1.glb",
+      "pack": "nature",
+      "height": 6,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "dee74ff72040b2893aed2091aa3d680868870653d23f10d5cd5b476c6287a85f",
+      "dimensions": [
+        2.857227988914731,
+        5.999999999999999,
+        4.163182305777615
+      ],
+      "sha256": "5cc8195d9a339b98b70a4bb0a73f99fffbaac684ea9ba32eabcf7e00f2949198"
+    },
+    {
+      "id": "BirchTree_3",
+      "source": "https://drive.google.com/uc?export=download&id=1FmqkvK2dFjcG_Cx4umWDZ5bR7uS2fDuX",
+      "file": "BirchTree_3.glb",
+      "pack": "nature",
+      "height": 7,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "01d9ee791255780431a4146a603f5fde3553ef7452dd78f7a14798f07fcbcb0b",
+      "dimensions": [
+        2.6931082701283553,
+        7,
+        3.0275986856659656
+      ],
+      "sha256": "a9db720ae4beff027d96317a36733a8bc883bf03af135a41d3170be16a7adb3e"
+    },
+    {
+      "id": "Bush_1",
+      "source": "https://drive.google.com/uc?export=download&id=1ZsG4jqj_Ewd5cABGO9UQnXEsQHZe4FGh",
+      "file": "Bush_1.glb",
+      "pack": "nature",
+      "height": 1.4,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "ef4fd15c36fd95a19aa769a15b4acde2a22bbfea4ada7144ece5fd82c2e05a0f",
+      "dimensions": [
+        1.4977275877625853,
+        1.4,
+        1.9054085720772023
+      ],
+      "sha256": "7f3a93e02c1fb5d139f4ad91fb1da641f7f68a8bcc5f9552c733f635cd04caaa"
+    },
+    {
+      "id": "BushBerries_1",
+      "source": "https://drive.google.com/uc?export=download&id=1MRm8iusgwQ5jodg9MKXqd2lRQkMLuW4H",
+      "file": "BushBerries_1.glb",
+      "pack": "nature",
+      "height": 1.3,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "1e70f836ae535b5e8bc7096abfa5f7fe2517ea8baa6d06964eff5296e39d7edc",
+      "dimensions": [
+        1.4185776508892236,
+        1.3,
+        1.7512231076911369
+      ],
+      "sha256": "308445a4701b7487d2d2e898d16976e3f62dfc1b3f004a25365b098f25c118bb"
+    },
+    {
+      "id": "CommonTree_1",
+      "source": "https://drive.google.com/uc?export=download&id=1pE1bR8JmlaQYQBRUqI0dBT4dD9c88gTt",
+      "file": "CommonTree_1.glb",
+      "pack": "nature",
+      "height": 6,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "0b744c9092a09bfb7228d5ecce26c665363e0f22725d3d89e356dc13789498c3",
+      "dimensions": [
+        4.569401777470639,
+        6,
+        6.707680508198067
+      ],
+      "sha256": "aee27819a03d0ecc530a83dfb2ed73a0be07b22667f673228c8bc7db829098ff"
+    },
+    {
+      "id": "CommonTree_3",
+      "source": "https://drive.google.com/uc?export=download&id=1lT-x_DXFNytzcwYo1tWaAbsu98_4BEqm",
+      "file": "CommonTree_3.glb",
+      "pack": "nature",
+      "height": 7,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "c6c09a4d4797d2b0651cdf8e56ea7baecefd8eb4b4a79fc680ef17747c42b70e",
+      "dimensions": [
+        2.5822629080756654,
+        6.999999999999999,
+        3.1626718838250927
+      ],
+      "sha256": "e303bb995321906e93c67c49e540eea05007a3db47c0f957dfefdd2f5562d4ff"
+    },
+    {
+      "id": "Barn",
+      "source": "https://drive.google.com/uc?export=download&id=1V0eVUo_eAKIAtrWCf2ZxiJEX6d-Knhry",
+      "file": "Barn.glb",
+      "pack": "farm",
+      "height": 5,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "9c2d565bde1012a8bffb05c641a35dab748f59a7a612209093f12273ae36a365",
+      "dimensions": [
+        6.4298197534848684,
+        5,
+        6.842188168978622
+      ],
+      "sha256": "f57d0501ce0943f1a9132a3fd31b19da08637a702841aec1117d9ce886e2d936"
+    },
+    {
+      "id": "BigBarn",
+      "source": "https://drive.google.com/uc?export=download&id=1UEFF-6zGNiYfKeLj8srV_jJvisD9RgPr",
+      "file": "BigBarn.glb",
+      "pack": "farm",
+      "height": 6,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "f65f71246c7056f0e48276f259300aeee8f74ccac910f718837421980e50facd",
+      "dimensions": [
+        5.878368305032904,
+        6,
+        6.2553702455894715
+      ],
+      "sha256": "458f9700f59b6561813ec27babfde08adb95beca7d55d94fcbd771867a0c0d93"
+    },
+    {
+      "id": "OpenBarn",
+      "source": "https://drive.google.com/uc?export=download&id=1TREw6oObapTLBtgqgobt48q6z-tAqraP",
+      "file": "OpenBarn.glb",
+      "pack": "farm",
+      "height": 4.5,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "c7a6338c9853a8340538e149799f6076ba77288e2d88d443a6ce66eeb052b787",
+      "dimensions": [
+        5.4489592155483,
+        4.5,
+        5.864749351814598
+      ],
+      "sha256": "53c5d4ef0040a6a3faf8dbdd3ba0c20aeb6644e82d445c6687857edc50a46cf3"
+    },
+    {
+      "id": "Silo",
+      "source": "https://drive.google.com/uc?export=download&id=1vDCNee7hjCCTOzvdgs8l5IdcVQmSErQi",
+      "file": "Silo.glb",
+      "pack": "farm",
+      "height": 7,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "afcc8b63f1db8dfd8f8d1c417c4e5e63d2409d2ef10835920191516d160dac3c",
+      "dimensions": [
+        2.8309239935577866,
+        7,
+        2.709335004020523
+      ],
+      "sha256": "a4f779ca496f84be800b5c6dced2ad5eb0827bd16306aef21d56340e2e48f92a"
+    },
+    {
+      "id": "SmallBarn",
+      "source": "https://drive.google.com/uc?export=download&id=1HX4lFGgKGYubD79aIW99LyizVwzfwUCq",
+      "file": "SmallBarn.glb",
+      "pack": "farm",
+      "height": 3.5,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "bfa85180603ba1dfcea9f207da6911e8f57f0f559d230f8417fd4dc959564a6a",
+      "dimensions": [
+        4.2884563454406885,
+        3.5,
+        4.4261449008281915
+      ],
+      "sha256": "b57e88581f9a3e3a08e6a0bb18ff0292cb4ec461b79ebaff0d3c96be89ec15f4"
+    },
+    {
+      "id": "WaterTower",
+      "source": "https://drive.google.com/uc?export=download&id=1I_BbSwEvA0uZKoJFmCXqoQV8gwCz7755",
+      "file": "WaterTower.glb",
+      "pack": "farm",
+      "height": 8,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "2627e9da14ced3a9e62f4167bf3f819a3c34ad2d3b064747a1553497e5ec18fa",
+      "dimensions": [
+        2.403485345915502,
+        8,
+        2.3628962524278276
+      ],
+      "sha256": "90d6aac750273db2f0284d246929e5197269bfcefb25d6d1f69671ef9a150095"
+    },
+    {
+      "id": "Windmill",
+      "source": "https://drive.google.com/uc?export=download&id=1IrJBhR4fSyTUN3Xkw5lOgFgKGsotMUB8",
+      "file": "Windmill.glb",
+      "pack": "farm",
+      "height": 9,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "5dddd661f5ad3b198a4f3235611088e9fc0ad473d35182c4d4362c7f2253916e",
+      "dimensions": [
+        5.231170377432677,
+        9,
+        1.5255834189260495
+      ],
+      "sha256": "b679d8e00c8476bf6d5337922e89de35b137e15984c5e11ab7443287e28cab3f"
+    },
+    {
+      "id": "Flat",
+      "source": "https://drive.google.com/uc?export=download&id=1RtdUz86fr3i_OGbbUJvKY_gM0KA257rJ",
+      "file": "Flat.glb",
+      "pack": "simple",
+      "height": 10,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "bd94cbee2733bccc8dab5f4cb0b316bafa908e127e4552874b5a1623f1227f9c",
+      "dimensions": [
+        6.846664792170933,
+        10,
+        6.768849040622255
+      ],
+      "sha256": "8355f6a7ce32bc8fb47a83ca73dc880bf769dbbc02b4d7293f8155c7fa931bb0",
+      "texture": "HouseTexture4.png"
+    },
+    {
+      "id": "Flat2",
+      "source": "https://drive.google.com/uc?export=download&id=175aYLM3MK8PWJOmH_0WeioW7hEt5zoLk",
+      "file": "Flat2.glb",
+      "pack": "simple",
+      "height": 12,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "1d7698de50dc69716eae03610cc82276b57054dc83d3d877c4716fb966cd0259",
+      "dimensions": [
+        8.217181461298605,
+        12,
+        7.169372501820483
+      ],
+      "sha256": "de4e7056d26e8be9e3f3b5ff7b6cb385a47b8e33987602ec2c596b973821c627",
+      "texture": "Hotel.png"
+    },
+    {
+      "id": "House",
+      "source": "https://drive.google.com/uc?export=download&id=1Xez8r5dL_sx-FuWO6HgYHdaVWMcmzynW",
+      "file": "House.glb",
+      "pack": "simple",
+      "height": 5,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "b6125190760ddb78753594c329ab0f75b641dc90e56c01703ddabda08c038675",
+      "dimensions": [
+        4.31812959968763,
+        5,
+        6.0624472324294345
+      ],
+      "sha256": "75a4ffa0cacb357a708c8a81d0f95346520106f32753b966aa1ccd3e1306be25",
+      "texture": "HouseTexture1.png"
+    },
+    {
+      "id": "House2",
+      "source": "https://drive.google.com/uc?export=download&id=1Avl4L0VaSzeisqlMM1riYEkkXXQcwLLk",
+      "file": "House2.glb",
+      "pack": "simple",
+      "height": 5.5,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "46f9f9317a78e5d6a409fb70655f6c7ca0d66ea17916e1a3c1bb12b23c2a6ea7",
+      "dimensions": [
+        5.140164219391987,
+        5.5,
+        5.909836914940957
+      ],
+      "sha256": "f4b9e38f633a3d9b3fc625b8ee052686b64e5de82e94f6737ca23f760840b974",
+      "texture": "HouseTexture2.png"
+    },
+    {
+      "id": "House3",
+      "source": "https://drive.google.com/uc?export=download&id=1xXvhZFXbt7MtDGPsoZ_zpLPLm6ycZ2ci",
+      "file": "House3.glb",
+      "pack": "simple",
+      "height": 6,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "d91cff7e110d4c3f8a8215273781140b59eea65222457f499a50213f60e38a00",
+      "dimensions": [
+        3.7900127546887123,
+        6,
+        4.333803320913858
+      ],
+      "sha256": "f6a4ab97b094eae49e6e8344e72391946576839096dafb417af4c61f8202ccb1",
+      "texture": "HouseTexture3.png"
+    },
+    {
+      "id": "Shop",
+      "source": "https://drive.google.com/uc?export=download&id=1DV_y4bdcLPeAEy8FBjIGraNtexIkGcuL",
+      "file": "Shop.glb",
+      "pack": "simple",
+      "height": 4.5,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "sourceSha256": "47f36b4fe832973e2f473df8993c6676bf4f2db63d52b94b5d2d5b5ee028e1b8",
+      "dimensions": [
+        7.993255415642411,
+        4.5,
+        5.809792603449198
+      ],
+      "sha256": "3aa411b80509223f5feb80c90ee2e18358d2e4705a044a55dfb2dcd4e68d1791",
+      "texture": "Shop.png"
+    }
+  ]
+}

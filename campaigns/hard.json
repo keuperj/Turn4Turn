@@ -1,0 +1,109 @@
+{
+  "id": "operation-iron-tide",
+  "title": "Operation Iron Tide",
+  "description": "Break a coordinated occupation from the industrial coast to the city command sector. Ten hard-difficulty operations across eight theaters, all on 40 \u00d7 40 maps.",
+  "difficulty": "hard",
+  "background": "/assets/campaign-hard.png",
+  "missions": [
+    {
+      "title": "Nightfall Insertion",
+      "theme": "port",
+      "mission": "capture_flag",
+      "objective": "Seize the hostile flag at the occupied waterfront.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61001
+    },
+    {
+      "title": "Iron Corridor",
+      "theme": "factory",
+      "mission": "rescue",
+      "objective": "Rescue workers trapped among the industrial halls.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61002
+    },
+    {
+      "title": "Signal Black",
+      "theme": "train_station",
+      "mission": "defend_flag",
+      "objective": "Hold the railhead flag against the hostile counterattack.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61003
+    },
+    {
+      "title": "Dark Canopy",
+      "theme": "woods",
+      "mission": "eliminate",
+      "objective": "Eliminate the hostile force concealed in the woodlands.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61004
+    },
+    {
+      "title": "Runway Siege",
+      "theme": "airport",
+      "mission": "capture_flag",
+      "objective": "Capture the enemy command flag at the airfield.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "day",
+      "seed": 61005
+    },
+    {
+      "title": "Crossfire Junction",
+      "theme": "streets",
+      "mission": "defend_flag",
+      "objective": "Defend the crossroads flag and keep the supply route open.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61006
+    },
+    {
+      "title": "Silent Harvest",
+      "theme": "farm",
+      "mission": "rescue",
+      "objective": "Rescue the civilians under occupation at the farmstead.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61007
+    },
+    {
+      "title": "Command Collapse",
+      "theme": "urban",
+      "mission": "eliminate",
+      "objective": "Eliminate the hostile command force in the city blocks.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61008
+    },
+    {
+      "title": "Last Berth",
+      "theme": "port",
+      "mission": "rescue",
+      "objective": "Rescue the civilians stranded along the occupied piers.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "day",
+      "seed": 61009
+    },
+    {
+      "title": "Iron Tide",
+      "theme": "urban",
+      "mission": "capture_flag",
+      "objective": "Capture the final enemy operations flag to end the campaign.",
+      "size": 40,
+      "difficulty": "hard",
+      "lighting": "night",
+      "seed": 61010
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+{
+  "license": "CC0-1.0",
+  "packs": {
+    "port": "https://3dassets.dev/packs/marina-and-yacht-club"
+  },
+  "models": [
+    {
+      "id": "PortPontoon",
+      "kind": "port_pontoon",
+      "pack": "port",
+      "file": "PortPontoon.glb",
+      "dimensions": [
+        7.709967296272817,
+        0.34700089655737576,
+        2.4
+      ],
+      "sha256": "9075d6f28dbe5053d6c874ec3d6466ad9ad988d4188f5c80bdaa2f52c491d941",
+      "sourceSha256": "846f3b9638b29ef81c4aed3e89ae648134823a850bf3fce306b34084666999ef",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-pontoon-mo-a1492ae9",
+      "download": "https://cdn.3dassets.dev/assets/38285/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortCruiser",
+      "kind": "port_boat",
+      "pack": "port",
+      "file": "PortCruiser.glb",
+      "dimensions": [
+        2.5158383972545493,
+        3.7666919749693406,
+        9
+      ],
+      "sha256": "701d47fcbb46edd65c9f3e6dd06342171f551821e8f24172b116b4ddf74731ce",
+      "sourceSha256": "5ea7534231136d26215da862e3db47bc7f603f3c89a028389716553e1bc95a41",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-motor-crui-f2c8eeb9",
+      "download": "https://cdn.3dassets.dev/assets/38307/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortCruiserNavy",
+      "kind": "port_boat",
+      "pack": "port",
+      "file": "PortCruiserNavy.glb",
+      "dimensions": [
+        2.5165369961312014,
+        3.7666919749693406,
+        9
+      ],
+      "sha256": "9677386583898b366f8fad4870c7ec45333a7c925f128fad7ded343a9b3db671",
+      "sourceSha256": "becab4249cd3713688e89e8c2d540f003302354d6217e0c1083ac7e8d12f5a93",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-motor-crui-f58244ee",
+      "download": "https://cdn.3dassets.dev/assets/38308/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortTender",
+      "kind": "port_boat",
+      "pack": "port",
+      "file": "PortTender.glb",
+      "dimensions": [
+        1.7,
+        0.9839529145473243,
+        3.0787187384533192
+      ],
+      "sha256": "074500dbf827f0d335ebfd2f1441f39cbe743e061eae146bcb280832277be77c",
+      "sourceSha256": "7a8cd7ff0625f102cef98bd907f60cb317e2eaf8562354db28974fdfe4ddfae7",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-rib-tender-a082b40e",
+      "download": "https://cdn.3dassets.dev/assets/38309/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortDockBox",
+      "kind": "port_box",
+      "pack": "port",
+      "file": "PortDockBox.glb",
+      "dimensions": [
+        0.9,
+        0.4857550699768412,
+        0.4714503415373338
+      ],
+      "sha256": "5b7d481598c0037faf68241e0ea29b29b78f3ec858dce564c2206b95188b980e",
+      "sourceSha256": "c05ce3abed09adcb6f3d5e22c36bec01fd6fe10f05da913a380d581b569a89c0",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-dock-box-17ec0586",
+      "download": "https://cdn.3dassets.dev/assets/38293/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": false
+    },
+    {
+      "id": "PortPedestal",
+      "kind": "port_pedestal",
+      "pack": "port",
+      "file": "PortPedestal.glb",
+      "dimensions": [
+        0.4542533059789922,
+        1.7637616782291003,
+        0.6
+      ],
+      "sha256": "30a647719afa39c12a5e0dd704aa7521e9990d09d54900395c4e5aec1d4465d2",
+      "sourceSha256": "9697b014c7745bea0f44e5910bc08620c8dc2c28e1c17b39830872159728cb03",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-service-pe-0ba7ffd3",
+      "download": "https://cdn.3dassets.dev/assets/38294/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": false
+    },
+    {
+      "id": "PortLamp",
+      "kind": "port_lamp",
+      "pack": "port",
+      "file": "PortLamp.glb",
+      "dimensions": [
+        0.7,
+        3.849212715140414,
+        0.7
+      ],
+      "sha256": "4a3dcbfb76775c86837e33448a2a394e0dcc6fdbe27f706809f86a84baf6bbbc",
+      "sourceSha256": "5a6eef5c2bd292a6fcca69415140a65f14d66108e0d705a84a6b142f482b8882",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-jetty-lamp-16f3c9a6",
+      "download": "https://cdn.3dassets.dev/assets/38300/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortHoist",
+      "kind": "port_hoist",
+      "pack": "port",
+      "file": "PortHoist.glb",
+      "dimensions": [
+        5,
+        3.972039656330303,
+        4.278461027949048
+      ],
+      "sha256": "d6fc0be0f7b03b6c69be99d0d0b0d61235b2337041102d9d8b2e4fed084f9056",
+      "sourceSha256": "676e94a99e9a37d1b1f038d5063abe52549250421af860c90c045d6d8e185556",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-boat-hoist-d9445266",
+      "download": "https://cdn.3dassets.dev/assets/38312/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortCrane",
+      "kind": "port_crane",
+      "pack": "port",
+      "file": "PortCrane.glb",
+      "dimensions": [
+        1.354362258127553,
+        5.328724496269861,
+        3
+      ],
+      "sha256": "b4169395da156a7ec4f09528c7abbae794bbcc8f45075e8fbcb70084f34b481c",
+      "sourceSha256": "c3877fa35b6b5c5c6fc34bed650db8c4cfece35168e1f74d696d221fb260a198",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-mast-crane-e03c4b4e",
+      "download": "https://cdn.3dassets.dev/assets/38313/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortBuoy",
+      "kind": "port_buoy",
+      "pack": "port",
+      "file": "PortBuoy.glb",
+      "dimensions": [
+        1.2,
+        2.4879743949696183,
+        1.2
+      ],
+      "sha256": "58336aad1707888f25de4b01b8075df3159c2a1c7f48b608b372c3c923ddbaef",
+      "sourceSha256": "f61df370819c26472945a0d2a72aafcf8ee6c4546cc647a46e429e1e6c1b14e1",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-fairway-bu-b52749ba",
+      "download": "https://cdn.3dassets.dev/assets/38326/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    },
+    {
+      "id": "PortLifebuoy",
+      "kind": "port_lifebuoy",
+      "pack": "port",
+      "file": "PortLifebuoy.glb",
+      "dimensions": [
+        0.7,
+        1.4664390185987384,
+        0.35283608146538237
+      ],
+      "sha256": "2a728fcf739e1a56fc163615e6882426de9b39b7a5eada50aa11b102d6c8d889",
+      "sourceSha256": "db7c800fe9d998838f24759036120eabee049c48db4209e7b6ef14e766c4dae7",
+      "source": "https://3dassets.dev/assets/marina-and-yacht-club-marina-and-yacht-club-lifebuoy-s-9c96dbbe",
+      "download": "https://cdn.3dassets.dev/assets/38329/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true,
+      "scenery_only": true
+    }
+  ]
+}

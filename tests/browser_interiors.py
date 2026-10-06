@@ -11,7 +11,10 @@ import test_fog
 from playwright.sync_api import sync_playwright
 
 class QuietHandler(server.Handler):
-    def log_message(self,*args):pass
+    """Group automated checks for quiethandler behavior."""
+    def log_message(self,*args):
+        """Suppress HTTP access logging during tests."""
+        pass
 httpd=HTTPServer(('127.0.0.1',0),QuietHandler)
 threading.Thread(target=httpd.serve_forever,daemon=True).start()
 base=f'http://127.0.0.1:{httpd.server_port}'
@@ -26,12 +29,16 @@ try:
         errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
         page.goto(base+'/?mode=single');page.wait_for_selector('#welcome[open]');page.locator('#welcome-name').fill('Interior Tester');page.locator('#cookie-consent').check();page.locator('#welcome-form button').click();page.wait_for_selector('#move-mode');page.wait_for_function("!document.body.classList.contains('busy')")
         def aim(point,offset=(7,4,7),view='exterior',building='b0'):
+            """Project a world coordinate to a browser canvas point."""
             page.locator('#map').scroll_into_view_if_needed()
             page.evaluate('''async args=>{const {battlefield:b}=await import('/app.js');b.testWorld??={...b.state};const building=b.testWorld.buildings.find(v=>v.id===args.building);b.state={...b.testWorld,props:[],buildings:[building],walls:b.testWorld.walls.filter(w=>w.building===args.building),ladders:b.testWorld.ladders.filter(([a,d])=>d[0]>=building.x&&d[0]<building.x+building.width&&d[1]>=building.y&&d[1]<building.y+building.depth)};b.setView(args.view);b.sync(b.state,b.selected,null,'move',null);b.controls.target.set(...args.point);b.camera.position.set(...args.point.map((v,i)=>v+args.offset[i]));b.controls.update();b.camera.updateMatrixWorld();}''',dict(point=point,offset=offset,view=view,building=building))
         def hover_point(point):
+            """Move the pointer over a projected battlefield coordinate."""
             pixel=page.evaluate('''async point=>{const {battlefield:b}=await import('/app.js');const T=await import('/rendering.js');b.camera.updateMatrixWorld();const v=new T.Vector3(...point).project(b.camera),r=b.canvas.getBoundingClientRect();return [r.left+(v.x+1)*r.width/2,r.top+(1-v.y)*r.height/2];}''',point)
             page.mouse.move(*pixel)
-        def hover_key():return page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.hoverKey}")
+        def hover_key():
+            """Return the active hover label identifier."""
+            return page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');return b.hoverKey}")
         assert page.evaluate("async()=>{const {battlefield:b}=await import('/app.js');let n=0;b.terrain.traverse(o=>{if(o.userData.hoverFor&&o.visible)n++});return n}")==0
         exterior_offset={'north':(0,4,-8),'south':(0,4,8),'west':(-8,4,0),'east':(8,4,0)}
         door=next(p for p in g.portals if p['building']=='b0' and p['kind']=='door' and p['side']!='interior')

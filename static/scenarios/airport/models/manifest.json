@@ -1,0 +1,117 @@
+{
+  "author": "3DAssets.dev",
+  "license": "CC0-1.0",
+  "packs": {
+    "airport": "https://3dassets.dev/packs/aircraft-fleet-and-airfield"
+  },
+  "models": [
+    {
+      "id": "AirportLightPlane",
+      "kind": "aircraft",
+      "pack": "airport",
+      "file": "AirportLightPlane.glb",
+      "dimensions": [
+        9.4,
+        2.1653254764530154,
+        7.871336679985055
+      ],
+      "sha256": "62742bef1496b24e1a9b1f4663eed4736a31e83bba4cb60f9f0d54bf35d44914",
+      "sourceSha256": "028a8ff2c6958b1ae5ba026a69f266126a3591b70eb8676b4b7040d6a69d0c8f",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-high-wing-single-e581e577",
+      "download": "https://cdn.3dassets.dev/assets/32563/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportBusinessJet",
+      "kind": "aircraft",
+      "pack": "airport",
+      "file": "AirportBusinessJet.glb",
+      "dimensions": [
+        8.025040962548598,
+        2.7155540210229665,
+        9.4
+      ],
+      "sha256": "f66cbb9e825b93579fbe16b3326b70b36ce3384f58efbc12fb79d80cf09dc9cd",
+      "sourceSha256": "3013a4a4243f6a6f07f9ca412b12336a75bb249a1c962ae4845969c05e256587",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-light-business-jet-4cb0858d",
+      "download": "https://cdn.3dassets.dev/assets/32589/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportFuelBowser",
+      "kind": "airport_fuel",
+      "pack": "airport",
+      "file": "AirportFuelBowser.glb",
+      "dimensions": [
+        1.1687935378466836,
+        1.1026553686352736,
+        2.82
+      ],
+      "sha256": "daae0f01e0ed3c5c93e9976826fe045d2a57208502b63842b45391f86fd849b1",
+      "sourceSha256": "d9ea120f55b31e1d56f52fb0178f3f8d295e8ef7a7befabb4492b4a8e3890637",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-fuel-bowser-c6655fc8",
+      "download": "https://cdn.3dassets.dev/assets/32825/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportTug",
+      "kind": "airport_tug",
+      "pack": "airport",
+      "file": "AirportTug.glb",
+      "dimensions": [
+        0.9068816512707968,
+        1.1486073796171676,
+        2.82
+      ],
+      "sha256": "264bb25b5189ad3a845fcaeb12a07fcdd955cfc1bfa6bc319b3c724eec3eddcf",
+      "sourceSha256": "5cef344b921c6fc2cfa8e206ab7644c8e85c4c1bc7abe667ee93ad89c4cc95ac",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-aircraft-tug-2c52813e",
+      "download": "https://cdn.3dassets.dev/assets/32834/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportPowerCart",
+      "kind": "airport_cart",
+      "pack": "airport",
+      "file": "AirportPowerCart.glb",
+      "dimensions": [
+        1.1714600961748405,
+        1.0591118312882648,
+        1.88
+      ],
+      "sha256": "9051871154dddb42fb4cfcc1b0b02a31b6d35a102dd35f5afada32976bab7d67",
+      "sourceSha256": "dbe0442b0947067a01162630bf3d4a472f3a28515840d08222b16f00cb60a0cf",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-ground-power-cart-69186e50",
+      "download": "https://cdn.3dassets.dev/assets/32839/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    },
+    {
+      "id": "AirportWindsock",
+      "kind": "windsock",
+      "pack": "airport",
+      "file": "AirportWindsock.glb",
+      "dimensions": [
+        1.8799999999999997,
+        3.2500773791972826,
+        0.8638879859234438
+      ],
+      "sha256": "874ecd411e3bf5b6b01af2ec9e1063bb19d13704c8a7d838a6cb404b0b40a896",
+      "sourceSha256": "1266dda012e5db0e03f862e08d93d905e59937a9422c288683e16dc26d3c4be5",
+      "source": "https://3dassets.dev/assets/aircraft-fleet-and-airfield-windsock-mast-90d20d88",
+      "download": "https://cdn.3dassets.dev/assets/32827/v1/model.glb",
+      "author": "3DAssets.dev",
+      "license": "CC0-1.0",
+      "aiGenerated": true
+    }
+  ]
+}

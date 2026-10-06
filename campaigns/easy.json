@@ -1,0 +1,109 @@
+{
+  "id": "operation-first-light",
+  "title": "Operation First Light",
+  "description": "Establish safe routes through the countryside, city and coast. Ten easy-difficulty operations across eight theaters, all on 40 \u00d7 40 maps.",
+  "difficulty": "easy",
+  "background": "/assets/campaign-easy.png",
+  "missions": [
+    {
+      "title": "Open Fields",
+      "theme": "farm",
+      "mission": "eliminate",
+      "objective": "Clear the farmstead and reopen the rural supply route.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51001
+    },
+    {
+      "title": "Safe Passage",
+      "theme": "streets",
+      "mission": "rescue",
+      "objective": "Rescue the civilians stranded around the suburban junction.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51002
+    },
+    {
+      "title": "Woodland Relay",
+      "theme": "woods",
+      "mission": "capture_flag",
+      "objective": "Capture the hostile relay flag along the woodland approach.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51003
+    },
+    {
+      "title": "Dockside Guard",
+      "theme": "port",
+      "mission": "defend_flag",
+      "objective": "Hold the port flag while supply crews secure the quay.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51004
+    },
+    {
+      "title": "Foundry Sweep",
+      "theme": "factory",
+      "mission": "eliminate",
+      "objective": "Clear the industrial halls of hostile fighters.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51005
+    },
+    {
+      "title": "Station Lifeline",
+      "theme": "train_station",
+      "mission": "rescue",
+      "objective": "Rescue the railway workers and bring them to safety.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51006
+    },
+    {
+      "title": "City Beacon",
+      "theme": "urban",
+      "mission": "capture_flag",
+      "objective": "Seize the hostile command flag in the city blocks.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "night",
+      "seed": 51007
+    },
+    {
+      "title": "Clear Approach",
+      "theme": "airport",
+      "mission": "defend_flag",
+      "objective": "Defend the airfield flag until support arrives.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51008
+    },
+    {
+      "title": "After the Harvest",
+      "theme": "farm",
+      "mission": "rescue",
+      "objective": "Bring the remaining farm workers out of danger.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "night",
+      "seed": 51009
+    },
+    {
+      "title": "First Light",
+      "theme": "port",
+      "mission": "eliminate",
+      "objective": "Defeat the last hostile force occupying the harbor.",
+      "size": 40,
+      "difficulty": "easy",
+      "lighting": "day",
+      "seed": 51010
+    }
+  ]
+}

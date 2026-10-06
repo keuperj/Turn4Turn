@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Turn4Turn · WebGPU Capability Test</title>
+  <link rel="stylesheet" href="/gpu-test.css">
+</head>
+<body>
+  <header><a class="brand" href="/"><span class="logo">4</span><span>TURN4TURN<small>WEBGPU READINESS</small></span></a></header>
+  <main>
+    <div class="eyebrow">SYSTEM DIAGNOSTIC</div>
+    <h1>WebGPU capability test</h1>
+    <p class="intro">This test runs entirely in your browser. It checks whether WebGPU can access a GPU, execute a compute shader, and render to a canvas. No hardware information is sent to the server.</p>
+
+    <section id="summary" class="summary pending" aria-live="polite">
+      <span class="status-mark" aria-hidden="true"></span>
+      <div><strong id="summary-title">Testing this browser…</strong><p id="summary-text">Requesting a high-performance GPU adapter.</p></div>
+    </section>
+
+    <section class="panel">
+      <h2>Test stages</h2>
+      <ol class="stages">
+        <li id="stage-secure"><span></span><b>Secure context</b><small>HTTPS or localhost</small></li>
+        <li id="stage-api"><span></span><b>WebGPU API</b><small>Browser interface</small></li>
+        <li id="stage-adapter"><span></span><b>GPU adapter</b><small>Hardware access</small></li>
+        <li id="stage-device"><span></span><b>GPU device</b><small>Command submission</small></li>
+        <li id="stage-compute"><span></span><b>Compute shader</b><small>WGSL execution</small></li>
+        <li id="stage-canvas"><span></span><b>Canvas render</b><small>Frame presentation</small></li>
+      </ol>
+    </section>
+
+    <section id="details" class="panel" hidden>
+      <h2>Detected GPU</h2>
+      <dl id="identity" class="identity"></dl>
+      <h2>Capacity</h2>
+      <div id="limits" class="limits"></div>
+      <details><summary>Supported features (<span id="feature-count">0</span>)</summary><div id="features" class="features"></div></details>
+    </section>
+
+    <section id="help" class="panel help" hidden>
+      <h2>How to enable WebGPU</h2>
+      <p id="failure-reason"></p>
+      <ul id="hints"></ul>
+    </section>
+
+    <div class="actions"><button id="retry" type="button">Run test again</button><a href="/">Back to Turn4Turn</a></div>
+  </main>
+  <script type="module" src="/gpu-test.js"></script>
+</body>
+</html>

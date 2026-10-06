@@ -4,7 +4,9 @@ import math
 
 
 class Arsenal:
+    """Manage equipment, deployable utilities, and destructible structures."""
     def deploy(self, data):
+        """Validate all requested loadouts and equip the squad atomically."""
         from game import WEAPONS
         if self.status != 'loadout':raise ValueError('Equipment can only be assigned before deployment.')
         selections=data.get('loadouts')
@@ -26,11 +28,13 @@ class Arsenal:
         self.log.append('Squad equipped and deployed. Timed charges detonate after two hostile phases; smoke lasts three.')
 
     def init_structures(self):
+        """Initialize health and identifiers for destructible world objects."""
         for p in self.props+self.buildings:
-            hp=140 if 'level' in p else {'aircraft':100,'train':90,'car':35,'truck':50,'tractor':45}.get(p.get('kind'),30)
+            hp=140 if 'level' in p else {'aircraft':100,'train':90,'car':35,'truck':50,'bus':65,'ambulance':50,'tractor':45}.get(p.get('kind'),30)
             p.update(hp=hp,max_hp=hp,destroyed=False)
 
     def smoke_blocks(self,a,b):
+        """Return whether active smoke blocks the line between two points."""
         dx=b['x']-a['x'];dy=b['y']-a['y'];length=dx*dx+dy*dy
         if not length:return False
         for s in self.smoke+self.fires:
@@ -40,6 +44,7 @@ class Arsenal:
         return False
 
     def place_utility(self,u,x,y,z):
+        """Place a smoke grenade or demolition charge in the world."""
         kind='smoke' if u['weapon']=='Smoke grenade' else 'charge'
         self.spend_ammo(u);u['ap']=0
         effect=dict(x=x,y=y,z=z,radius=3 if kind=='smoke' else 4,turns=3 if kind=='smoke' else 2)
@@ -49,6 +54,7 @@ class Arsenal:
         self.geometry_revision+=1
 
     def tick_utilities(self):
+        """Advance timed utilities and resolve expirations or detonations."""
         for smoke in self.smoke:smoke['turns']-=1
         self.smoke=[s for s in self.smoke if s['turns']>0]
         for fire in self.fires:fire['turns']-=1
@@ -71,25 +77,28 @@ class Arsenal:
 
     @staticmethod
     def footprint(p):
-        return [(x,y,0) for x in range(p['x'],p['x']+p['width']) for y in range(p['y'],p['y']+p['depth'])]
+        """Return every floor coordinate occupied by a structure."""
+        return [(x,y,p.get('z',0)) for x in range(p['x'],p['x']+p['width']) for y in range(p['y'],p['y']+p['depth'])]
 
     def structure_targets(self,u):
+        """Return damageable structures intersecting a blast area."""
         from game import WEAPONS
         w=WEAPONS[u['weapon']]
         if w['kind'] in ('smoke','charge','grenade','rocket','medical') or not u['ap']:return []
         targets=[]
         for p in self.props+self.buildings:
             if p.get('destroyed'):continue
-            cells=[c for c in self.footprint(p) if any((c[0]+dx,c[1]+dy,0) in self.visible for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)])]
+            cells=[c for c in self.footprint(p) if any((c[0]+dx,c[1]+dy,c[2]) in self.visible for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)])]
             if not cells:continue
             x,y,z=min(cells,key=lambda c:math.hypot(c[0]-u['x'],c[1]-u['y']))
             if math.hypot(x-u['x'],y-u['y'])>w['range']:continue
             # Shoot the exposed surface from a visible adjacent approach, not through its solid interior.
-            if not any(self.line_of_sight(u,dict(x=x+dx,y=y+dy,z=0,stance='standing')) for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)] if (x+dx,y+dy,0) in self.visible):continue
+            if not any(self.line_of_sight(u,dict(x=x+dx,y=y+dy,z=z,stance='standing')) for dx,dy in [(0,0),(-1,0),(1,0),(0,-1),(0,1)] if (x+dx,y+dy,z) in self.visible):continue
             targets.append(dict(id=p['id'],name=p.get('name',p.get('kind','structure')),hp=p['hp'],max_hp=p['max_hp'],point=[x,y,z]))
         return targets
 
     def fire_structure(self,u,uid):
+        """Resolve a direct weapon attack against a structure."""
         from game import WEAPONS
         t=next((t for t in self.structure_targets(u) if t['id']==uid),None)
         w=WEAPONS[u['weapon']]
@@ -100,18 +109,21 @@ class Arsenal:
         for _ in range(rounds):
             self.spend_ammo(u)
             hit=self.rng.randint(1,100)<=(65 if rounds>1 else 95)
+            self.record_shot(u,hit and not p.get('destroyed'))
             self.events.append(dict(type='shot',unit=u['id'],origin=self.position(u),point=t['point'],hit=hit,structure=True,burst=rounds>1,weapon=u['weapon']))
             if hit:self.damage_structure(p,max(1,w['damage']//2))
         u['ap']=max(0,u['ap']-1) if w['kind']=='handgun' else 0
         self.geometry_revision+=1
 
     def damage_area(self,x,y,z,radius,power):
+        """Apply blast damage to units and structures around a point."""
         for p in self.props+self.buildings:
-            distance=min(math.hypot(a-x,b-y) for a,b,_ in self.footprint(p))
-            if not p.get('destroyed') and distance<=radius and (z==0 or 'level' in p):
+            distance=min(math.sqrt((a-x)**2+(b-y)**2+(0 if 'level' in p else ((c-z)*3)**2)) for a,b,c in self.footprint(p))
+            if not p.get('destroyed') and distance<=radius:
                 self.damage_structure(p,max(1,round(power*(1-distance/(radius+1)))))
 
     def ignite(self,x,y,z,radius=1):
+        """Create a temporary fire hazard at an impact position."""
         candidates=[(a,b,z) for a,b,c in self.surfaces if c==z and math.hypot(a-x,b-y)<=radius]
         self.rng.shuffle(candidates)
         occupied={(f['x'],f['y'],f['z']) for f in self.fires}
@@ -120,20 +132,27 @@ class Arsenal:
         self.geometry_revision+=1
 
     def damage_structure(self,p,damage):
+        """Apply damage and collapse a structure when health is exhausted."""
         if p.get('destroyed'):return
         p['hp']=max(0,p['hp']-damage)
         if p['hp']:return
         observed=any(c in self.visible for c in self.footprint(p))
         p['destroyed']=True
         cells=set(self.footprint(p))
-        x,y,_=self.rng.choice(sorted(cells));self.ignite(x,y,0,1)
-        for x,y,_ in cells:self.tiles[y][x]='rubble';self.heights[y][x]=0
+        x,y,z=self.rng.choice(sorted(cells));self.ignite(x,y,z,1)
+        for x,y,z in cells:
+            if z==0:self.tiles[y][x]='rubble'
+            if 'level' in p:self.heights[y][x]=0
         self.blocked.difference_update(cells)
         if 'level' in p:
             self.walls={k:w for k,w in self.walls.items() if w['building']!=p['id']}
             self.portals=[w for w in self.portals if w['building']!=p['id']]
             removed={c for c in self.surfaces if c[2]>0 and (c[0],c[1],0) in cells}
             self.surfaces.difference_update(removed)
+            self.blocked.difference_update(removed)
+            for prop in self.props:
+                if prop.get('z',0)>0 and any(c in removed for c in self.footprint(prop)):
+                    prop.update(hp=0,destroyed=True)
             self.ladders=[link for link in self.ladders if not any(tuple(c) in removed for c in link)]
             self.stairs=[link for link in self.stairs if not any(tuple(c) in removed for c in link)]
             for u in self.units:
