@@ -47,6 +47,21 @@ class SessionRegistryTests(unittest.TestCase):
         self.assertRegex(player.user_id,server.USER_ID)
         self.assertEqual(len(player.user_id),32)
 
+    def test_new_player_does_not_inherit_last_expired_players_game(self):
+        """The compatibility alias must not leak gameplay after all slots expire."""
+        original_game=server.game
+        try:
+            departed=server.registry.create('Departed Player',fresh=True)
+            departed.game.round=7
+            departed.last_seen=time.monotonic()-server.SESSION_TIMEOUT-1
+            server.registry.prune()
+            self.assertFalse(server.registry.sessions)
+            newcomer=server.registry.create('New Player')
+            self.assertIsNot(newcomer.game,departed.game)
+            self.assertEqual(newcomer.game.round,1)
+        finally:
+            server.game=original_game
+
 
 class QuietHandler(server.Handler):
     def log_message(self,*_args):pass

@@ -1,5 +1,5 @@
 """Multi-player HTTP/HTTPS server. Run with: python3 server.py"""
-import argparse, gzip, ipaddress, json, mimetypes, re, socket, ssl, subprocess, tempfile, threading, time, uuid
+import argparse, gzip, ipaddress, json, mimetypes, re, socket, ssl, subprocess, sys, tempfile, threading, time, uuid
 from dataclasses import dataclass, field
 from functools import lru_cache
 from http.cookies import SimpleCookie
@@ -53,13 +53,14 @@ class SessionRegistry:
     """Create, retrieve, and expire isolated player sessions safely."""
     def __init__(self,statistics=None):
         """Initialize sessions and optional persistent usage counters."""
-        self.sessions={};self.lock=threading.RLock()
+        self.sessions={};self.lock=threading.RLock();self._has_created_session=False
         self.statistics=statistics if statistics is not None else ServerStatistics()
     def prune(self,now=None):
         """Remove sessions that have exceeded the inactivity timeout."""
         now=time.monotonic() if now is None else now
-        for uid,s in list(self.sessions.items()):
-            if now-s.last_seen>SESSION_TIMEOUT:del self.sessions[uid]
+        with self.lock:
+            for uid,s in list(self.sessions.items()):
+                if now-s.last_seen>SESSION_TIMEOUT:del self.sessions[uid]
     def get(self,uid):
         """Return an active session and refresh its last-seen timestamp."""
         with self.lock:
@@ -75,11 +76,40 @@ class SessionRegistry:
                 s=self.sessions[requested_id];s.username=username;s.last_seen=time.monotonic();self.statistics.record(username);return s
             if len(self.sessions)>=MAX_PLAYERS:return None
             uid=requested_id if requested_id and USER_ID.fullmatch(requested_id) else uuid.uuid4().hex
-            session_game=Game(deployed=False) if self.sessions or fresh else game
+            # The development alias is reusable only for this registry's first
+            # player; an expired player's game must never go to a new visitor.
+            session_game=Game(deployed=False) if self.sessions or fresh or self._has_created_session else game
             if not self.sessions:game=session_game  # Keep the local-development alias in sync.
-            s=PlayerSession(uid,username,session_game);self.sessions[uid]=s;self.statistics.record(username);return s
+            s=PlayerSession(uid,username,session_game);self.sessions[uid]=s;self._has_created_session=True;self.statistics.record(username);return s
 
 registry=SessionRegistry(ServerStatistics(STATISTICS_FILE))
+
+class GameHTTPServer(ThreadingHTTPServer):
+    """Keep connection negotiation and request I/O out of the accept loop."""
+    def __init__(self,address,handler_class,*,tls_context=None):
+        self.tls_context=tls_context
+        super().__init__(address,handler_class)
+
+    def finish_request(self,request,client_address):
+        """Negotiate TLS in the connection's worker with a bounded wait."""
+        request.settimeout(self.RequestHandlerClass.timeout)
+        if self.tls_context is None:
+            super().finish_request(request,client_address)
+        else:
+            with self.tls_context.wrap_socket(request,server_side=True,do_handshake_on_connect=False) as connection:
+                connection.do_handshake()
+                super().finish_request(connection,client_address)
+
+    def handle_error(self,request,client_address):
+        """Normal disconnects terminate only their worker; retain application tracebacks."""
+        if isinstance(sys.exc_info()[1],(ConnectionError,TimeoutError,ssl.SSLEOFError,ssl.SSLZeroReturnError)):
+            return
+        super().handle_error(request,client_address)
+
+    def service_actions(self):
+        """Release expired player slots even when no clients send requests."""
+        super().service_actions()
+        registry.prune()
 
 class Handler(BaseHTTPRequestHandler):
     # Bound socket reads and writes, including incomplete headers or POST bodies.
@@ -258,13 +288,13 @@ def ensure_self_signed_certificate(host,directory=CERTIFICATE_DIR):
     return certificate,private_key,True
 
 def create_server(host,port,use_https=False,certificate_directory=CERTIFICATE_DIR,handler_class=Handler):
-    """Build the threaded server and optionally wrap its socket with TLS."""
+    """Build a threaded server with optional TLS negotiation in each worker."""
     certificate=private_key=None;created=False
     if use_https:certificate,private_key,created=ensure_self_signed_certificate(host,certificate_directory)
-    httpd=ThreadingHTTPServer((host,port),handler_class)
+    context=None
     if use_https:
         context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(certificate,private_key)
-        httpd.socket=context.wrap_socket(httpd.socket,server_side=True)
+    httpd=GameHTTPServer((host,port),handler_class,tls_context=context)
     return httpd,certificate,created
 
 def main(argv=None):

@@ -117,6 +117,19 @@ with the same user-ID cookie without consuming another slot.
 The in-memory game sessions do not survive a Python server restart. Browser
 cookies for identity, campaign progress, and preferred loadout remain available.
 
+Closing a tab or losing a connection closes only that connection. The player's
+game remains available for reconnection until 30 minutes have passed without a
+player API request. Expired sessions are removed automatically, even when no new
+requests arrive, releasing their player slots. Browser-close notifications are
+not needed to reclaim slots.
+
+TLS negotiation runs in each connection's worker rather than in the main accept
+loop. Handshakes and HTTP socket reads/writes have a 30-second timeout, so idle
+connections and incomplete requests release their workers while other players
+continue connecting. Normal resets and disconnects do not produce application
+tracebacks. Game-state responses are prepared under the player's lock and sent
+after releasing it, so stalled transfers do not hold that lock.
+
 ## Browser storage and privacy
 
 Turn4Turn asks for consent once, before creating its player cookies. Returning

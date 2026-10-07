@@ -16,7 +16,7 @@ class QuietHandler(server.Handler):
 
 class ConnectionTests(unittest.TestCase):
     def test_idle_and_incomplete_clients_expire_without_blocking_requests(self):
-        with server.ThreadingHTTPServer(('127.0.0.1', 0), QuietHandler) as httpd:
+        with server.GameHTTPServer(('127.0.0.1', 0), QuietHandler) as httpd:
             thread = threading.Thread(target=httpd.serve_forever, daemon=True)
             thread.start()
             address = httpd.server_address
@@ -37,6 +37,29 @@ class ConnectionTests(unittest.TestCase):
             finally:
                 httpd.shutdown()
                 thread.join(timeout=2)
+
+    def test_idle_sessions_are_pruned_without_incoming_requests(self):
+        registry=server.SessionRegistry()
+        idle=registry.create('Idle Player');active=registry.create('Active Player')
+        idle.last_seen-=server.SESSION_TIMEOUT+1
+        cleaned=threading.Event()
+        prune=registry.prune
+
+        def observe_prune():
+            prune()
+            if idle.user_id not in registry.sessions:cleaned.set()
+
+        with patch.object(server,'registry',registry), patch.object(registry,'prune',side_effect=observe_prune):
+            with server.GameHTTPServer(('127.0.0.1',0),QuietHandler) as httpd:
+                thread=threading.Thread(target=httpd.serve_forever,kwargs={'poll_interval':0.01},daemon=True)
+                thread.start()
+                try:
+                    self.assertTrue(cleaned.wait(timeout=2))
+                    with registry.lock:
+                        self.assertNotIn(idle.user_id,registry.sessions)
+                        self.assertIs(registry.sessions[active.user_id],active)
+                finally:
+                    httpd.shutdown();thread.join(timeout=2)
 
     def test_responses_do_not_hold_player_lock(self):
         session = server.PlayerSession('a' * 32, 'Alpha', Mock())
